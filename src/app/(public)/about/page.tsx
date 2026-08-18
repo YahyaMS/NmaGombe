@@ -1,31 +1,73 @@
 /**
- * /about — Chapter history, constitution, and background.
+ * /about — Chapter background, vision, mission, executives, affiliates.
  *
- * Content slots are marked CONTENT: — replace with real text before launch.
- * No content = section is absent. Never render empty panels.
- *
- * /about/executives lives in its own page once exec data exists (Phase 1).
+ * design.md §10 — register rows, no boxes.
+ * NMA Vision & Mission from official NMA Nigeria statements.
  */
 
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'About',
   description:
-    'About the Nigerian Medical Association, Gombe State Chapter — history, mandate and executive leadership.',
+    'About the Nigerian Medical Association, Gombe State Chapter — vision, mission, executive leadership and affiliate organisations.',
 }
+
+const AFFILIATES = [
+  {
+    name: 'Medical and Dental Consultants Association (MDCAN)',
+    president: 'Dr. Aliyu Lawal',
+    secretary: 'Dr. Umar A.M.',
+  },
+  {
+    name: 'Medical Women Association of Nigeria (MWAN)',
+    president: 'Dr. Hajara Aminu Galadima',
+    secretary: 'Dr. Lateef Khifayah',
+    note: 'Crown princess: Dr. Bilqis Uwani Muhammad',
+  },
+  {
+    name: 'Association of Resident Doctors — FTH Gombe (ARD FTH)',
+    president: 'Dr. Usman Sadiq Nasir',
+    secretary: 'Dr. Kelvin Obianno',
+  },
+  {
+    name: 'Association of Resident Doctors — SSH Gombe (ARD SSH)',
+    president: 'Dr. Umar Billiri',
+    secretary: 'Dr. Bedan Jinhama',
+  },
+]
 
 export default function AboutPage() {
   return (
     <article style={{ backgroundColor: 'var(--color-paper)' }}>
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <header
-        style={{ backgroundColor: 'var(--color-green-deep)', color: 'var(--color-surface)' }}
-      >
+
+      {/* ── Page header ── */}
+      <header style={{ backgroundColor: 'var(--color-green-deep)', position: 'relative', overflow: 'hidden' }}>
+        {/* Group photo — duotoned */}
         <div
-          className="mx-auto px-md py-xl"
-          style={{ maxWidth: 'var(--width-shell)' }}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            filter: 'grayscale(100%) contrast(1.1) brightness(0.5)',
+            mixBlendMode: 'luminosity',
+            zIndex: 0,
+          }}
+        >
+          <Image
+            src="/photos/Members of NMA Gombe.jpg"
+            alt=""
+            fill
+            style={{ objectFit: 'cover', objectPosition: 'center 40%' }}
+            priority
+            sizes="100vw"
+          />
+        </div>
+        <div
+          className="relative mx-auto px-md py-xl"
+          style={{ maxWidth: 'var(--width-shell)', zIndex: 1 }}
         >
           <p
             className="type-eyebrow section-rule mb-lg"
@@ -33,184 +75,180 @@ export default function AboutPage() {
           >
             About the chapter
           </p>
-          <h1 className="type-h1" style={{ color: 'var(--color-surface)', maxWidth: '20ch' }}>
-            {/* CONTENT: Chapter founding statement — one sentence */}
-            The NMA Gombe State Chapter
+          <h1 className="type-h1" style={{ color: 'var(--color-surface)', maxWidth: '22ch' }}>
+            NMA Gombe State Chapter
           </h1>
+          <p
+            className="type-body-lg"
+            style={{ color: 'rgba(255,255,255,0.75)', marginTop: 'var(--spacing-md)', maxWidth: '44ch' }}
+          >
+            The professional body for medical doctors practising in Gombe State,
+            supporting members across practice, welfare and continuing education.
+          </p>
         </div>
       </header>
 
-      {/* ── Chapter statement ────────────────────────────────────────────── */}
-      <section aria-label="About">
-        <div
-          className="mx-auto px-md py-xl"
-          style={{ maxWidth: 'var(--width-prose)' }}
-        >
-          <p
-            className="type-eyebrow section-rule mb-lg"
-            style={{ color: 'var(--color-ink-3)' }}
+      {/* ── Vision & Mission ── */}
+      <section aria-label="Vision and mission">
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+          <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+            Vision and mission
+          </p>
+
+          {/* Vision — register row */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '8ch 1fr',
+              gap: 'var(--spacing-md)',
+              padding: 'var(--spacing-md) 0',
+              borderBottom: '1px solid var(--color-rule)',
+            }}
           >
-            The chapter
-          </p>
-          {/* CONTENT: Chapter description — 2–3 paragraphs, active voice, no exclamation marks */}
-          <p className="type-body-lg" style={{ color: 'var(--color-ink)' }}>
-            The Nigerian Medical Association, Gombe State Chapter, represents medical doctors
-            practising in Gombe State. The chapter is the state arm of the Nigerian Medical
-            Association and works to advance the professional interests of its members and the
-            health of the communities they serve.
-          </p>
-          <p
-            className="type-body"
-            style={{ color: 'var(--color-ink)', marginTop: 'var(--spacing-lg)' }}
+            <span className="type-eyebrow" style={{ color: 'var(--color-ink-3)', paddingTop: '4px' }}>
+              Vision
+            </span>
+            <p className="type-body-lg" style={{ color: 'var(--color-ink)', maxWidth: '60ch' }}>
+              A formidable professional body committed to fostering effective and
+              efficient healthcare delivery, high ethical standards and the interests
+              of its members.
+            </p>
+          </div>
+
+          {/* Mission — register row */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '8ch 1fr',
+              gap: 'var(--spacing-md)',
+              padding: 'var(--spacing-md) 0',
+            }}
           >
-            {/* CONTENT: Additional chapter context — mandate, founding year, key milestones */}
-            Replace this paragraph with the chapter&apos;s own history and mandate.
-            Ask the Secretary for the chapter history text.
-          </p>
+            <span className="type-eyebrow" style={{ color: 'var(--color-ink-3)', paddingTop: '4px' }}>
+              Mission
+            </span>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)', maxWidth: '60ch' }}>
+              To build a sustainable professional association of medical and dental
+              practitioners in Nigeria that will advance the delivery of qualitative
+              healthcare services to the populace.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* ── Rule separator ───────────────────────────────────────────────── */}
       <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
 
-      {/* ── Mandate ──────────────────────────────────────────────────────── */}
-      <section aria-label="Mandate">
-        <div
-          className="mx-auto px-md py-xl"
-          style={{ maxWidth: 'var(--width-shell)' }}
-        >
-          <p
-            className="type-eyebrow section-rule mb-lg"
-            style={{ color: 'var(--color-ink-3)' }}
-          >
-            Mandate
-          </p>
+      {/* ── Executive council ── */}
+      <section aria-label="Executive council">
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+            <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>
+              Executive council · 2026–present
+            </p>
+            <Link href="/about/executives" className="type-small" style={{ color: 'var(--color-green)', whiteSpace: 'nowrap' }}>
+              Full list →
+            </Link>
+          </div>
 
-          {/* Three register rows — no boxes */}
+          {/* Preview — first four officers only */}
           {[
-            {
-              index: '—',
-              title: 'Professional advocacy',
-              detail:
-                'Representing the interests of doctors in Gombe State at state and national level.',
-            },
-            {
-              index: '—',
-              title: 'Continuing medical education',
-              detail:
-                'Coordinating CME programmes, scientific conferences and training for members.',
-            },
-            {
-              index: '—',
-              title: 'Welfare and support',
-              detail:
-                'Supporting the welfare of members and their families through the chapter welfare fund.',
-            },
-          ].map(({ index, title, detail }, i, arr) => (
+            { role: 'Chairman',        name: 'Dr. Ishaq Inuwa Gombe' },
+            { role: 'Deputy Chairman', name: 'Dr. Daniel Apollos' },
+            { role: 'Secretary',       name: 'Dr. Joel Iliya Alphayo' },
+            { role: 'Treasurer',       name: 'Dr. Anuwa Hassan Dankano' },
+          ].map(({ role, name }, i, arr) => (
             <div
-              key={title}
+              key={role}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '3ch 1fr',
+                gridTemplateColumns: '14ch 1fr',
                 gap: 'var(--spacing-md)',
                 padding: 'var(--spacing-md) 0',
-                borderBottom:
-                  i < arr.length - 1 ? '1px solid var(--color-rule)' : undefined,
+                borderBottom: i < arr.length - 1 ? '1px solid var(--color-rule)' : undefined,
+                minHeight: '48px',
               }}
             >
-              <span
-                className="type-eyebrow"
-                style={{ color: 'var(--color-ink-3)', paddingTop: '4px' }}
+              <span className="type-eyebrow" style={{ color: 'var(--color-ink-3)' }}>{role}</span>
+              <span className="type-h3" style={{ color: 'var(--color-ink)' }}>{name}</span>
+            </div>
+          ))}
+
+          <div style={{ marginTop: 'var(--spacing-lg)' }}>
+            <Link
+              href="/about/executives"
+              className="type-small"
+              style={{ color: 'var(--color-green)' }}
+            >
+              View all 12 officers and past leadership →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
+
+      {/* ── Affiliate organisations ── */}
+      <section aria-label="Affiliate organisations">
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+          <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+            Affiliate organisations
+          </p>
+
+          {AFFILIATES.map((org, i) => (
+            <div
+              key={org.name}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                padding: 'var(--spacing-md) 0',
+                borderBottom: i < AFFILIATES.length - 1 ? '1px solid var(--color-rule)' : undefined,
+              }}
+            >
+              <p className="type-h3" style={{ color: 'var(--color-ink)' }}>{org.name}</p>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 'var(--spacing-lg)',
+                  marginTop: 'var(--spacing-xs)',
+                }}
               >
-                {index}
-              </span>
-              <div>
-                <p className="type-h3" style={{ color: 'var(--color-ink)' }}>
-                  {title}
+                <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
+                  <span style={{ color: 'var(--color-ink-2)' }}>President:</span>{' '}
+                  {org.president}
                 </p>
-                <p
-                  className="type-small"
-                  style={{ color: 'var(--color-ink-3)', marginTop: 'var(--spacing-xs)' }}
-                >
-                  {detail}
+                <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
+                  <span style={{ color: 'var(--color-ink-2)' }}>Secretary:</span>{' '}
+                  {org.secretary}
                 </p>
+                {org.note && (
+                  <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
+                    {org.note}
+                  </p>
+                )}
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Rule separator ───────────────────────────────────────────────── */}
-      <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
-
-      {/* ── Executive council (placeholder — populated in Phase 1) ───────── */}
-      <section aria-label="Executive council">
-        <div
-          className="mx-auto px-md py-xl"
-          style={{ maxWidth: 'var(--width-shell)' }}
-        >
-          <div className="flex items-baseline justify-between gap-md mb-lg">
-            <p
-              className="type-eyebrow section-rule"
-              style={{ color: 'var(--color-ink-3)', flexShrink: 0 }}
-            >
-              Executive council
-            </p>
-            <Link
-              href="/about/executives"
-              className="type-small"
-              style={{ color: 'var(--color-green)' }}
-            >
-              Full list →
-            </Link>
-          </div>
-
-          {/* CONTENT: Replace with real exec data once available.
-              Phase 1 will fetch this from Firestore.
-              Executives are register rows. */}
-          <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
-            Executive list will appear here once member data is available.
-          </p>
-        </div>
-      </section>
-
-      {/* ── Constitution ─────────────────────────────────────────────────── */}
-      {/* Render only if the chapter makes the constitution available.
-          If there is no document, this section is absent. */}
-
-      {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section
-        aria-label="Join the chapter"
-        style={{ backgroundColor: 'var(--color-green-wash)' }}
-      >
-        <div
-          className="mx-auto px-md py-xl"
-          style={{ maxWidth: 'var(--width-shell)' }}
-        >
+      {/* ── CTA ── */}
+      <section aria-label="Join" style={{ backgroundColor: 'var(--color-green-wash)', borderTop: '1px solid var(--color-rule)' }}>
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr auto',
               alignItems: 'center',
               gap: 'var(--spacing-lg)',
-              borderBottom: '1px solid var(--color-rule)',
-              paddingBottom: 'var(--spacing-xl)',
             }}
           >
             <div>
-              <p
-                className="type-eyebrow section-rule mb-sm"
-                style={{ color: 'var(--color-ink-3)' }}
-              >
+              <p className="type-eyebrow section-rule mb-sm" style={{ color: 'var(--color-ink-3)' }}>
                 Membership
               </p>
-              <p className="type-h2" style={{ color: 'var(--color-ink)' }}>
-                Join the chapter
-              </p>
-              <p
-                className="type-body"
-                style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-sm)' }}
-              >
+              <p className="type-h2" style={{ color: 'var(--color-ink)' }}>Join the chapter</p>
+              <p className="type-body" style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-sm)' }}>
                 Verified members access the full directory, pay dues online, and carry
                 a digital folio card.
               </p>

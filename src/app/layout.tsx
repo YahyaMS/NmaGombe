@@ -29,6 +29,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://nmagonbe.org.ng'
+  ),
   title: {
     template: '%s | NMA Gombe',
     default: 'Nigerian Medical Association — Gombe State Chapter',
@@ -37,10 +40,20 @@ export const metadata: Metadata = {
     'The Nigerian Medical Association, Gombe State Chapter — verified member directory, chapter resources, and professional community for doctors in Gombe State.',
   manifest: '/manifest.json',
   robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: '/brand/favicon-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/icon-192.png',   sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/brand/apple-touch-icon.png',
+    other: [{ rel: 'mask-icon', url: '/brand/crest.svg', color: '#013A1F' }],
+  },
   openGraph: {
     siteName: 'NMA Gombe',
     locale: 'en_NG',
     type: 'website',
+    images: [{ url: '/brand/og-default.jpg', width: 1200, height: 630 }],
   },
 }
 
