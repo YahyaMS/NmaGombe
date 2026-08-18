@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// NMA Gombe — starter rules. Deny by default; widen narrowly.
+// Authorisation reads ONLY from custom claims, never from client-writable documents.
+// Cloud Functions using the Admin SDK BYPASS these rules and must check authorisation themselves.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn()  { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function verified()  { return signedIn() && request.auth.token.verified == true; }
+    function isExec()    { return signedIn() && request.auth.token.role in ['exec', 'admin']; }
+    function isAdmin()   { return signedIn() && request.auth.token.role == 'admin'; }
+
+    // Fields only a Cloud Function may ever write.
+    function noTrustFieldChanges() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['status', 'role', 'duesPaidThrough', 'verifiedAt']);
+    }
+    // Folio number is frozen once verified, to prevent identity swap after approval.
+    function folioUnchangedIfVerified() {
+      return resource.data.status != 'verified'
+        || request.resource.data.folioNumber == resource.data.folioNumber;
+    }
+
+    // Full member profile: self or admin only. Never readable by another member.
+    match /members/{uid} {
+      allow get, list: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid)
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.role == 'member'
+                    && !('duesPaidThrough' in request.resource.data);
+      allow update: if (isSelf(uid) && noTrustFieldChanges() && folioUnchangedIfVerified())
+                    || isAdmin();
+      allow delete: if false; // deletion is a Function, so payment records stay consistent
+    }
+
+    // The only member-queryable collection. Projected from members/* by a Function,
+    // through each member's own visibility flags. Hidden fields are ABSENT, not masked.
+    match /directoryEntries/{uid} {
+      allow get, list: if verified();
+      allow write: if false; // Function only
+    }
+
+    match /verificationRequests/{id} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow get, list, update: if isAdmin();
+      allow delete: if false; // keep the audit trail
+    }
+
+    // Document id is the payment gateway reference => idempotent webhooks.
+    match /payments/{ref} {
+      allow get, list: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow write: if false; // Function only, after signature verification
+    }
+
+    match /duesRates/{year} {
+      allow get, list: if signedIn();
+      allow write: if false; // Function/admin console only — the client never sets a price
+    }
+
+    match /cpdEntries/{uid}/entries/{id} {
+      allow read, write: if isSelf(uid);
+      allow read: if isAdmin();
+    }
+
+    match /events/{id} {
+      allow get, list: if true;
+      allow write: if isExec();
+    }
+
+    match /registrations/{id} {
+      allow get: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow list: if isAdmin();
+      allow create: if verified() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isExec();
+    }
+
+    match /news/{slug} {
+      allow get, list: if resource.data.status == 'published' || isExec();
+      allow write: if isExec();
+    }
+
+    match /jobs/{id} {
+      allow get, list: if verified();
+      allow create: if verified() && request.resource.data.postedBy == request.auth.uid
+                    && request.resource.data.expiresAt > request.time; // expiry is mandatory
+      allow update, delete: if isExec()
+                    || (signedIn() && resource.data.postedBy == request.auth.uid);
+    }
+
+    // Sensitive. Exec only. No clinical or family detail is stored here at all.
+    match /welfareCases/{id} {
+      allow read, write: if isExec();
+    }
+
+    match /broadcasts/{id} {
+      allow get, list: if isExec();
+      allow write: if false; // Function only, so the log cannot be edited after the fact
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

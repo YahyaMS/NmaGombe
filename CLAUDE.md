@@ -1,0 +1,91 @@
+# NMA Gombe — project instructions for Claude Code
+
+## What this is
+Website + member portal for the Nigerian Medical Association, Gombe State Chapter.
+Audience: ~ a few hundred to low thousands of doctors in Gombe State, plus the public.
+
+**The one thing this project exists to fix:** members have no reason to return to a chapter
+website. Every feature must answer "why would a busy Gombe doctor open this on a Tuesday?"
+If a feature only answers "because the association wants them to," it is not a feature.
+
+Read `docs/01-PRD.md` before proposing any feature. Read `docs/09-DECISIONS.md` before
+proposing any architecture change — several obvious ideas were already rejected there for
+reasons that are not obvious.
+
+## Non-negotiable constraints
+- **Mobile-first, Android, expensive data.** Initial JS payload budget: **≤ 200KB gzipped**
+  per route. Total first-load transfer ≤ 350KB. If a dependency blows the budget, it does
+  not go in. Run `npm run analyze` before merging anything that adds a dependency.
+- **Works offline for the things that matter**: membership card, member directory (last
+  synced), clinical guidelines. PWA with a service worker, not optional.
+- **We do NOT handle MDCN licence payment or renewal.** MDCN has its own portal. We store a
+  renewal *date* the member enters, remind them, and deep-link out. Never build a payment
+  flow, form, or fee table for MDCN. See `docs/09-DECISIONS.md` ADR-003.
+- **WhatsApp is the real channel.** The site never tries to replace it. No in-app chat, no
+  forum, no notification system that assumes email works. Outbound = WhatsApp deep links +
+  broadcast; email is secondary.
+- **NDPA 2023 applies.** Member personal data is regulated. Collect the minimum, never log
+  personal data to console or third-party analytics, and read `docs/08-NDPA-COMPLIANCE.md`
+  before adding any field to the member profile or any third-party script.
+
+## Stack
+Next.js (App Router) + TypeScript + Tailwind + shadcn/ui · Firebase (Auth, Firestore,
+Cloud Functions, Storage, App Check) · Paystack for dues · deployed on Vercel or Firebase
+Hosting. Rationale and rejected alternatives: `docs/02-ARCHITECTURE.md`.
+
+## Rules that will bite you if you ignore them
+
+**1. The client never writes trust fields.**
+`members.status`, `members.role`, `members.duesPaidThrough`, and anything in `payments/`
+are written **only** by Cloud Functions. Firestore rules must deny client writes to those
+paths. Assume any client-supplied value is hostile.
+
+**2. Firestore Security Rules do not apply to the Admin SDK.**
+Cloud Functions bypass rules entirely. Every Function that touches member data must
+re-check authorisation itself. Never assume "the rules will catch it."
+
+**3. Verify the Paystack webhook signature before trusting it.**
+HMAC over the raw request body using the Paystack secret key, compared against the
+`x-paystack-signature` header. Use the **raw** body — Next.js/Express body parsers will
+break this if you let them JSON-parse first. Reject unsigned requests silently (200, no
+body) rather than erroring. Confirm the exact algorithm against Paystack's current docs
+before shipping; do not guess it from memory.
+
+**4. Never trust the amount from the client.**
+Server computes the dues amount from the member's grade. The client sends an intent, not
+a price.
+
+**5. Two-tier identity.** `authenticated` ≠ `verified member`. A signup is just an account.
+Member-only data requires a `verified: true` custom claim set by an admin after folio-number
+review. Guard on the claim, not on "is logged in."
+
+**6. Denormalise for reads.** Firestore has no joins and reads cost money. Directory listing
+reads one document per member from a purpose-built `directoryEntries` collection with only
+the public-safe fields — never fan out to full member profiles.
+
+## Conventions
+- TypeScript strict. No `any`. Zod schema for every Firestore document and every Function input.
+- Server Components by default. `"use client"` only where interaction genuinely requires it.
+- No `useEffect` data fetching in Server-Component-capable places.
+- All Firestore access goes through `lib/data/*.ts` repository functions. No inline
+  `getDocs` in components — it makes the security surface impossible to audit.
+- Copy: sentence case, active voice, plain verbs. A button that says "Pay dues" produces a
+  confirmation that says "Dues paid." No exclamation marks. No "Oops!"
+- Design tokens only — never a raw hex value in a component. See `docs/04-DESIGN-SYSTEM.md`.
+- Currency: store kobo as integers. Never floats for money.
+- Dates: store ISO 8601 UTC strings or Firestore Timestamps; render in Africa/Lagos.
+
+## Definition of done (every PR)
+1. Typechecks, lints, tests pass.
+2. Lighthouse mobile performance ≥ 90 on the touched route, throttled to Slow 4G.
+3. Keyboard-navigable, visible focus, WCAG 2.2 AA contrast.
+4. Firestore rules updated **and** a rules unit test added if data access changed.
+5. No new personal-data field without a line added to `docs/08-NDPA-COMPLIANCE.md`.
+6. Works with JavaScript slow: no layout shift, no infinite spinner.
+
+## Working style I want from you
+- Plan before you code on anything touching auth, payments, or rules. Show the plan.
+- Tell me when a request of mine is a bad idea, and why specifically.
+- Do not invent Paystack, Firebase, or MDCN API details. If you are unsure of a field name
+  or endpoint, say so and check the docs rather than producing plausible code.
+- Small commits, conventional commit messages.

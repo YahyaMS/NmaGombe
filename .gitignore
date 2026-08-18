@@ -1,0 +1,26 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+.env*.local
+*.pem
+.DS_Store
+npm-debug.log*
+coverage/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.vercel
+next-env.d.ts
+*.tsbuildinfo
+
+# Regulated personal data — the membership roster and anything derived from it.
+# NDPA. Never commit these.
+data/roster*.csv
+data/roster*.xlsx
+data/members*
+*.roster.csv
+service-account*.json

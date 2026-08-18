@@ -1,0 +1,40 @@
+{
+  "name": "nma-gombe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "analyze": "ANALYZE=true next build",
+    "emulators": "firebase emulators:start",
+    "test:rules": "jest --testPathPattern=tests/rules --runInBand"
+  },
+  "dependencies": {
+    "firebase": "^12.0.0",
+    "firebase-admin": "^14.0.0",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "@next/bundle-analyzer": "^16.0.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/jest": "^29",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "jest": "^29",
+    "postcss": "^8",
+    "tailwindcss": "^4.3.3",
+    "ts-jest": "^29",
+    "typescript": "^5"
+  }
+}
