@@ -165,7 +165,9 @@ export function VerificationQueue() {
                   primary={subject?.displayName || 'Loading…'}
                   secondary={
                     subject
-                      ? `${subject.department} · Folio ${request.folioNumber} · ${subject.email}`
+                      ? [subject.department, subject.facility, `Folio ${request.folioNumber}`, subject.email]
+                          .filter(Boolean)
+                          .join(' · ')
                       : `Folio ${request.folioNumber}`
                   }
                   last={action === 'confirming-reject'}

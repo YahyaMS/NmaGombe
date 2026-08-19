@@ -197,3 +197,31 @@ write to `publicDirectory` only once `members.publicListingConsent === true`, de
 so even after this is built, the public directory stays empty until both the consent language is
 ratified and members actually opt in. **Not built yet**: no Function projection, no `/doctors`
 route. This ADR reserves the schema and the design; see `03-DATA-MODEL.md` for the field list.
+
+---
+## ADR-014 — Specialty captured at signup; directory projection moves to a write trigger
+**Context.** Both directories and the folio card need specialty (`department`), and
+`/admin/verification` is more useful if the reviewer sees it next to the folio number as a
+cross-check against the eligibility list, not just a bare number. Deferring specialty to
+`/portal/profile` means it only arrives from the fraction of members who return to fill in a
+form after already getting what they came for — self-selecting and small. Members are most
+motivated at the moment they're signing up and waiting on approval. Separately, once
+`/portal/profile` makes `department`, `grade`, `facility` and the rest editable after
+verification, `decideVerification` writing `directoryEntries`/`publicDirectory` only at the
+moment of approval (ADR-012, ADR-013) means a later profile edit would silently go stale in both
+— a real data-consistency bug, not a hypothetical one.
+**Decision.** `department` (already required at signup since the first slice) is joined by
+`facility` — optional, since not every member's practice location is settled or worth requiring
+at signup. `grade`, `subspecialty`, `town`, `phone`, `whatsapp` stay in `/portal/profile`; the
+card's title line ("Consultant Paediatrician") degrades gracefully to specialty alone until grade
+is set. Directory projection moves off `decideVerification` entirely and onto a new Firestore
+`onUpdate` trigger, `onMemberWrite` (`functions/src/directory-projection.ts`), which fires on
+every `members/{uid}` write — the approval write `decideVerification` makes, and every later
+profile edit — and upserts or deletes `directoryEntries`/`publicDirectory` based on the
+document's current `status`/`publicListingConsent`, not the state at approval time.
+**Consequence.** `decideVerification` now does one job — claim, status, audit trail — and the
+trigger is the single source of truth for keeping both directory collections in sync, including
+consent revocation (which deletes the `publicDirectory` doc, not just stops updating it) and
+suspension (which removes a member from `directoryEntries` too, not only the public one). Cost:
+one more Function, and directory updates are now eventually-consistent with a profile edit rather
+than synchronous with it — acceptable, since nothing currently depends on that being instant.

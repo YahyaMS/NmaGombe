@@ -163,6 +163,43 @@ describe('directoryEntries/{uid}', () => {
   })
 })
 
+// ── publicDirectory: no client access at all, either direction — ADR-013 ─────
+
+describe('publicDirectory/{uid}', () => {
+  const uid = 'doc-public-001'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `publicDirectory/${uid}`), {
+        displayName: 'Dr. Public Test',
+        department: 'Cardiology',
+      })
+    })
+  })
+
+  test('unauthenticated cannot read publicDirectory', async () => {
+    const db = anon().firestore()
+    await assertFails(getDoc(doc(db, `publicDirectory/${uid}`)))
+  })
+
+  test('a verified member cannot read publicDirectory either', async () => {
+    const db = verified('some-member').firestore()
+    await assertFails(getDoc(doc(db, `publicDirectory/${uid}`)))
+  })
+
+  test('admin cannot read publicDirectory via the client SDK', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(getDoc(doc(db, `publicDirectory/${uid}`)))
+  })
+
+  test('no client can write to publicDirectory', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(
+      setDoc(doc(db, `publicDirectory/new-entry`), { displayName: 'Dr. New' })
+    )
+  })
+})
+
 // ── Invariant 3: members/{uid} never readable by another member ──────────────
 
 describe('members/{uid} — cross-member read', () => {
@@ -306,6 +343,58 @@ describe('members/{uid} — folio frozen after verification', () => {
     await assertFails(
       updateDoc(doc(db, `members/${uid}`), {
         folioNumber: 'NMA/GM/FAKE',
+      })
+    )
+  })
+})
+
+// ── /portal/profile: verified member can edit their own non-trust fields ─────
+
+describe('members/{uid} — profile self-update', () => {
+  const uid = 'doc-007'
+  const otherUid = 'doc-007-other'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `members/${uid}`), {
+        displayName: 'Dr. Bello',
+        status: 'verified',
+        role: 'member',
+        folioNumber: 'NMA/GM/0007',
+        department: 'Paediatrics',
+      })
+    })
+  })
+
+  test('verified member can update grade, facility, visibility and consent', async () => {
+    const db = verified(uid).firestore()
+    await assertSucceeds(
+      updateDoc(doc(db, `members/${uid}`), {
+        grade: 'consultant',
+        facility: 'Federal Teaching Hospital Gombe',
+        subspecialty: 'Neonatology',
+        town: 'Gombe',
+        phone: '+2348001234567',
+        whatsapp: '+2348001234567',
+        visibility: { phone: true, whatsapp: false, email: false, facility: true },
+        publicListingConsent: true,
+      })
+    )
+  })
+
+  test('a member cannot update another member\'s profile fields', async () => {
+    const db = verified(otherUid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { grade: 'consultant' })
+    )
+  })
+
+  test('a member cannot smuggle a trust-field change in with a legitimate profile edit', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), {
+        facility: 'Federal Teaching Hospital Gombe',
+        role: 'admin',
       })
     )
   })

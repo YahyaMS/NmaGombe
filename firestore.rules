@@ -45,6 +45,14 @@ service cloud.firestore {
       allow write: if false; // Function only
     }
 
+    // No client access at all, in either direction — see docs/09-DECISIONS.md ADR-013.
+    // Read only via the Admin SDK from a Server Component. Stated explicitly rather
+    // than left to the default-deny catch-all, so a future rules change can't widen
+    // it without touching this line.
+    match /publicDirectory/{uid} {
+      allow read, write: if false;
+    }
+
     match /verificationRequests/{id} {
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
       allow get, list, update: if isAdmin();

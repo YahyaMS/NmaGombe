@@ -2,6 +2,9 @@
  * decideVerification — the only way a member's folio submission becomes
  * verified. Sets the verified:true custom claim (only the Admin SDK can do
  * this) and records status + the decision audit trail in the same call.
+ * directoryEntries/publicDirectory are NOT written here — the onMemberWrite
+ * trigger (directory-projection.ts) reacts to the status write this Function
+ * makes, and keeps projecting on every later profile edit too. See ADR-014.
  *
  * The caller's admin role is re-checked here even though Firestore rules
  * already gate the admin's own reads — the Admin SDK bypasses rules
@@ -22,17 +25,6 @@ const inputSchema = z.object({
   decision: z.enum(['approve', 'reject']),
   note: z.string().trim().max(500).optional(),
 })
-
-/** Lowercased name + department words, for directoryEntries prefix search. */
-function searchTokens(...values: string[]): string[] {
-  const tokens = new Set<string>()
-  for (const value of values) {
-    for (const word of value.toLowerCase().split(/[^a-z0-9]+/)) {
-      if (word) tokens.add(word)
-    }
-  }
-  return [...tokens]
-}
 
 export const decideVerification = onCall({ region: REGION }, async (request) => {
   if (!request.auth || request.auth.token.role !== 'admin') {
@@ -84,26 +76,6 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
     decidedAt: FieldValue.serverTimestamp(),
     note: note ?? null,
   })
-
-  // Populate the directory the moment someone is approved — see ADR-012.
-  // Projects only what's public-safe; hidden fields are physically absent,
-  // never filtered client-side (docs/03-DATA-MODEL.md).
-  if (decision === 'approve') {
-    const member = (await memberRef.get()).data() ?? {}
-    const displayName = typeof member.displayName === 'string' ? member.displayName : ''
-    const department = typeof member.department === 'string' ? member.department : ''
-    const visibility = (member.visibility ?? {}) as Record<string, boolean>
-
-    batch.set(db.doc(`directoryEntries/${uid}`), {
-      displayName,
-      department,
-      searchTokens: searchTokens(displayName, department),
-      verifiedAt: FieldValue.serverTimestamp(),
-      ...(visibility.phone && member.phone ? { phone: member.phone } : {}),
-      ...(visibility.whatsapp && member.whatsapp ? { whatsapp: member.whatsapp } : {}),
-    })
-  }
-
   await batch.commit()
 
   return { ok: true as const }

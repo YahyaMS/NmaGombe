@@ -22,17 +22,21 @@ client-writable document.
 
 ### `members/{uid}`
 ```
-displayName, department               // department = clinical specialty, free text at signup
+displayName, department               // department = clinical specialty, free text.
+                        // REQUIRED at signup — see ADR-014 on why specialty is captured then,
+                        // not deferred to a profile form few members will return to complete.
 folioNumber            // self-reported at signup. NOT cross-checked against any digitised
                         // roster — admin approves by matching name against the eligibility
                         // list and personal knowledge. See ADR-010.
 email                   // also the sign-in identity (email-link auth, ADR-010)
-grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // set later, in
-                        // /portal/profile — not collected at signup
-subspecialty, facility, town, phone, whatsapp   // set later, in /portal/profile
+facility                // optional at signup, editable in /portal/profile. Also shown to the
+                        // admin as a cross-check against the eligibility list — ADR-014.
+grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // set in
+                        // /portal/profile — not collected at signup (ADR-014)
+subspecialty, town, phone, whatsapp   // set later, in /portal/profile
 visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool }
-publicListingConsent: boolean  // default false. Member-writable, NOT a trust field — but
-                        // decideVerification only writes publicDirectory when this is true.
+publicListingConsent: boolean  // default false. Member-writable, NOT a trust field — but the
+                        // onMemberWrite trigger only writes publicDirectory when this is true.
                         // Gates listing on the public, indexable /doctors page specifically;
                         // separate from the visibility flags above, which gate contact fields
                         // inside the member-only directory. See ADR-013.
@@ -50,12 +54,13 @@ Read: self, and `role: admin`. Never readable in bulk by members — that is wha
 `directoryEntries` is for.
 
 ### `directoryEntries/{uid}`
-The only collection members can query. Written **only** by `decideVerification`
-(`functions/src/verification.ts`) at the moment a member is approved — see ADR-012. Projects
-`members/{uid}` through the member's own visibility flags; created with whatever fields exist at
-verification time, filled in further as the member completes `/portal/profile` (not yet built).
+The only collection members can query. Written **only** by the `onMemberWrite` Firestore trigger
+(`functions/src/directory-projection.ts`) — fires on every `members/{uid}` write, not just
+approval, so a profile edit after verification stays in sync instead of going stale. See ADR-014.
+Upserted while `status === "verified"`; deleted otherwise (suspension/rejection removes the
+member from the directory).
 ```
-displayName, department, title?, grade?, subspecialty?, facility?, town
+displayName, department, grade?, subspecialty?, facility?, town?
 phone?, whatsapp?      // present only if that visibility flag is true
 verifiedAt
 searchTokens: string[] // lowercased name + department tokens for prefix search
@@ -63,19 +68,21 @@ searchTokens: string[] // lowercased name + department tokens for prefix search
 Rationale: one document read per result, no joins, and a member's hidden fields are physically
 absent rather than filtered client-side. If it is not in the document, it cannot leak.
 
-### `publicDirectory/{uid}` — reserved, not yet populated (see ADR-013)
+### `publicDirectory/{uid}` — reserved, not yet populated (see ADR-013, ADR-014)
 The data source for the public, unauthenticated `/doctors` page (not yet built). **No client
 access at all** — `allow read, write: if false`. Read only via the Admin SDK from a Server
 Component; there is no Firestore query a browser can issue against this collection, which is the
 point: nothing to scrape, nothing to widen by accident.
 ```
-displayName, department, facility?, town?, folioNumber
+displayName, department, grade?, facility?, town?, folioNumber
 searchTokens: string[] // same shape as directoryEntries
 ```
-Never phone, whatsapp, or email — no code path writes them here. Populated by
-`decideVerification` only when `members/{uid}.publicListingConsent === true`; until the exec
-ratifies consent language for public listing (`00-INTAKE.md` item 25) and members opt in, this
-collection stays empty even after the projection code exists.
+Never phone, whatsapp, or email — no code path writes them here. Upserted by the same
+`onMemberWrite` trigger, only while `status === "verified" && publicListingConsent === true`;
+deleted the moment either flips false, so revoking consent removes the listing immediately. Until
+the exec ratifies consent language for public listing (`00-INTAKE.md` item 25), the `/doctors`
+route itself still isn't built — this collection can populate before that, but nothing reads it
+publicly yet.
 
 ### `verificationRequests/{id}`
 `uid, folioNumber, evidenceUrl?, submittedAt, decidedBy?, decidedAt?, decision?, note?`

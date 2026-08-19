@@ -55,3 +55,9 @@ purpose, its lawful basis, its retention period, and who can read it. No row, no
 | `displayName` | identify the member on their profile, folio card, and (once verified) the directory | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
 | `email` | sign-in identity (email-link auth) and dues-receipt delivery | contract (membership administration) | while a member | self, admin |
 | `department` | clinical specialty shown in the directory once verified, and used by an admin to sanity-check a folio submission | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
+| `facility` | practice location shown on the folio card, `/verify/[folio]`, and the directory once verified; also an admin cross-check | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` |
+| `grade` | title shown on the folio card and directory (e.g. "Consultant") | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` |
+| `subspecialty` | further specialty detail, directory search | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
+| `town` | coarse location for directory search | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
+| `whatsapp` | one-tap contact between colleagues | consent (opt-in) | while a member | self, admin, verified members if opted in |
+| `publicListingConsent` | governs whether the member's name appears on the public, unauthenticated `/doctors` page | consent | while a member | self, admin |

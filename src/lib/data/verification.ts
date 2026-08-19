@@ -26,6 +26,7 @@ export interface VerificationRequest extends VerificationRequestData {
 export interface VerificationSubject {
   displayName: string
   department: string
+  facility: string
   email: string
 }
 
@@ -56,7 +57,7 @@ export function subscribeToVerificationQueue(
   )
 }
 
-/** The submitter's name/department/email, for display next to their request. */
+/** The submitter's name/department/facility/email, for display next to their request. */
 export async function getVerificationSubject(uid: string): Promise<VerificationSubject | null> {
   const snap = await getDoc(doc(db, 'members', uid))
   if (!snap.exists()) return null
@@ -64,6 +65,7 @@ export async function getVerificationSubject(uid: string): Promise<VerificationS
   return {
     displayName: typeof data.displayName === 'string' ? data.displayName : '',
     department: typeof data.department === 'string' ? data.department : '',
+    facility: typeof data.facility === 'string' ? data.facility : '',
     email: typeof data.email === 'string' ? data.email : '',
   }
 }

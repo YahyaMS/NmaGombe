@@ -9,6 +9,8 @@
  *
  * Pending-verification state: --rule-strong ground, never looks official.
  * Dues-outstanding state: --harmattan bar at foot, year struck through.
+ * Dues-not-recorded state (no dues system yet): identical to active, dues line
+ * simply absent — never a warning for money the chapter hasn't started collecting.
  *
  * design.md §6.
  */
@@ -20,13 +22,15 @@ export type FolioCardStatus =
   | 'active'
   | 'pending'
   | 'dues-outstanding'
+  | 'dues-not-recorded'
   | 'offline'
 
 interface FolioCardProps {
   name: string
   grade: string        // e.g. "Consultant Paediatrician" or member grade
   folioNumber: string  // e.g. "NMA/GM/0417"
-  duesYear: string     // e.g. "2026"
+  /** Omit (or use status "dues-not-recorded") when there's no real dues record — the dues line is then omitted entirely, never shown as blank or zero. */
+  duesYear?: string     // e.g. "2026"
   status?: FolioCardStatus
   /** ISO date string of last offline sync, shown when status === 'offline' */
   lastSynced?: string
@@ -91,6 +95,7 @@ export function FolioCard({
   const isPending = status === 'pending'
   const isDuesOutstanding = status === 'dues-outstanding'
   const isOffline = status === 'offline'
+  const showDues = Boolean(duesYear) && status !== 'dues-not-recorded'
 
   const groundColor = isPending
     ? 'var(--color-rule-strong)'
@@ -206,22 +211,24 @@ export function FolioCard({
                   {folioNumber}
                 </p>
               </div>
-              {/* Dues */}
-              <div>
-                <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', marginBottom: '2px' }}>
-                  Dues
-                </p>
-                <p
-                  className="type-folio tabular"
-                  style={{
-                    color: isDuesOutstanding ? 'var(--color-harmattan)' : 'rgba(255,255,255,0.90)',
-                    fontSize: '13px',
-                    textDecoration: isDuesOutstanding ? 'line-through' : 'none',
-                  }}
-                >
-                  {duesYear}
-                </p>
-              </div>
+              {/* Dues — omitted entirely when there's no real record, never shown blank */}
+              {showDues && (
+                <div>
+                  <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', marginBottom: '2px' }}>
+                    Dues
+                  </p>
+                  <p
+                    className="type-folio tabular"
+                    style={{
+                      color: isDuesOutstanding ? 'var(--color-harmattan)' : 'rgba(255,255,255,0.90)',
+                      fontSize: '13px',
+                      textDecoration: isDuesOutstanding ? 'line-through' : 'none',
+                    }}
+                  >
+                    {duesYear}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* QR code — white background, 4-module quiet zone */}
@@ -327,7 +334,7 @@ export function FolioCard({
             className="type-eyebrow"
             style={{ color: 'rgba(255,255,255,0.40)', fontSize: '9px', textAlign: 'center' }}
           >
-            Scan to verify membership · nmagonbe.org.ng/verify/{folioNumber.replace(/\//g, '-')}
+            Scan to verify membership · nmagombe.org.ng/verify/{folioNumber.replace(/\//g, '-')}
           </p>
         </div>
       </div>

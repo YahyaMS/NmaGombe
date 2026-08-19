@@ -17,6 +17,17 @@ import { getStorage } from 'firebase-admin/storage'
 function getAdminApp(): App {
   if (getApps().length) return getApps()[0]!
 
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+
+  // Same flag the client SDK and grant-admin.ts use — no credentials needed
+  // against the emulators, and never point local dev at the real project.
+  if (process.env.NEXT_PUBLIC_USE_EMULATORS === 'true') {
+    process.env.FIRESTORE_EMULATOR_HOST ??= 'localhost:8080'
+    process.env.FIREBASE_AUTH_EMULATOR_HOST ??= 'localhost:9099'
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= 'localhost:9199'
+    return initializeApp({ projectId })
+  }
+
   const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64
   if (!serviceAccountB64) {
     throw new Error(
@@ -33,7 +44,7 @@ function getAdminApp(): App {
     credential: cert(serviceAccount),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     // Firestore region: europe-west1 — see docs/09-DECISIONS.md ADR-008
-    databaseURL: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseio.com`,
+    databaseURL: `https://${projectId}.firebaseio.com`,
   })
 }
 

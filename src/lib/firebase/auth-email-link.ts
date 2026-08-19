@@ -18,6 +18,9 @@ import {
 import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore'
 import { auth } from './client'
 import { db } from './client'
+import type { MemberSignupInput } from '@/lib/data/schemas'
+
+type SignupDraft = Omit<MemberSignupInput, 'email'>
 
 const STORED_EMAIL_KEY = 'nma-gombe:signin-email'
 const STORED_DRAFT_KEY = 'nma-gombe:signup-draft'
@@ -60,11 +63,11 @@ export async function requestSignInLink(email: string): Promise<void> {
   window.localStorage.setItem(STORED_EMAIL_KEY, email)
 }
 
-export function saveSignupDraft(draft: { displayName: string; department: string; folioNumber: string }): void {
+export function saveSignupDraft(draft: SignupDraft): void {
   window.localStorage.setItem(STORED_DRAFT_KEY, JSON.stringify(draft))
 }
 
-export function readSignupDraft(): { displayName: string; department: string; folioNumber: string } | null {
+export function readSignupDraft(): SignupDraft | null {
   const raw = window.localStorage.getItem(STORED_DRAFT_KEY)
   if (!raw) return null
   try {

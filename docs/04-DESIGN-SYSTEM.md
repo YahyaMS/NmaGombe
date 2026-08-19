@@ -30,7 +30,10 @@ to serve it.
 
 Rules of use:
 - `--harmattan` appears only where something is wrong or time-critical. If it becomes decorative,
-  it stops working. This is the one accent and it is semantic, not aesthetic.
+  it stops working. This is the one accent and it is semantic, not aesthetic. A missing dues
+  record is not a warning — the folio card's `dues not yet recorded` state (design.md §6) is
+  visually identical to `active`, never harmattan, because the dues system not existing yet is
+  not the member's fault.
 - Verified status is communicated with `--nma-green`, never with a separate "success" colour.
 - Every text/ground pair must clear WCAG 2.2 AA — 4.5:1 body, 3:1 large text. `--harmattan` on
   `--paper` does **not** pass for body text; use it for rules, icons and badges with dark text.

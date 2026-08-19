@@ -6,14 +6,24 @@
 import {
   doc,
   setDoc,
+  updateDoc,
   onSnapshot,
+  getDoc,
   serverTimestamp,
+  deleteField,
   collection,
   addDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
-import { memberSignupSchema, memberProfileSchema, type MemberSignupInput, type MemberProfile } from './schemas'
+import {
+  memberSignupSchema,
+  memberProfileSchema,
+  profileUpdateSchema,
+  type MemberSignupInput,
+  type MemberProfile,
+  type ProfileUpdateInput,
+} from './schemas'
 
 /**
  * Creates the member's own profile on signup. Rules enforce status:"pending",
@@ -24,6 +34,7 @@ export async function createMemberProfile(uid: string, input: MemberSignupInput)
   await setDoc(doc(db, 'members', uid), {
     displayName: parsed.displayName,
     department: parsed.department,
+    ...(parsed.facility ? { facility: parsed.facility } : {}),
     folioNumber: parsed.folioNumber,
     email: parsed.email,
     status: 'pending',
@@ -31,6 +42,38 @@ export async function createMemberProfile(uid: string, input: MemberSignupInput)
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+}
+
+/**
+ * /portal/profile writes here directly — none of these are trust fields, and the
+ * onMemberWrite trigger (functions/src/directory-projection.ts) picks up the change
+ * and keeps directoryEntries/publicDirectory in sync. See ADR-014.
+ */
+export async function updateOwnProfile(uid: string, input: ProfileUpdateInput): Promise<void> {
+  const parsed = profileUpdateSchema.parse(input)
+  // Optional fields use deleteField() when empty, not omission — omitting a key
+  // leaves Firestore's existing value untouched, so clearing a field in the form
+  // would otherwise silently fail to clear it.
+  await updateDoc(doc(db, 'members', uid), {
+    department: parsed.department,
+    grade: parsed.grade,
+    facility: parsed.facility || deleteField(),
+    subspecialty: parsed.subspecialty || deleteField(),
+    town: parsed.town || deleteField(),
+    phone: parsed.phone || deleteField(),
+    whatsapp: parsed.whatsapp || deleteField(),
+    visibility: parsed.visibility,
+    publicListingConsent: parsed.publicListingConsent,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** One-time read of the signed-in member's own profile, to prefill /portal/profile. */
+export async function getOwnMemberProfile(uid: string): Promise<MemberProfile | null> {
+  const snap = await getDoc(doc(db, 'members', uid))
+  if (!snap.exists()) return null
+  const parsed = memberProfileSchema.safeParse(snap.data())
+  return parsed.success ? parsed.data : null
 }
 
 /**

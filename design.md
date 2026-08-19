@@ -232,8 +232,12 @@ thumbnail size in a WhatsApp preview.
 - States, all of which must be designed before implementation: `loading` (skeleton at exact card
   dimensions, no shift), `active`, `pending verification` (card is `--rule-strong` ground, not
   green — an unverified card must never look official), `dues outstanding` (a `--harmattan`
-  bar across the foot, dues year struck through), `offline` (rendered from cache, with a mono
-  line reading the sync date), `failed`.
+  bar across the foot, dues year struck through), `dues not yet recorded` (the dues system
+  doesn't exist yet — this is not the member's fault and must not look like it is. Neutral:
+  `--green-deep` ground exactly as `active`, no `--harmattan`, no strike-through, the dues line
+  is simply absent. A brand-new verified member's card must never render a warning about money
+  the chapter hasn't even started collecting), `offline` (rendered from cache, with a mono line
+  reading the sync date), `failed`.
 
 ---
 
@@ -312,7 +316,10 @@ reads as freshness ("Last synced Tuesday, 09:14"), not as failure.
 **Verification page (`/verify/[folio]`).** The most austere page on the site, and the one the
 public judges the institution by. Centred, `--paper`, a single statement — verified or not —
 name, grade, facility, folio, status year. No navigation, no footer links, no marketing. Nothing
-else exists on this page.
+else exists on this page. Same trap as the folio card: until dues collection exists, "status
+year" has no real value to show. A verified member reads as "Verified member of NMA Gombe" with
+no year claimed, never as lapsed or outstanding — the same `dues not yet recorded` honesty
+applies here.
 
 **Dues.** Boring on purpose. Amount shown before any button. One primary action. Confirmation
 states the amount, the year covered and the reference in tabular figures. Receipt is downloadable
