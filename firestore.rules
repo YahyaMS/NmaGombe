@@ -30,7 +30,9 @@ service cloud.firestore {
       allow create: if isSelf(uid)
                     && request.resource.data.status == 'pending'
                     && request.resource.data.role == 'member'
-                    && !('duesPaidThrough' in request.resource.data);
+                    && request.resource.data.email == request.auth.token.email
+                    && !('duesPaidThrough' in request.resource.data)
+                    && !('verifiedAt' in request.resource.data);
       allow update: if (isSelf(uid) && noTrustFieldChanges() && folioUnchangedIfVerified())
                     || isAdmin();
       allow delete: if false; // deletion is a Function, so payment records stay consistent
@@ -47,6 +49,21 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
       allow get, list, update: if isAdmin();
       allow delete: if false; // keep the audit trail
+    }
+
+    // Rate-limits sendSignInLinkToEmail. Pre-auth (signing in is the point), write-only,
+    // never read — the cap is enforced by the rule itself, not by a client-trusted count.
+    // One document per email per day; a new day is a new document, so no reset logic needed.
+    match /emailLinkAttempts/{email}/days/{date} {
+      allow get, list: if false;
+      allow create: if request.resource.data.keys().hasOnly(['count', 'lastAttemptAt'])
+                    && request.resource.data.count == 1
+                    && request.resource.data.lastAttemptAt == request.time;
+      allow update: if request.resource.data.keys().hasOnly(['count', 'lastAttemptAt'])
+                    && request.resource.data.count == resource.data.count + 1
+                    && request.resource.data.count <= 5
+                    && request.resource.data.lastAttemptAt == request.time;
+      allow delete: if false;
     }
 
     // Document id is the payment gateway reference => idempotent webhooks.

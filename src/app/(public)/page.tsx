@@ -201,13 +201,12 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Demo card — Dr. Yahya's card as example
-                FILL IN: folio number and grade/specialty for Dr. Yahya */}
+            {/* Demo card — Dr. Yahya's card as example */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <FolioCard
                 name="Dr. Yahya Musa Sulaiman"
-                grade="Member, NMA Gombe"
-                folioNumber="NMA/GM/XXXX"
+                grade="Consultant Obstetrician & Gynaecologist"
+                folioNumber="NMA/GM/62376"
                 duesYear="2026"
                 status="active"
               />

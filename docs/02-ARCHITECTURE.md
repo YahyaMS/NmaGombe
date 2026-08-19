@@ -5,7 +5,7 @@
 |---|---|---|
 | Framework | **Next.js, App Router, TypeScript** | Public pages need server rendering for SEO and fast first paint on costly mobile data; the portal needs real interactivity. One codebase does both. |
 | Styling | **Tailwind + design tokens**, shadcn/ui for primitives | Tokens keep the palette enforceable; shadcn is copy-in, so no runtime component library weight. |
-| Auth | **Firebase Auth** (phone OTP primary, email fallback) | Nigerian doctors have phones, not necessarily working email. Phone OTP costs money — see cost notes. |
+| Auth | **Firebase Auth** (email-link primary; phone OTP a possible later upgrade) | Phone OTP needs the Blaze plan for SMS before anyone can sign up — see ADR-010. Email-link runs on Spark and needs no Dynamic Links dependency for a web app. |
 | Database | **Cloud Firestore** | Best-in-class offline persistence, which matters more here than query power. Shared with a future React Native app. |
 | Server logic | **Cloud Functions** | Payment webhooks, receipt generation, custom claims, scheduled reminders. |
 | Files | **Firebase Storage** | Certificates, photos, exec portraits. |

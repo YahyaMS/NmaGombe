@@ -22,13 +22,21 @@ client-writable document.
 
 ### `members/{uid}`
 ```
-displayName, title, grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")
-folioNumber            // submitted by member, confirmed by admin
-specialty, subspecialty, facility, town
-phone, whatsapp, email
+displayName, department               // department = clinical specialty, free text at signup
+folioNumber            // self-reported at signup. NOT cross-checked against any digitised
+                        // roster — admin approves by matching name against the eligibility
+                        // list and personal knowledge. See ADR-010.
+email                   // also the sign-in identity (email-link auth, ADR-010)
+grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // set later, in
+                        // /portal/profile — not collected at signup
+subspecialty, facility, town, phone, whatsapp   // set later, in /portal/profile
 visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool }
-status: "pending" | "verified" | "rejected" | "suspended"   // FUNCTION-ONLY
-role: "member" | "exec" | "admin"                            // FUNCTION-ONLY
+status: "pending" | "verified" | "rejected" | "suspended"   // FUNCTION-ONLY in the general
+                        // case, but this slice's rules allow a client `create` of exactly
+                        // status:"pending" (no Function exists yet to do it instead — see
+                        // docs/09-DECISIONS.md ADR-010). Every value after that is Function-only.
+role: "member" | "exec" | "admin"                            // FUNCTION-ONLY, same carve-out
+                        // as status above: client `create` may only set role:"member".
 duesPaidThrough: number  // year, e.g. 2026                  // FUNCTION-ONLY
 mdcnRenewalMonth: number // 1-12, member-entered, for reminders only. NO fees, NO payment.
 createdAt, updatedAt
@@ -51,7 +59,19 @@ absent rather than filtered client-side. If it is not in the document, it cannot
 ### `verificationRequests/{id}`
 `uid, folioNumber, evidenceUrl?, submittedAt, decidedBy?, decidedAt?, decision?, note?`
 Create: the requesting member. Read/update: admin only. Keep the audit trail — a rejected
-doctor will ask why.
+doctor will ask why. `evidenceUrl` stays unused until Firebase Storage is provisioned
+(currently on Spark, no bucket) — the admin verifies against the eligibility list and their
+own knowledge for now, not an uploaded document.
+
+`decidedBy`, `decidedAt`, `decision`, `note`, and `members/{uid}.status`/`verifiedAt` are written
+only by the `decideVerification` Cloud Function (`functions/src/verification.ts`) — it's also the
+only thing that can set the `verified:true` custom claim, since that's Admin-SDK-only. An admin
+calls it from `/admin/verification`; there is no client Firestore write path for a decision.
+
+### `emailLinkAttempts/{email}/days/{yyyy-mm-dd}`
+`count` (number), `lastAttemptAt`. Rate-limits `sendSignInLinkToEmail` — write-only from the
+client, capped by the rules themselves (max 5/day), never read. Prevents a signup form from
+being used to spam an inbox with sign-in emails. See ADR-010.
 
 ### `payments/{paystackReference}`
 `uid, amountKobo, year, channel, status, paystackReference, paidAt, receiptUrl`

@@ -24,11 +24,12 @@ export function SiteHeader() {
         className="mx-auto flex items-center justify-between gap-md px-md py-md"
         style={{ maxWidth: 'var(--width-shell)' }}
       >
-        {/* Wordmark / logo */}
+        {/* Wordmark / logo — no aria-label: the visible "NMA · Gombe" text below
+            already gives this link an accessible name, and an aria-label that
+            doesn't match the visible text fails WCAG 2.5.3 (Label in Name). */}
         <Link
           href="/"
           className="flex items-center gap-sm"
-          aria-label="NMA Gombe — home"
         >
           {crestReady && (
             <Image

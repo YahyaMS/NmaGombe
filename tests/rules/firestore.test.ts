@@ -25,9 +25,8 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  deleteDoc,
   collection,
-  getDocs,
+  serverTimestamp,
 } from 'firebase/firestore'
 
 const PROJECT_ID = 'nma-gombe-test'
@@ -114,6 +113,13 @@ describe('members/{uid} — trust fields', () => {
     const db = verified(uid).firestore()
     await assertFails(
       updateDoc(doc(db, `members/${uid}`), { duesPaidThrough: '2030' })
+    )
+  })
+
+  test('verified member cannot write verifiedAt', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { verifiedAt: new Date().toISOString() })
     )
   })
 })
@@ -302,6 +308,179 @@ describe('members/{uid} — folio frozen after verification', () => {
         folioNumber: 'NMA/GM/FAKE',
       })
     )
+  })
+})
+
+// ── Signup slice: members/{uid} — create ─────────────────────────────────────
+
+describe('members/{uid} — create on signup', () => {
+  const uid = 'new-user-001'
+  const email = 'doc@example.com'
+
+  function signupPayload(overrides: Record<string, unknown> = {}) {
+    return {
+      displayName: 'Dr. Test',
+      department: 'Paediatrics',
+      folioNumber: 'NMA/GM/9999',
+      email,
+      status: 'pending',
+      role: 'member',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...overrides,
+    }
+  }
+
+  test('member can create their own pending profile', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertSucceeds(setDoc(doc(db, `members/${uid}`), signupPayload()))
+  })
+
+  test('cannot create with a status other than pending', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/${uid}`), signupPayload({ status: 'verified' }))
+    )
+  })
+
+  test('cannot create with a role other than member', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/${uid}`), signupPayload({ role: 'admin' }))
+    )
+  })
+
+  test('cannot create with duesPaidThrough set', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/${uid}`), signupPayload({ duesPaidThrough: 2026 }))
+    )
+  })
+
+  test('cannot create with verifiedAt set', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/${uid}`), signupPayload({ verifiedAt: new Date().toISOString() }))
+    )
+  })
+
+  test('cannot create with an email different from the signed-in identity', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/${uid}`), signupPayload({ email: 'someone-else@example.com' }))
+    )
+  })
+
+  test('cannot create a profile for another uid', async () => {
+    const db = testEnv.authenticatedContext(uid, { email }).firestore()
+    await assertFails(
+      setDoc(doc(db, `members/other-uid`), signupPayload())
+    )
+  })
+
+  test('unauthenticated cannot create a member profile', async () => {
+    const db = anon().firestore()
+    await assertFails(setDoc(doc(db, `members/${uid}`), signupPayload()))
+  })
+})
+
+// ── Signup slice: verificationRequests/{id} — create ─────────────────────────
+
+describe('verificationRequests/{id} — create', () => {
+  const uid = 'req-user-001'
+
+  test('member can create their own verification request', async () => {
+    const db = testEnv.authenticatedContext(uid, { email: 'a@example.com' }).firestore()
+    await assertSucceeds(
+      setDoc(doc(collection(db, 'verificationRequests')), {
+        uid,
+        folioNumber: 'NMA/GM/1234',
+        submittedAt: new Date().toISOString(),
+      })
+    )
+  })
+
+  test('cannot create a verification request for another uid', async () => {
+    const db = testEnv.authenticatedContext(uid, { email: 'a@example.com' }).firestore()
+    await assertFails(
+      setDoc(doc(collection(db, 'verificationRequests')), {
+        uid: 'someone-else',
+        folioNumber: 'NMA/GM/1234',
+        submittedAt: new Date().toISOString(),
+      })
+    )
+  })
+
+  test('unauthenticated cannot create a verification request', async () => {
+    const db = anon().firestore()
+    await assertFails(
+      setDoc(doc(collection(db, 'verificationRequests')), {
+        uid: 'anyone',
+        folioNumber: 'NMA/GM/1234',
+        submittedAt: new Date().toISOString(),
+      })
+    )
+  })
+
+  test('member cannot read another member\'s verification request', async () => {
+    const reqId = 'req-001'
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `verificationRequests/${reqId}`), {
+        uid,
+        folioNumber: 'NMA/GM/1234',
+        submittedAt: new Date().toISOString(),
+      })
+    })
+    const db = testEnv.authenticatedContext('someone-else', { email: 'b@example.com' }).firestore()
+    await assertFails(getDoc(doc(db, `verificationRequests/${reqId}`)))
+  })
+})
+
+// ── Signup slice: emailLinkAttempts — pre-auth rate limit ─────────────────────
+
+describe('emailLinkAttempts/{email}/days/{date}', () => {
+  const path = 'emailLinkAttempts/doc-example.com/days/2026-08-19'
+
+  test('unauthenticated can create the first attempt of the day', async () => {
+    const db = anon().firestore()
+    await assertSucceeds(
+      setDoc(doc(db, path), { count: 1, lastAttemptAt: serverTimestamp() })
+    )
+  })
+
+  test('cannot create with a count other than 1', async () => {
+    const db = anon().firestore()
+    await assertFails(
+      setDoc(doc(db, path), { count: 2, lastAttemptAt: serverTimestamp() })
+    )
+  })
+
+  test('can increment while under the daily cap', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
+    })
+    const db = anon().firestore()
+    await assertSucceeds(
+      setDoc(doc(db, path), { count: 2, lastAttemptAt: serverTimestamp() })
+    )
+  })
+
+  test('cannot exceed the daily cap', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { count: 5, lastAttemptAt: serverTimestamp() })
+    })
+    const db = anon().firestore()
+    await assertFails(
+      setDoc(doc(db, path), { count: 6, lastAttemptAt: serverTimestamp() })
+    )
+  })
+
+  test('nobody can read attempt counters, not even an admin', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
+    })
+    const db = admin('admin-user').firestore()
+    await assertFails(getDoc(doc(db, path)))
   })
 })
 

@@ -52,3 +52,6 @@ purpose, its lawful basis, its retention period, and who can read it. No row, no
 | `folioNumber` | verify the person is a licensed doctor and an NMA member | legitimate interest / contract | while a member + audit period | self, admin |
 | `payments.*` | dues administration and financial records | contract / legal obligation | statutory financial retention period | self, admin |
 | `mdcnRenewalMonth` | send the member a reminder they asked for | consent | while a member | self only |
+| `displayName` | identify the member on their profile, folio card, and (once verified) the directory | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
+| `email` | sign-in identity (email-link auth) and dues-receipt delivery | contract (membership administration) | while a member | self, admin |
+| `department` | clinical specialty shown in the directory once verified, and used by an admin to sanity-check a folio submission | contract (membership administration) | while a member | self, admin; verified members if directory-listed |

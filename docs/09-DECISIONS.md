@@ -86,3 +86,68 @@ but not the US either — materially closer and GDPR-regulated infrastructure.
 privacy notice (`/privacy`) and recorded in the processor table in 08-NDPA-COMPLIANCE.md. If
 Google opens an African region while the project is live, migration is a separate ADR decision —
 Firestore region cannot be changed after project creation without a full export/import.
+
+---
+## ADR-009 — One Firebase project (`nma-gombe-c5a9d`), not dev/prod split
+**Context.** `docs/00-INTAKE.md` item 75 recommends two projects, `nma-gombe-dev` and
+`nma-gombe-prod`, so local and emulator work can never touch real member data. As a
+volunteer-run project standing up its first Firebase project, the overhead of provisioning,
+billing, and keeping two projects' rules/indexes in sync outweighs the risk today.
+**Decision.** A single project, `nma-gombe-c5a9d`, used for both local development and
+production. `.firebaserc` has one `default` alias. Local development still uses the Firebase
+emulators (`NEXT_PUBLIC_USE_EMULATORS=true`) — the single project is never targeted directly
+from a dev machine.
+**Consequence.** Simpler setup now, but every emulator-bypassing script (seeding, admin CLI
+runs, manual Firestore console edits) is touching the *only* copy of real member data — there
+is no throwaway environment. Revisit before Phase 1 auth/dues go live with real members: at
+minimum, add a second project before the roster is seeded for real, so seed-directory dry-runs
+and rules changes have somewhere safe to land first.
+
+---
+## ADR-010 — Email-link sign-in, superseding ADR-007's phone-OTP-primary
+**Context.** ADR-007 chose phone OTP as primary sign-in. In practice this needs the Blaze
+billing plan for SMS before a single member can sign up, adding a billing decision to the
+critical path of the very first slice. The chapter would rather defer that decision.
+Separately, the roster document actually in hand (`docs/GOMBE NMA 2025 2026 VOTERS ELIGIBILITY
+LIST UPDATED LATEST.xlsx`) turned out to be a dues-arrears/voting-eligibility ledger — names and
+monthly payment status only, no folio numbers, specialty, or phone — so automated folio-number
+matching against a roster was never buildable for this slice regardless of auth method.
+**Decision.** Email-link (passwordless) sign-in via Firebase Auth's
+`sendSignInLinkToEmail`/`signInWithEmailLink`, confirmed against current Firebase docs to need
+no Dynamic Links dependency for a web app and to run on the free Spark plan. Folio-number
+verification is manual: the member self-reports a folio number at signup, and an admin approves
+by matching the submitted name against the eligibility list plus their own knowledge of the
+membership — there is no automated cross-check. `emailLinkAttempts` rate-limits the send, same
+spirit as ADR-007's OTP caps.
+**Consequence.** Phone OTP is not gone — `docs/05-ROUTES.md`'s `/signin` still describes it as
+a fallback, and ADR-007's SMS-cost-control reasoning still applies whenever it's built. But it
+is no longer the thing gating the first signup, and this project stays on Spark through
+identity, verification, and directory (build-order steps 1–5). Cost: email deliverability in
+Nigeria is less reliable than SMS for some providers, and a lost/misspelled email address has no
+retry path as cheap as re-sending an SMS. Revisit if signup completion rates suffer for it.
+
+---
+## ADR-011 — Known issue: Firebase Auth+Firestore alone exceeds the 200KB route budget
+**Context.** Building `/signup` and `/pending` (the first client routes to actually use Firebase
+Auth and Firestore) surfaced that the SDK itself — just `firebase/auth` + `firebase/firestore`,
+correctly imported via their scoped submodules, nothing extraneous — is ~211KB gzipped. That
+alone exceeds the ≤200KB-per-route budget in `CLAUDE.md` before any app code is counted. This
+isn't a bug in either route's imports; it's the real, measured cost of the SDK (confirmed by
+inspecting the shipped chunk directly — it's the genuine browser WebChannel Firestore build, not
+a resolution bug pulling in the Node/gRPC variant). Since every authenticated Phase 1 route
+(directory, folio card, dues, admin) will touch Firestore on the client the same way, this is a
+structural conflict between ADR-002 (Firebase) and the budget in `CLAUDE.md`/`01-PRD.md`, not
+something specific to this slice.
+**Decision.** Ship Phase 1 build-order steps 1–5 with the overage. No real users yet, so the cost
+of shipping over budget now is low. **This must be resolved with a dedicated bundle pass before
+launch** — candidates to evaluate then: `firebase/firestore/lite` for routes that don't need
+realtime `onSnapshot` (trades away live-updating UI for a much smaller REST-based client),
+deferring Firestore's load until after first paint on routes where that's honest (not `/pending`,
+which needs it immediately), or revisiting whether the 200KB budget should apply uniformly to
+public marketing routes and the auth-gated portal alike.
+**Consequence.** `/pending`'s bundle shows the true ~211KB cost in Next's own "First Load JS"
+metric. `/signup`'s doesn't — its Firebase usage sits behind a `next/dynamic(..., { ssr: false })`
+boundary added to fix a hydration-mismatch issue, which incidentally moves the cost out of that
+metric. This is not a real saving: a member still downloads the same bytes within moments of
+opening the page. Don't read `/signup`'s clean bundle number as evidence the budget problem is
+solved — check `/pending`'s instead, or measure real transferred bytes, not the official metric.

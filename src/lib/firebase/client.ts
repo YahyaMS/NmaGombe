@@ -10,6 +10,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 import { getStorage, connectStorageEmulator } from 'firebase/storage'
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions'
 
 const firebaseConfig = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -28,6 +29,8 @@ export const app = getFirebaseApp()
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
+// Region matches Firestore's europe-west1 — see docs/09-DECISIONS.md ADR-008.
+export const functions = getFunctions(app, 'europe-west1')
 
 // Point at local emulators in development.
 // NEXT_PUBLIC_USE_EMULATORS=true is set in .env.local (never in production).
@@ -40,4 +43,5 @@ if (
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
   connectFirestoreEmulator(db, 'localhost', 8080)
   connectStorageEmulator(storage, 'localhost', 9199)
+  connectFunctionsEmulator(functions, 'localhost', 5001)
 }

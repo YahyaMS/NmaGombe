@@ -42,10 +42,6 @@ const rowStyle = {
   transition: `background-color var(--motion-fast)`,
 } as const
 
-const rowHoverStyle = {
-  backgroundColor: 'var(--color-green-wash)',
-}
-
 function RowContent({
   index,
   primary,
