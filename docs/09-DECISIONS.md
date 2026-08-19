@@ -127,23 +127,6 @@ Nigeria is less reliable than SMS for some providers, and a lost/misspelled emai
 retry path as cheap as re-sending an SMS. Revisit if signup completion rates suffer for it.
 
 ---
-## ADR-012 — directoryEntries populate on verification, not from a pre-seeded roster
-**Context.** `06-ROADMAP.md`'s original step 3 assumed pre-seeding `directoryEntries` from the
-roster as unclaimed placeholders, with members claiming their entry during signup. The roster
-actually in hand (`data/roster-2025-2026.xlsx`) is a dues-eligibility ledger — names and payment
-status only, no specialty, facility, or folio number — so there's nothing to pre-populate a
-useful entry with. The signup/verification flow already built (ADR-010, `decideVerification`)
-also has no "claim" step: it's fresh signup → admin approves by name-match, not roster-match.
-**Decision.** `decideVerification` writes `directoryEntries/{uid}` itself at the moment of
-approval, projected from the member's own submitted fields through their visibility flags — no
-separate seed script, no unclaimed-placeholder state.
-**Consequence.** The directory is empty until real members actually verify, not populated on day
-one the way the roadmap originally described — a slower start, but every entry is real data from
-a real approved member rather than a bare name waiting to be claimed. If a richer roster (with
-specialty/facility/folio) turns up later, a seed script remains a reasonable fast-follow; nothing
-here forecloses it.
-
----
 ## ADR-011 — Known issue: Firebase Auth+Firestore alone exceeds the 200KB route budget
 **Context.** Building `/signup` and `/pending` (the first client routes to actually use Firebase
 Auth and Firestore) surfaced that the SDK itself — just `firebase/auth` + `firebase/firestore`,
@@ -168,3 +151,49 @@ boundary added to fix a hydration-mismatch issue, which incidentally moves the c
 metric. This is not a real saving: a member still downloads the same bytes within moments of
 opening the page. Don't read `/signup`'s clean bundle number as evidence the budget problem is
 solved — check `/pending`'s instead, or measure real transferred bytes, not the official metric.
+
+---
+## ADR-012 — directoryEntries populate on verification, not from a pre-seeded roster
+**Context.** `06-ROADMAP.md`'s original step 3 assumed pre-seeding `directoryEntries` from the
+roster as unclaimed placeholders, with members claiming their entry during signup. The roster
+actually in hand (`data/roster-2025-2026.xlsx`) is a dues-eligibility ledger — names and payment
+status only, no department, facility, or folio number — so there's nothing to pre-populate a
+useful entry with. The signup/verification flow already built (ADR-010, `decideVerification`)
+also has no "claim" step: it's fresh signup → admin approves by name-match, not roster-match.
+**Decision.** `decideVerification` writes `directoryEntries/{uid}` itself at the moment of
+approval, projected from the member's own submitted fields through their visibility flags — no
+separate seed script, no unclaimed-placeholder state.
+**Consequence.** The directory is empty until real members actually verify, not populated on day
+one the way the roadmap originally described — a slower start, but every entry is real data from
+a real approved member rather than a bare name waiting to be claimed. If a richer roster (with
+department/facility/folio) turns up later, a seed script remains a reasonable fast-follow;
+nothing here forecloses it.
+
+---
+## ADR-013 — Public directory is a separate collection, read server-side only
+**Context.** `/doctors` (public) and `/portal/directory` (member-only) are two audiences with
+different fields. `directoryEntries` (ADR-012) is correctly member-gated
+(`allow get, list: if verified()`), but a public find-a-doctor page needs some of the same data
+reachable by nobody-signed-in. One collection with a looser rule risks exposing contact details
+if that rule is ever widened by mistake; a public `allow list: if true` on any directory-shaped
+collection also hands anyone with a browser console the complete roster of every doctor in Gombe
+State and their facility in a single query — exactly the scraping risk `03-DATA-MODEL.md`'s
+threat model warns about, even though `directoryEntries` itself never carries contact fields
+unless a member opted in.
+**Decision.** A separate `publicDirectory/{uid}` collection carrying `displayName`, `department`,
+`facility?`, `town?`, `folioNumber`, `searchTokens` and nothing else. Contact fields are never
+written there by any code path, so there is nothing to accidentally expose. Rules are
+`allow read, write: if false` — no client access at all, identical in effect to the default-deny
+catch-all today since nothing targets this path yet, but stated explicitly so a future rules
+change can't accidentally widen it without touching this line. `/doctors`, when built, reads it
+via the Admin SDK from a Server Component, never the client SDK.
+**Consequence.** No public database endpoint to enumerate; rate limiting and caching move to the
+edge layer (Next.js/hosting) where we actually control them, not to Firestore rules. A future
+search island filters an in-memory list shipped with the page rather than querying Firestore per
+keystroke, which is also cheaper against the Firestore read budget. Separately: listing on a
+public, indexable page requires member consent the exec has not yet ratified (Readiness Register
+item 10; `00-INTAKE.md` item 25, consent language for the directory). `decideVerification` will
+write to `publicDirectory` only once `members.publicListingConsent === true`, default `false` —
+so even after this is built, the public directory stays empty until both the consent language is
+ratified and members actually opt in. **Not built yet**: no Function projection, no `/doctors`
+route. This ADR reserves the schema and the design; see `03-DATA-MODEL.md` for the field list.

@@ -31,6 +31,11 @@ grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // 
                         // /portal/profile — not collected at signup
 subspecialty, facility, town, phone, whatsapp   // set later, in /portal/profile
 visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool }
+publicListingConsent: boolean  // default false. Member-writable, NOT a trust field — but
+                        // decideVerification only writes publicDirectory when this is true.
+                        // Gates listing on the public, indexable /doctors page specifically;
+                        // separate from the visibility flags above, which gate contact fields
+                        // inside the member-only directory. See ADR-013.
 status: "pending" | "verified" | "rejected" | "suspended"   // FUNCTION-ONLY in the general
                         // case, but this slice's rules allow a client `create` of exactly
                         // status:"pending" (no Function exists yet to do it instead — see
@@ -57,6 +62,20 @@ searchTokens: string[] // lowercased name + department tokens for prefix search
 ```
 Rationale: one document read per result, no joins, and a member's hidden fields are physically
 absent rather than filtered client-side. If it is not in the document, it cannot leak.
+
+### `publicDirectory/{uid}` — reserved, not yet populated (see ADR-013)
+The data source for the public, unauthenticated `/doctors` page (not yet built). **No client
+access at all** — `allow read, write: if false`. Read only via the Admin SDK from a Server
+Component; there is no Firestore query a browser can issue against this collection, which is the
+point: nothing to scrape, nothing to widen by accident.
+```
+displayName, department, facility?, town?, folioNumber
+searchTokens: string[] // same shape as directoryEntries
+```
+Never phone, whatsapp, or email — no code path writes them here. Populated by
+`decideVerification` only when `members/{uid}.publicListingConsent === true`; until the exec
+ratifies consent language for public listing (`00-INTAKE.md` item 25) and members opt in, this
+collection stays empty even after the projection code exists.
 
 ### `verificationRequests/{id}`
 `uid, folioNumber, evidenceUrl?, submittedAt, decidedBy?, decidedAt?, decision?, note?`
