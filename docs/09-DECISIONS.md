@@ -127,6 +127,23 @@ Nigeria is less reliable than SMS for some providers, and a lost/misspelled emai
 retry path as cheap as re-sending an SMS. Revisit if signup completion rates suffer for it.
 
 ---
+## ADR-012 — directoryEntries populate on verification, not from a pre-seeded roster
+**Context.** `06-ROADMAP.md`'s original step 3 assumed pre-seeding `directoryEntries` from the
+roster as unclaimed placeholders, with members claiming their entry during signup. The roster
+actually in hand (`data/roster-2025-2026.xlsx`) is a dues-eligibility ledger — names and payment
+status only, no specialty, facility, or folio number — so there's nothing to pre-populate a
+useful entry with. The signup/verification flow already built (ADR-010, `decideVerification`)
+also has no "claim" step: it's fresh signup → admin approves by name-match, not roster-match.
+**Decision.** `decideVerification` writes `directoryEntries/{uid}` itself at the moment of
+approval, projected from the member's own submitted fields through their visibility flags — no
+separate seed script, no unclaimed-placeholder state.
+**Consequence.** The directory is empty until real members actually verify, not populated on day
+one the way the roadmap originally described — a slower start, but every entry is real data from
+a real approved member rather than a bare name waiting to be claimed. If a richer roster (with
+specialty/facility/folio) turns up later, a seed script remains a reasonable fast-follow; nothing
+here forecloses it.
+
+---
 ## ADR-011 — Known issue: Firebase Auth+Firestore alone exceeds the 200KB route budget
 **Context.** Building `/signup` and `/pending` (the first client routes to actually use Firebase
 Auth and Firestore) surfaced that the SDK itself — just `firebase/auth` + `firebase/firestore`,

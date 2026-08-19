@@ -45,13 +45,15 @@ Read: self, and `role: admin`. Never readable in bulk by members — that is wha
 `directoryEntries` is for.
 
 ### `directoryEntries/{uid}`
-The only collection members can query. Written **only** by a Function that projects
-`members/{uid}` through the member's own visibility flags.
+The only collection members can query. Written **only** by `decideVerification`
+(`functions/src/verification.ts`) at the moment a member is approved — see ADR-012. Projects
+`members/{uid}` through the member's own visibility flags; created with whatever fields exist at
+verification time, filled in further as the member completes `/portal/profile` (not yet built).
 ```
-displayName, title, grade, specialty, subspecialty, facility, town
+displayName, department, title?, grade?, subspecialty?, facility?, town
 phone?, whatsapp?      // present only if that visibility flag is true
 verifiedAt
-searchTokens: string[] // lowercased name + specialty tokens for prefix search
+searchTokens: string[] // lowercased name + department tokens for prefix search
 ```
 Rationale: one document read per result, no joins, and a member's hidden fields are physically
 absent rather than filtered client-side. If it is not in the document, it cannot leak.

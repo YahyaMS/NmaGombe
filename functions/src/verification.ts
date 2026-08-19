@@ -23,6 +23,17 @@ const inputSchema = z.object({
   note: z.string().trim().max(500).optional(),
 })
 
+/** Lowercased name + department words, for directoryEntries prefix search. */
+function searchTokens(...values: string[]): string[] {
+  const tokens = new Set<string>()
+  for (const value of values) {
+    for (const word of value.toLowerCase().split(/[^a-z0-9]+/)) {
+      if (word) tokens.add(word)
+    }
+  }
+  return [...tokens]
+}
+
 export const decideVerification = onCall({ region: REGION }, async (request) => {
   if (!request.auth || request.auth.token.role !== 'admin') {
     throw new HttpsError('permission-denied', 'Only an admin can decide a verification request.')
@@ -47,6 +58,7 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
   }
 
   const uid = requestData.uid as string
+  const memberRef = db.doc(`members/${uid}`)
 
   // Set the claim first — if this succeeds but the Firestore writes below
   // fail, a retry is safe (re-setting the same claim is a no-op) and the
@@ -61,7 +73,7 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
   }
 
   const batch = db.batch()
-  batch.update(db.doc(`members/${uid}`), {
+  batch.update(memberRef, {
     status: decision === 'approve' ? 'verified' : 'rejected',
     ...(decision === 'approve' ? { verifiedAt: FieldValue.serverTimestamp() } : {}),
     updatedAt: FieldValue.serverTimestamp(),
@@ -72,6 +84,26 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
     decidedAt: FieldValue.serverTimestamp(),
     note: note ?? null,
   })
+
+  // Populate the directory the moment someone is approved — see ADR-012.
+  // Projects only what's public-safe; hidden fields are physically absent,
+  // never filtered client-side (docs/03-DATA-MODEL.md).
+  if (decision === 'approve') {
+    const member = (await memberRef.get()).data() ?? {}
+    const displayName = typeof member.displayName === 'string' ? member.displayName : ''
+    const department = typeof member.department === 'string' ? member.department : ''
+    const visibility = (member.visibility ?? {}) as Record<string, boolean>
+
+    batch.set(db.doc(`directoryEntries/${uid}`), {
+      displayName,
+      department,
+      searchTokens: searchTokens(displayName, department),
+      verifiedAt: FieldValue.serverTimestamp(),
+      ...(visibility.phone && member.phone ? { phone: member.phone } : {}),
+      ...(visibility.whatsapp && member.whatsapp ? { whatsapp: member.whatsapp } : {}),
+    })
+  }
+
   await batch.commit()
 
   return { ok: true as const }

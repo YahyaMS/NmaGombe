@@ -14,9 +14,11 @@ The anchor. In build order:
 1. Auth + signup + folio submission + `/pending`.
 2. `/admin/verification` — build this *before* the directory. If approvals are slow, nothing
    downstream works.
-3. Seed `directoryEntries` from the roster so the directory is useful on day one for the first
-   member who logs in. **An empty directory kills the launch.** Seed it, marked "not yet
-   claimed," and let members claim their own entries.
+3. `directoryEntries` populate automatically the moment `decideVerification` approves someone —
+   see ADR-012 (the roster in hand has no specialty/facility/folio to seed a useful placeholder
+   with, and the built verification flow has no "claim" step). **An empty directory still kills
+   the launch** — this just means real verified members, not pre-seeded placeholders, are what
+   fills it. Get verification moving early so it isn't empty at announcement.
 4. Directory search + one-tap WhatsApp + offline cache.
 5. Folio card + QR + `/verify/[folio]`.
 6. Dues: rates, Paystack init, webhook, receipt, Treasurer's ledger export.
