@@ -63,17 +63,17 @@ export default function HomePage() {
 
           <h1
             className="type-display"
-            style={{ color: 'var(--color-surface)', maxWidth: '14ch' }}
+            style={{ color: 'var(--color-surface)', maxWidth: '18ch' }}
           >
-            Medicine. Community. Gombe.
+            The professional home of doctors in Gombe State.
           </h1>
 
           <p
             className="type-body-lg"
             style={{ color: 'rgba(255,255,255,0.80)', maxWidth: '42ch' }}
           >
-            The professional body for medical doctors practising in Gombe State,
-            supporting members across practice, welfare and continuing education.
+            Find a verified colleague, follow chapter news, and carry your membership
+            card — all in one place.
           </p>
 
           <div className="flex flex-wrap gap-sm items-center">
