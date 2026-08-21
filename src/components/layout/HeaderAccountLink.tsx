@@ -34,9 +34,9 @@ const signOutLinkStyle = {
 function destinationFor(state: AccountState): { label: string; href: string } {
   switch (state) {
     case 'admin':
-      return { label: 'Admin', href: '/admin/verification' }
+      return { label: 'Admin', href: '/admin' }
     case 'member':
-      return { label: 'My account', href: '/portal/profile' }
+      return { label: 'My account', href: '/portal' }
     case 'pending':
       return { label: 'Pending', href: '/pending' }
     case 'signed-out':

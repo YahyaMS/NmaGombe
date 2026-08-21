@@ -42,7 +42,7 @@ export function SigninForm() {
     try {
       const destination = await completeReturningSignIn(window.location.href, signinEmail)
       router.replace(
-        destination === 'admin' ? '/admin/verification' : destination === 'member' ? '/' : '/pending'
+        destination === 'admin' ? '/admin/verification' : destination === 'member' ? '/portal' : '/pending'
       )
     } catch (err) {
       const code = (err as { code?: string } | undefined)?.code

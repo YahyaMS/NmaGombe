@@ -58,6 +58,8 @@ export const memberProfileSchema = z.object({
   visibility: visibilitySchema.optional(),
   publicListingConsent: z.boolean().optional(),
   duesPaidThrough: z.number().optional(),
+  /** 1-12. Member-entered, for a reminder only — never fees, never payment. See ADR/CLAUDE.md. */
+  mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
 })
 export type MemberProfile = z.infer<typeof memberProfileSchema>
 
@@ -72,6 +74,7 @@ export const profileUpdateSchema = z.object({
   whatsapp: z.string().trim().max(20).optional(),
   visibility: visibilitySchema,
   publicListingConsent: z.boolean(),
+  mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
 })
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>
 

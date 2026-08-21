@@ -64,6 +64,7 @@ export async function updateOwnProfile(uid: string, input: ProfileUpdateInput): 
     whatsapp: parsed.whatsapp || deleteField(),
     visibility: parsed.visibility,
     publicListingConsent: parsed.publicListingConsent,
+    mdcnRenewalMonth: parsed.mdcnRenewalMonth ?? deleteField(),
     updatedAt: serverTimestamp(),
   })
 }

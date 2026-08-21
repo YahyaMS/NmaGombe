@@ -27,7 +27,13 @@ const emptyForm: ProfileUpdateInput = {
   whatsapp: '',
   visibility: { phone: false, whatsapp: false, email: false, facility: false },
   publicListingConsent: false,
+  mdcnRenewalMonth: undefined,
 }
+
+const monthLabels = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
 
 function Checkbox({
   label,
@@ -72,6 +78,7 @@ export function ProfileForm() {
           whatsapp: profile.whatsapp ?? '',
           visibility: profile.visibility ?? emptyForm.visibility,
           publicListingConsent: profile.publicListingConsent ?? false,
+          mdcnRenewalMonth: profile.mdcnRenewalMonth,
         })
       }
       setStage('ready')
@@ -215,6 +222,34 @@ export function ProfileForm() {
           value={form.whatsapp ?? ''}
           onChange={(v) => setForm((f) => ({ ...f, whatsapp: v }))}
         />
+
+        <div>
+          <label htmlFor="mdcnRenewalMonth" className="type-small font-semibold" style={labelStyle}>
+            MDCN licence renewal month (optional)
+          </label>
+          <select
+            id="mdcnRenewalMonth"
+            value={form.mdcnRenewalMonth ?? ''}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                mdcnRenewalMonth: e.target.value ? Number(e.target.value) : undefined,
+              }))
+            }
+            style={inputStyle}
+          >
+            <option value="">Not set</option>
+            {monthLabels.map((label, i) => (
+              <option key={label} value={i + 1}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+            We remind you when it&rsquo;s close, and link out to the MDCN portal. We never handle
+            the renewal itself.
+          </p>
+        </div>
 
         <div>
           <p className="type-small font-semibold" style={{ ...labelStyle, marginBottom: 'var(--spacing-sm)' }}>

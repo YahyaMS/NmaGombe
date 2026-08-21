@@ -42,8 +42,10 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 
 ## Member (requires `verified: true`)
 ```
-/portal                          (client) Dashboard: folio card, dues status, MDCN renewal
-                                 reminder (date only, deep-links to the MDCN portal), next event.
+/portal                          (client) Dashboard: folio card, MDCN renewal reminder (date
+                                 only, deep-links to the MDCN portal once NEXT_PUBLIC_MDCN_PORTAL_URL
+                                 is set — real URL not yet known), next event. Dues status omitted —
+                                 still blocked on the Paystack merchant account.
 /portal/card                     (client) Full-screen folio card. Works offline. Downloadable —
                                  GET /portal/card/download server-renders a PNG from the member's
                                  own record (Authorization: Bearer <ID token>, re-checked there,
@@ -75,7 +77,8 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 
 ## Admin (`role: admin` or `exec`)
 ```
-/admin                           Queue counts, dues collected this cycle, recent signups.
+/admin                           Pending verification count, recent signups. Dues-collected
+                                 figure omitted — still blocked on the Paystack merchant account.
 /admin/verification              THE most important admin screen. Approve/reject folio
                                  submissions against the roster. Keyboard-driven, fast,
                                  usable on a phone. If this is slow, signups rot.

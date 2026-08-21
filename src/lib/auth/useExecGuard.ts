@@ -25,7 +25,7 @@ export function useExecGuard(): { state: GuardState; uid: string | null; role: E
       void user.getIdTokenResult(true).then((token) => {
         if (token.claims.role !== 'exec' && token.claims.role !== 'admin') {
           setState('redirecting')
-          router.replace('/')
+          router.replace('/portal')
           return
         }
         setUid(user.uid)
