@@ -54,10 +54,10 @@ export function describeSignInError(err: unknown): string {
   return 'Something went wrong sending the sign-in email. Try again.'
 }
 
-export async function requestSignInLink(email: string): Promise<void> {
+export async function requestSignInLink(email: string, returnPath: string): Promise<void> {
   await recordEmailLinkAttempt(email)
   await sendSignInLinkToEmail(auth, email, {
-    url: `${process.env.NEXT_PUBLIC_SITE_URL}/signup`,
+    url: `${process.env.NEXT_PUBLIC_SITE_URL}${returnPath}`,
     handleCodeInApp: true,
   })
   window.localStorage.setItem(STORED_EMAIL_KEY, email)
@@ -94,4 +94,22 @@ export async function completeEmailLinkSignIn(url: string, email: string): Promi
   const result = await signInWithEmailLink(auth, email, url)
   window.localStorage.removeItem(STORED_EMAIL_KEY)
   return result.user
+}
+
+export type ReturningSignInDestination = 'admin' | 'member' | 'pending'
+
+/**
+ * Completes a returning member's email-link sign-in and reports which
+ * post-sign-in bucket they fall into, by custom claim rather than any
+ * client-writable field.
+ */
+export async function completeReturningSignIn(
+  url: string,
+  email: string
+): Promise<ReturningSignInDestination> {
+  const user = await completeEmailLinkSignIn(url, email)
+  const token = await user.getIdTokenResult(true)
+  if (token.claims.role === 'admin') return 'admin'
+  if (token.claims.verified === true) return 'member'
+  return 'pending'
 }

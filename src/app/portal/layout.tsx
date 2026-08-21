@@ -8,7 +8,7 @@ export default function PortalLayout({
 }) {
   return (
     <div className="flex flex-col min-h-dvh">
-      <SiteHeader />
+      <SiteHeader authAware />
       <main className="flex-1">{children}</main>
     </div>
   )

@@ -3,17 +3,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { memberSignupSchema, type MemberSignupInput } from '@/lib/data/schemas'
-import { createMemberProfile, submitVerificationRequest } from '@/lib/data/members'
 import { Field } from '@/components/ui/Field'
 import {
   requestSignInLink,
-  saveSignupDraft,
-  readSignupDraft,
-  clearSignupDraft,
   isEmailLinkReturn,
   readStoredEmail,
-  completeEmailLinkSignIn,
   completeReturningSignIn,
   describeSignInError,
 } from '@/lib/firebase/auth-email-link'
@@ -35,38 +29,18 @@ function initialStage(): Stage {
   return readStoredEmail() ? 'completing' : 'need-email'
 }
 
-export function SignupForm() {
+export function SigninForm() {
   const router = useRouter()
   const [stage, setStage] = useState<Stage>(initialStage)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
-
-  const [form, setForm] = useState<MemberSignupInput>({
-    displayName: '',
-    department: '',
-    facility: '',
-    folioNumber: '',
-    email: '',
-  })
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof MemberSignupInput, string>>>({})
 
   // No synchronous setState here — every branch is after an await, so this is safe
   // to call directly from the mount effect below without triggering cascading renders.
-  async function completeSignIn(email: string) {
+  async function completeSignIn(signinEmail: string) {
     try {
-      const draft = readSignupDraft()
-      if (draft) {
-        // Fresh signup — the draft only exists if this device just submitted the form.
-        const user = await completeEmailLinkSignIn(window.location.href, email)
-        await createMemberProfile(user.uid, { ...draft, email })
-        await submitVerificationRequest(user.uid, draft.folioNumber)
-        clearSignupDraft()
-        router.replace('/pending')
-        return
-      }
-      // Returning sign-in (email-link auth doubles as both — Firebase signs into
-      // the existing account by email rather than creating a duplicate).
-      const destination = await completeReturningSignIn(window.location.href, email)
+      const destination = await completeReturningSignIn(window.location.href, signinEmail)
       router.replace(
         destination === 'admin' ? '/admin/verification' : destination === 'member' ? '/' : '/pending'
       )
@@ -97,27 +71,11 @@ export function SignupForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const parsed = memberSignupSchema.safeParse(form)
-    if (!parsed.success) {
-      const errors: Partial<Record<keyof MemberSignupInput, string>> = {}
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof MemberSignupInput
-        errors[key] = issue.message
-      }
-      setFieldErrors(errors)
-      return
-    }
-    setFieldErrors({})
+    if (!email.trim()) return
     setStage('sending')
     setErrorMessage(null)
     try {
-      saveSignupDraft({
-        displayName: parsed.data.displayName,
-        department: parsed.data.department,
-        facility: parsed.data.facility,
-        folioNumber: parsed.data.folioNumber,
-      })
-      await requestSignInLink(parsed.data.email, '/signup')
+      await requestSignInLink(email.trim().toLowerCase(), '/signin')
       setStage('sent')
     } catch (err) {
       setErrorMessage(describeSignInError(err))
@@ -169,11 +127,11 @@ export function SignupForm() {
       <div className="mx-auto px-md py-2xl" style={shellStyle}>
         <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Check your email</p>
         <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>
-          We sent a sign-in link to {form.email}
+          We sent a sign-in link to {email}
         </h1>
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-          Open it on this device to finish creating your account. If it doesn&rsquo;t arrive in a
-          few minutes, check spam — or{' '}
+          Open it on this device to sign in. If it doesn&rsquo;t arrive in a few minutes, check
+          spam — or{' '}
           <button
             type="button"
             onClick={() => setStage('form')}
@@ -190,13 +148,13 @@ export function SignupForm() {
 
   return (
     <div className="mx-auto px-md py-2xl" style={shellStyle}>
-      <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Join the chapter</p>
+      <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Member sign in</p>
       <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>
-        Create your account
+        Sign in to your account
       </h1>
       <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-        An admin reviews your folio number against the membership list before you get access to
-        the directory, folio card and dues payment.
+        Enter the email you signed up with — we&rsquo;ll send a link to sign in, no password
+        needed.
       </p>
 
       {errorMessage && (
@@ -207,41 +165,11 @@ export function SignupForm() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-md mt-lg" noValidate>
         <Field
-          label="Full name"
-          name="displayName"
-          value={form.displayName}
-          onChange={(v) => setForm((f) => ({ ...f, displayName: v }))}
-          error={fieldErrors.displayName}
-          autoComplete="name"
-        />
-        <Field
-          label="Department (specialty)"
-          name="department"
-          value={form.department}
-          onChange={(v) => setForm((f) => ({ ...f, department: v }))}
-          error={fieldErrors.department}
-        />
-        <Field
-          label="Facility (optional)"
-          name="facility"
-          value={form.facility ?? ''}
-          onChange={(v) => setForm((f) => ({ ...f, facility: v }))}
-          error={fieldErrors.facility}
-        />
-        <Field
-          label="Folio number"
-          name="folioNumber"
-          value={form.folioNumber}
-          onChange={(v) => setForm((f) => ({ ...f, folioNumber: v }))}
-          error={fieldErrors.folioNumber}
-        />
-        <Field
           label="Email"
           name="email"
           type="email"
-          value={form.email}
-          onChange={(v) => setForm((f) => ({ ...f, email: v }))}
-          error={fieldErrors.email}
+          value={email}
+          onChange={setEmail}
           autoComplete="email"
         />
 
@@ -251,14 +179,14 @@ export function SignupForm() {
           className="type-body font-semibold px-lg py-sm mt-sm"
           style={{ ...primaryButtonStyle, opacity: stage === 'sending' ? 0.6 : 1 }}
         >
-          {stage === 'sending' ? 'Sending…' : 'Continue'}
+          {stage === 'sending' ? 'Sending…' : 'Send sign-in link'}
         </button>
       </form>
 
       <p className="type-small mt-lg" style={{ color: 'var(--color-ink-3)' }}>
-        Already verified?{' '}
-        <Link href="/signin" style={{ color: 'var(--color-green)', textDecoration: 'underline' }}>
-          Sign in
+        New here?{' '}
+        <Link href="/signup" style={{ color: 'var(--color-green)', textDecoration: 'underline' }}>
+          Create an account
         </Link>
       </p>
     </div>

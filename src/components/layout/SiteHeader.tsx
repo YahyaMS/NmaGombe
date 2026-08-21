@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { existsSync } from 'fs'
 import path from 'path'
+import { HeaderAccountLink } from './HeaderAccountLink'
 
 // Crest is optional at build time; drop public/brand/crest.svg to enable.
 // Check happens server-side so there is no client-side flash.
@@ -13,7 +14,7 @@ function hasCrest(): boolean {
   }
 }
 
-export function SiteHeader() {
+export function SiteHeader({ authAware = false }: { authAware?: boolean }) {
   const crestReady = hasCrest()
 
   return (
@@ -39,6 +40,7 @@ export function SiteHeader() {
               height={32}
               aria-hidden="true"
               priority
+              style={{ filter: 'brightness(0) invert(1)' }}
             />
           )}
           <span
@@ -88,20 +90,24 @@ export function SiteHeader() {
                 About
               </Link>
             </li>
-            <li>
-              <Link
-                href="/signin"
-                className="type-small font-semibold transition-colors px-md py-xs"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                  color: 'var(--color-green)',
-                  borderRadius: 'var(--radius)',
-                  transitionDuration: 'var(--motion-fast)',
-                }}
-              >
-                Member sign in
-              </Link>
-            </li>
+            {authAware ? (
+              <HeaderAccountLink />
+            ) : (
+              <li>
+                <Link
+                  href="/signin"
+                  className="type-small font-semibold transition-colors px-md py-xs"
+                  style={{
+                    backgroundColor: 'var(--color-surface)',
+                    color: 'var(--color-green)',
+                    borderRadius: 'var(--radius)',
+                    transitionDuration: 'var(--motion-fast)',
+                  }}
+                >
+                  Member sign in
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       </div>

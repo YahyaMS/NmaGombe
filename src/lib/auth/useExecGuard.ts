@@ -7,8 +7,8 @@ import { auth } from '@/lib/firebase/client'
 
 type GuardState = 'checking' | 'ready' | 'redirecting'
 
-/** Shared guard for /portal/*: signed in and verified, or redirected. */
-export function useVerifiedMemberGuard(): { state: GuardState; uid: string | null } {
+/** Shared guard for admin screens open to exec or admin — matches firestore.rules' isExec(). */
+export function useExecGuard(): { state: GuardState; uid: string | null } {
   const router = useRouter()
   const [state, setState] = useState<GuardState>('checking')
   const [uid, setUid] = useState<string | null>(null)
@@ -21,9 +21,9 @@ export function useVerifiedMemberGuard(): { state: GuardState; uid: string | nul
         return
       }
       void user.getIdTokenResult(true).then((token) => {
-        if (token.claims.verified !== true) {
+        if (token.claims.role !== 'exec' && token.claims.role !== 'admin') {
           setState('redirecting')
-          router.replace('/pending')
+          router.replace('/')
           return
         }
         setUid(user.uid)
