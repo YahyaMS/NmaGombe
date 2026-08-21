@@ -26,26 +26,39 @@ Nothing here is a technical problem — which is exactly why projects like this 
 8. Is part-payment allowed? Are there waivers (retired, students, hardship)?
 
 ## C. Member data — the verification source of truth
-9. **BLOCKER — the current membership roster.** Names, MDCN folio numbers, grade, facility,
+9. ~~**BLOCKER — the current membership roster.** Names, MDCN folio numbers, grade, facility,
    phone. Whatever format exists (Excel, a Word doc, a notebook). Without a roster there is
-   nothing to verify signups against, and the directory has no seed.
+   nothing to verify signups against, and the directory has no seed.~~
+    **Cleared.** In hand at `data/roster-2025-2026.xlsx` (gitignored, never committed — NDPA).
+    Per `09-DECISIONS.md` ADR-014 it's a dues-eligibility ledger only (names and payment
+    status, no department/facility/folio), so it seeds verification-by-name-match, not an
+    automated folio cross-check — see item 11.
 10. Who custodies that roster today, and do we have written permission to hold a copy?
-11. Agreed rule for what makes someone "verified": folio number matches roster? Officer
-    vouches? Dues current? Pick one and write it down.
-12. **Governance decision:** is the directory public or member-only? Are phone numbers
+11. ~~Agreed rule for what makes someone "verified": folio number matches roster? Officer
+    vouches? Dues current? Pick one and write it down.~~
+    **Cleared** — see ADR-010. An admin approves by matching the submitted name against the
+    roster plus their own knowledge of the membership; no automated folio cross-check exists.
+12. ~~**Governance decision:** is the directory public or member-only? Are phone numbers
     visible to all members, or opt-in per member? Recommended default: directory is
     member-only; phone/WhatsApp is opt-in per field; the public site shows only name,
-    specialty and facility.
+    specialty and facility.~~
+    **Cleared** — built exactly to the recommended default.
 
 ## D. Brand and content assets
 13. Vector chapter/NMA crest (SVG, EPS, or high-res PNG with transparency). A screenshot of
     the logo taken off thenma.ng is not acceptable for print-quality cards.
+    **Partially cleared** — `public/brand/crest.svg` is genuine vector-traced artwork, fine
+    for screen use (see `public/brand/README.md`). Still not the official source file; get
+    that from the national secretariat before anything goes to print (cards, certificates).
 14. Official colour values if any exist beyond the inherited green. If none exist, we set
     them — see `04-DESIGN-SYSTEM.md`.
 15. 15–30 real photographs: exec members, a CME session, outreach, the secretariat. Real
     Gombe photos or nothing — stock photos of foreign doctors will destroy credibility faster
     than a plain page would.
-16. Current exec list: names, positions, portraits, tenure dates.
+    **In progress** — 11 real photos in `public/photos/` (exec portraits, group photos), no
+    stock. Below the 15–30 target; keep collecting.
+16. ~~Current exec list: names, positions, portraits, tenure dates.~~
+    **Cleared** — real names, positions and portraits live in `/about` and `/about/executives`.
 17. Chapter history/about text; constitution or bye-laws if members should access them.
 18. Any existing communiqués, newsletters or press statements to seed the archive.
 
