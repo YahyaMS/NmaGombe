@@ -29,8 +29,10 @@ const ibmPlexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
+  // || not ?? — an unset var is undefined, but Vercel/CI can also hand this an
+  // empty string, which isn't nullish and would otherwise reach new URL('').
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://nmagonbe.org.ng'
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://nmagombe.org.ng'
   ),
   title: {
     template: '%s | NMA Gombe',

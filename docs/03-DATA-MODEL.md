@@ -79,10 +79,10 @@ searchTokens: string[] // same shape as directoryEntries
 ```
 Never phone, whatsapp, or email — no code path writes them here. Upserted by the same
 `onMemberWrite` trigger, only while `status === "verified" && publicListingConsent === true`;
-deleted the moment either flips false, so revoking consent removes the listing immediately. Until
-the exec ratifies consent language for public listing (`00-INTAKE.md` item 25), the `/doctors`
-route itself still isn't built — this collection can populate before that, but nothing reads it
-publicly yet.
+deleted the moment either flips false, so revoking consent removes the listing immediately.
+`00-INTAKE.md` item 25 (exec-ratified consent language) is cleared; `/doctors` reads this
+collection via the Admin SDK (`lib/data/publicDirectory.ts`), zero client JS, same posture as
+`news`/`events`.
 
 ### `verificationRequests/{id}`
 `uid, folioNumber, evidenceUrl?, submittedAt, decidedBy?, decidedAt?, decision?, note?`
@@ -115,8 +115,17 @@ client-writable, and the client never sends an amount.
 Self-reported entries are labelled as such. We record what the member tells us; we do not
 certify it, and the export says so.
 
-### `events/{id}`, `registrations/{eventId}_{uid}`
-Registration ID is deterministic to make double-registration impossible.
+### `events/{slug}`
+`title, slug, description (markdown), location, startAt, status ("draft"|"published")`
+Publishing only — single-step create-and-publish, no draft/edit/unpublish in v1, same as `news`.
+Public list orders by `startAt` ascending (a calendar shows soonest-next, not most-recently
+posted); past events are removed by the admin, not auto-hidden (`docs/07-CONTENT-OPS.md`
+quarterly review — "delete, don't archive").
+
+### `registrations/{eventId}_{uid}` (Phase 2 — not built)
+Registration ID is deterministic to make double-registration impossible. `firestore.rules`
+already has a match block for this (verified members can create their own registration; exec
+manages), written ahead of the UI/Function — nothing reads or writes it yet.
 
 ### `news/{slug}`
 `title, slug, body (markdown), excerpt, coverUrl, publishedAt, author, category ("communique"|"news"|"advocacy"|"obituary"), status ("draft"|"published")`
@@ -142,6 +151,11 @@ family medical information. If in doubt, leave it out and handle it offline.
    plus admin. Do not rely on unguessable URLs.
 
 ## Indexes
-Composite indexes needed for: directory by `specialty + displayName`, `searchTokens array-contains
-+ displayName`, news by `status + publishedAt desc`, jobs by `status + expiresAt`. Add them to
-`firestore.indexes.json` as they are created, never by clicking the console link in production only.
+Composite indexes needed for: news by `status + publishedAt desc`, events by
+`status + startAt asc`, jobs by `status + expiresAt` (Phase 2). **Not** directory — `/portal/directory` deliberately does one unfiltered `orderBy`
+subscription and filters client-side (see `lib/data/directory.ts`), so no composite query, no
+composite index. (An earlier version of this doc listed two `directoryEntries` indexes for a
+server-filtered query pattern that was never built, referencing a `specialty` field that was
+never the real field name — `department` is. Removed from `firestore.indexes.json` rather than
+fixed, since nothing needs them.) Add new ones here as they're created, never by clicking the
+console link in production only.

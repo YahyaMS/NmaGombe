@@ -185,18 +185,18 @@ unless a member opted in.
 written there by any code path, so there is nothing to accidentally expose. Rules are
 `allow read, write: if false` — no client access at all, identical in effect to the default-deny
 catch-all today since nothing targets this path yet, but stated explicitly so a future rules
-change can't accidentally widen it without touching this line. `/doctors`, when built, reads it
-via the Admin SDK from a Server Component, never the client SDK.
+change can't accidentally widen it without touching this line. `/doctors` reads it via the Admin
+SDK from a Server Component, never the client SDK (`lib/data/publicDirectory.ts`).
 **Consequence.** No public database endpoint to enumerate; rate limiting and caching move to the
-edge layer (Next.js/hosting) where we actually control them, not to Firestore rules. A future
-search island filters an in-memory list shipped with the page rather than querying Firestore per
-keystroke, which is also cheaper against the Firestore read budget. Separately: listing on a
-public, indexable page requires member consent the exec has not yet ratified (Readiness Register
-item 10; `00-INTAKE.md` item 25, consent language for the directory). `decideVerification` will
-write to `publicDirectory` only once `members.publicListingConsent === true`, default `false` —
-so even after this is built, the public directory stays empty until both the consent language is
-ratified and members actually opt in. **Not built yet**: no Function projection, no `/doctors`
-route. This ADR reserves the schema and the design; see `03-DATA-MODEL.md` for the field list.
+edge layer (Next.js/hosting) where we actually control them, not to Firestore rules. Specialty
+filtering is a server-computed, plain-link filter over the fetched list (no client JS, no
+per-keystroke Firestore query — see `/doctors`'s implementation). Separately: listing on a
+public, indexable page required member consent, which the exec has since ratified (Readiness
+Register item 10; `00-INTAKE.md` item 25 — cleared). `onMemberWrite`
+(`functions/src/directory-projection.ts`, ADR-014) writes to `publicDirectory` only once
+`members.publicListingConsent === true`, default `false` — so the public directory stays empty
+per-member until that member actually opts in, even though the route and projection are both
+now built. This ADR's schema reservation; see `03-DATA-MODEL.md` for the field list.
 
 ---
 ## ADR-014 — Specialty captured at signup; directory projection moves to a write trigger

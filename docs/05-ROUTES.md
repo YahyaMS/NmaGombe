@@ -9,14 +9,22 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
                          replace the hero. Same URL, different job.
 /about                   Chapter, history, constitution/bye-laws.
 /about/executives        Current exec with portraits and tenure. Past execs as an archive.
-/news                    Communiqués, news, advocacy, obituaries. Filterable by category.
-/news/[slug]
-/events                  CME and chapter events calendar.
-/events/[slug]           Detail + register (register is gated).
+/news                    Communiqués, news, advocacy, obituaries. Filterable by ?category=,
+                         plain links — no client JS. Reads via Admin SDK (lib/data/news.ts),
+                         same pattern as /verify — public page, no reason to ship the client SDK.
+/news/[slug]             Renders body through a small hand-written markdown subset (bold, links,
+                         lists) — not a dependency; see lib/markdown.tsx.
+/events                  CME and chapter events calendar, soonest first. Publishing only —
+                         registration is Phase 2 (rules exist for `registrations/*` but nothing
+                         reads or writes it yet).
+/events/[slug]           Detail: date, location, description. No register action yet.
 /doctors                 Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
 /verify/[folio]          QR target from the membership card. Renders: name, grade, "member in
                          good standing through <year>" or "not current". Nothing else.
                          This page is the chapter's credibility in public. Keep it austere.
+                         Its opengraph-image renders that member's actual folio card (or the
+                         same "No record found" text as the page, for an unmatched folio) so a
+                         shared link previews as the credential, not the site-wide default image.
 /membership              How to join, dues structure, benefits. The conversion page.
 /contact                 Includes a click-to-WhatsApp link to the secretariat.
 /privacy                 NDPA privacy notice.
@@ -25,7 +33,8 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 
 ## Auth
 ```
-/signin                  Phone OTP primary, email fallback.
+/signin                  Email-link (passwordless) sign-in — see ADR-010. Phone OTP is deferred,
+                         not built.
 /signup                  Account creation → folio submission → "pending review" state.
 /pending                 Honest waiting-room. Says who reviews it and roughly how long.
                          A vague pending screen is where signups die.
@@ -35,11 +44,26 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 ```
 /portal                          (client) Dashboard: folio card, dues status, MDCN renewal
                                  reminder (date only, deep-links to the MDCN portal), next event.
-/portal/card                     (client) Full-screen folio card. Works offline. Downloadable.
+/portal/card                     (client) Full-screen folio card. Works offline. Downloadable —
+                                 GET /portal/card/download server-renders a PNG from the member's
+                                 own record (Authorization: Bearer <ID token>, re-checked there,
+                                 not just gated by this page). Requires network even though the
+                                 card itself renders from cache.
 /portal/dues                     (client) Pay, history, receipts.
 /portal/dues/receipt/[ref]       Receipt view/download.
-/portal/directory                (client) Search colleagues. One-tap WhatsApp/call. Offline cache.
-/portal/directory/[uid]          Member detail, subject to that member's visibility flags.
+/portal/directory                (client) Search colleagues by name/specialty/facility — one bulk
+                                 subscription to directoryEntries, filtered locally against
+                                 searchTokens, not a query per keystroke (proven, not just
+                                 argued — see PR notes). Shows the full roster by default;
+                                 browsing beats searching at chapter scale. Specialty filter —
+                                 bottom sheet on mobile (components/ui/BottomSheet.tsx), inline
+                                 pill row on desktop, options derived from whatever departments
+                                 actually exist in the roster. One-tap WhatsApp/call (phone-based;
+                                 see PR discussion on WhatsApp usernames — not adopted, Nigeria
+                                 isn't in that rollout yet). Offline cache via Firestore's
+                                 persistent local cache (lib/firebase/client.ts).
+/portal/directory/[uid]          Member detail, subject to that member's visibility flags. Same
+                                 directoryEntries doc, one field.
 /portal/profile                  Edit own details, set per-field visibility, set MDCN renewal month.
 /portal/cpd                      (Phase 2) CPD log, add entry, upload certificate, export summary.
 /portal/jobs                     (Phase 2) Locum and job board.
@@ -57,8 +81,11 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
                                  usable on a phone. If this is slow, signups rot.
 /admin/members                   Search, edit, suspend, grant roles.
 /admin/payments                  Ledger, reconciliation, CSV export for the Treasurer.
-/admin/news/new  /admin/news     Three fields and a publish button. Nothing more.
-/admin/events/new  /admin/events
+/admin/news/new  /admin/news     Three fields (title, category, body) and a publish button.
+                                 Single-step create-and-publish, no draft/edit/unpublish in v1 —
+                                 exec-gated (useExecGuard), matching isExec() in firestore.rules.
+/admin/events/new  /admin/events Four fields (title, location, date/time, description) and a
+                                 publish button. Same single-step, exec-gated pattern as news.
 /admin/broadcast                 Compose a WhatsApp broadcast message; logs what was sent.
 /admin/duesRates                 Set the year's rates by grade.
 /admin/welfare                   (exec only) Welfare cases.

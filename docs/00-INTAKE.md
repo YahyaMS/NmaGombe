@@ -63,7 +63,8 @@ Nothing here is a technical problem — which is exactly why projects like this 
 23. Decision on NDPC registration, and who signs the privacy policy.
 24. Sensitivity ruling on welfare/benevolent-fund data. Recommendation: welfare case details
     visible only to the Welfare Committee, never in the general member area.
-25. Consent language for the directory, agreed at an exec meeting — not written by the developer.
+25. ~~Consent language for the directory, agreed at an exec meeting — not written by the developer.~~
+    **Cleared.** `/doctors` is built on this basis.
 
 ## G. Success definition — agree this in writing, in advance
 26. One number, measured at 90 days. Recommended: **% of the roster with a verified account.**

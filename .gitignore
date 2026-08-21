@@ -24,3 +24,6 @@ data/roster*.xlsx
 data/members*
 *.roster.csv
 service-account*.json
+
+.vercel
+.env*.local
