@@ -64,7 +64,7 @@ export function SiteFooter() {
         >
           <p
             className="type-eyebrow tabular"
-            style={{ color: 'rgba(255,255,255,0.40)' }}
+            style={{ color: 'rgba(255,255,255,0.60)' }}
           >
             © {year} NMA Gombe State Chapter
           </p>
