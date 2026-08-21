@@ -15,7 +15,7 @@
  * design.md §6.
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import Image from 'next/image'
 
 export type FolioCardStatus =
@@ -92,6 +92,7 @@ export function FolioCard({
   lastSynced,
 }: FolioCardProps) {
   const [flipped, setFlipped] = useState(false)
+  const flipHintId = useId()
   const isPending = status === 'pending'
   const isDuesOutstanding = status === 'dues-outstanding'
   const isOffline = status === 'offline'
@@ -105,7 +106,7 @@ export function FolioCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={flipped ? 'Folio card back — tap to flip' : 'Folio card front — tap to flip'}
+      aria-describedby={flipHintId}
       onClick={() => setFlipped((f) => !f)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') setFlipped((f) => !f)
@@ -120,6 +121,18 @@ export function FolioCard({
         outline: 'none',
       }}
     >
+      {/*
+        No aria-label: the card's visible content (name, grade, folio, dues)
+        is meaningful and should BE the accessible name (WCAG 2.5.3 Label in
+        Name — an aria-label here would silently replace all of that for
+        screen readers with a curated string that can drift from what's
+        rendered). The interaction hint is added via aria-describedby instead,
+        which supplements rather than overrides.
+      */}
+      <span id={flipHintId} className="sr-only">
+        {flipped ? 'Card back. Tap to flip.' : 'Card front. Tap to flip.'}
+      </span>
+
       {/* ── Card container (flips) ── */}
       <div
         style={{
@@ -187,7 +200,7 @@ export function FolioCard({
             </p>
             <p
               className="type-small"
-              style={{ color: isPending ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.70)', marginTop: '3px' }}
+              style={{ color: isPending ? 'rgba(0,0,0,0.70)' : 'rgba(255,255,255,0.70)', marginTop: '3px' }}
             >
               {grade}
             </p>
@@ -198,13 +211,13 @@ export function FolioCard({
             <div style={{ display: 'flex', gap: '20px' }}>
               {/* Folio */}
               <div>
-                <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', marginBottom: '2px' }}>
+                <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.60)', fontSize: '9px', marginBottom: '2px' }}>
                   Folio
                 </p>
                 <p
                   className="type-folio"
                   style={{
-                    color: isPending ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.90)',
+                    color: isPending ? 'rgba(0,0,0,0.70)' : 'rgba(255,255,255,0.90)',
                     fontSize: '13px',
                   }}
                 >
@@ -214,7 +227,7 @@ export function FolioCard({
               {/* Dues — omitted entirely when there's no real record, never shown blank */}
               {showDues && (
                 <div>
-                  <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', marginBottom: '2px' }}>
+                  <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.60)', fontSize: '9px', marginBottom: '2px' }}>
                     Dues
                   </p>
                   <p
@@ -289,7 +302,7 @@ export function FolioCard({
                 right: '12px',
               }}
             >
-              <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.40)', fontSize: '8px' }}>
+              <p className="type-eyebrow" style={{ color: 'rgba(255,255,255,0.60)', fontSize: '8px' }}>
                 Synced {new Date(lastSynced).toLocaleDateString('en-NG', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -332,7 +345,7 @@ export function FolioCard({
           </p>
           <p
             className="type-eyebrow"
-            style={{ color: 'rgba(255,255,255,0.40)', fontSize: '9px', textAlign: 'center' }}
+            style={{ color: 'rgba(255,255,255,0.60)', fontSize: '9px', textAlign: 'center' }}
           >
             Scan to verify membership · nmagombe.org.ng/verify/{folioNumber.replace(/\//g, '-')}
           </p>

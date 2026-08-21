@@ -14,6 +14,13 @@ export interface VerifyResult {
   status: 'verified' | 'not-current'
 }
 
+// The folio card's QR encodes hyphens in place of slashes (folioNumber.replace(/\//g, '-'))
+// so the value survives as a single URL segment — reverse that here, once, for every
+// consumer of the /verify/[folio] segment (the page and its opengraph-image).
+export function toStoredFolioNumber(segment: string): string {
+  return segment.replace(/-/g, '/')
+}
+
 export async function lookupByFolio(folioNumber: string): Promise<VerifyResult | null> {
   const snap = await adminDb
     .collection('members')

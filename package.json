@@ -15,8 +15,9 @@
   },
   "dependencies": {
     "firebase": "^12.17.1",
-    "firebase-admin": "^14.0.0",
+    "firebase-admin": "^13.10.0",
     "next": "16.3.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^3.23.8"
@@ -27,6 +28,7 @@
     "@types/babel__traverse": "^7.28.0",
     "@types/jest": "^29",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",

@@ -8,7 +8,13 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator } from 'firebase/auth'
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  connectFirestoreEmulator,
+  persistentLocalCache,
+  persistentSingleTabManager,
+  memoryLocalCache,
+} from 'firebase/firestore'
 import { getStorage, connectStorageEmulator } from 'firebase/storage'
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions'
 
@@ -27,7 +33,16 @@ function getFirebaseApp(): FirebaseApp {
 
 export const app = getFirebaseApp()
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+// Persistent (IndexedDB) cache in the browser — required for "works offline"
+// (CLAUDE.md non-negotiable constraints; design.md's directory/card offline
+// states). Falls back to the in-memory cache during SSR, where indexedDB
+// doesn't exist. Single-tab: this app has no need for cross-tab sync yet.
+export const db = initializeFirestore(app, {
+  localCache:
+    typeof window !== 'undefined'
+      ? persistentLocalCache({ tabManager: persistentSingleTabManager({}) })
+      : memoryLocalCache(),
+})
 export const storage = getStorage(app)
 // Region matches Firestore's europe-west1 — see docs/09-DECISIONS.md ADR-008.
 export const functions = getFunctions(app, 'europe-west1')

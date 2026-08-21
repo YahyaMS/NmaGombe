@@ -1,16 +1,10 @@
 import type { Metadata } from 'next'
-import { lookupByFolio } from '@/lib/data/verify'
+import { lookupByFolio, toStoredFolioNumber } from '@/lib/data/verify'
 import { gradeLabels, type Grade } from '@/lib/data/schemas'
 
 export const metadata: Metadata = {
   title: 'Verify a member — NMA Gombe',
   description: 'Confirm a doctor is a verified member of the Nigerian Medical Association, Gombe State Chapter.',
-}
-
-// The folio card's QR encodes hyphens in place of slashes (folioNumber.replace(/\//g, '-'))
-// so the value survives as a single URL segment — reverse that here, not in the card.
-function toStoredFolioNumber(segment: string): string {
-  return segment.replace(/-/g, '/')
 }
 
 export default async function VerifyPage({
