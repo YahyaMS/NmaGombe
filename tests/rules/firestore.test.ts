@@ -122,6 +122,24 @@ describe('members/{uid} — trust fields', () => {
       updateDoc(doc(db, `members/${uid}`), { verifiedAt: new Date().toISOString() })
     )
   })
+
+  // Trust fields are Function-write-only even for an admin's own client session —
+  // a raw admin write to `status` wouldn't set the actual `verified` custom claim
+  // every other rule checks, silently desyncing the two. See docs/09-DECISIONS.md
+  // and the admin/members feature-slice plan.
+  test('admin cannot write status via direct client update', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { status: 'suspended' })
+    )
+  })
+
+  test('admin cannot write role via direct client update', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { role: 'exec' })
+    )
+  })
 })
 
 // ── Invariant 2: directoryEntries readable only by verified ──────────────────

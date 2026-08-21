@@ -6,12 +6,14 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase/client'
 
 type GuardState = 'checking' | 'ready' | 'redirecting'
+type ExecRole = 'exec' | 'admin'
 
 /** Shared guard for admin screens open to exec or admin — matches firestore.rules' isExec(). */
-export function useExecGuard(): { state: GuardState; uid: string | null } {
+export function useExecGuard(): { state: GuardState; uid: string | null; role: ExecRole | null } {
   const router = useRouter()
   const [state, setState] = useState<GuardState>('checking')
   const [uid, setUid] = useState<string | null>(null)
+  const [role, setRole] = useState<ExecRole | null>(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -27,6 +29,7 @@ export function useExecGuard(): { state: GuardState; uid: string | null } {
           return
         }
         setUid(user.uid)
+        setRole(token.claims.role)
         setState('ready')
       })
     })
@@ -34,5 +37,5 @@ export function useExecGuard(): { state: GuardState; uid: string | null } {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { state, uid }
+  return { state, uid, role }
 }

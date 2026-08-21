@@ -34,7 +34,7 @@ service cloud.firestore {
                     && !('duesPaidThrough' in request.resource.data)
                     && !('verifiedAt' in request.resource.data);
       allow update: if (isSelf(uid) && noTrustFieldChanges() && folioUnchangedIfVerified())
-                    || isAdmin();
+                    || (isAdmin() && noTrustFieldChanges());
       allow delete: if false; // deletion is a Function, so payment records stay consistent
     }
 

@@ -79,7 +79,10 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 /admin/verification              THE most important admin screen. Approve/reject folio
                                  submissions against the roster. Keyboard-driven, fast,
                                  usable on a phone. If this is slow, signups rot.
-/admin/members                   Search, edit, suspend, grant roles.
+/admin/members                   Search, suspend/reinstate, grant roles (exec or admin; only an
+                                 admin can grant admin). Free-form field editing (fixing a typo'd
+                                 facility name etc.) isn't built — members self-serve that at
+                                 /portal/profile, and this route is scoped to trust-field changes.
 /admin/payments                  Ledger, reconciliation, CSV export for the Treasurer.
 /admin/news/new  /admin/news     Three fields (title, category, body) and a publish button.
                                  Single-step create-and-publish, no draft/edit/unpublish in v1 —

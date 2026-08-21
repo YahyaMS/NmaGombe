@@ -96,6 +96,13 @@ only by the `decideVerification` Cloud Function (`functions/src/verification.ts`
 only thing that can set the `verified:true` custom claim, since that's Admin-SDK-only. An admin
 calls it from `/admin/verification`; there is no client Firestore write path for a decision.
 
+Post-verification status/role changes (suspend, reinstate, grant/revoke a role) go through
+`setMemberStatus`/`setMemberRole` (`functions/src/members.ts`), called from `/admin/members` —
+same reasoning: each keeps the Firestore field and the actual custom claim in sync in one write,
+which no direct client update can do. Granting `role:"admin"` specifically requires the caller
+to already be `admin`, not just `exec` — an exec can suspend/reinstate and grant `exec`, only an
+admin can mint another admin.
+
 ### `emailLinkAttempts/{email}/days/{yyyy-mm-dd}`
 `count` (number), `lastAttemptAt`. Rate-limits `sendSignInLinkToEmail` — write-only from the
 client, capped by the rules themselves (max 5/day), never read. Prevents a signup form from
@@ -142,7 +149,12 @@ family medical information. If in doubt, leave it out and handle it offline.
 `message, audience, sentBy, sentAt, channel` — a log of what was sent, so the exec has a record.
 
 ## Rules invariants (test these, don't assume them)
-1. No client can write `status`, `role`, `duesPaidThrough`, `payments/*`, `duesRates/*`.
+1. No client can write `status`, `role`, `duesPaidThrough`, `payments/*`, `duesRates/*` — including
+   an admin's own client session. (`members/{uid}`'s `update` rule had a gap here until the
+   `/admin/members` slice: the `isAdmin()` branch had no trust-field restriction at all, so an
+   admin could write `status`/`role` directly without going through a Function — silently
+   desyncing the Firestore field from the actual custom claim. Fixed; see the two "admin cannot
+   write ... via direct client update" tests.)
 2. `directoryEntries` is readable only when the requester's token has `verified == true`.
 3. `members/{uid}` is readable by `uid` or admin. Never by another member.
 4. `welfareCases` readable only with `role in ["exec","admin"]`.
