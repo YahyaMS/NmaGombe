@@ -164,6 +164,30 @@ export const eventPublishInputSchema = z.object({
 })
 export type EventPublishInput = z.infer<typeof eventPublishInputSchema>
 
+/**
+ * broadcasts/{id} — a log, not a send queue. WhatsApp integration here is
+ * free click-to-chat + the admin's own broadcast lists (docs/02-ARCHITECTURE.md);
+ * there is no WhatsApp Business API in this codebase. This records that a
+ * message went out and who sent it — it never transmits anything itself.
+ * Write: Function only (firestore.rules — `allow write: if false`), so the
+ * log can't be edited after the fact. `sentAt` isn't in this schema for the
+ * same Admin-SDK-vs-client-SDK Timestamp reason as news/events.
+ */
+export const broadcastSchema = z.object({
+  message: z.string(),
+  audience: z.string(),
+  sentBy: z.string(),
+  channel: z.literal('whatsapp'),
+})
+export type Broadcast = z.infer<typeof broadcastSchema>
+
+/** What /admin/broadcast submits to the logBroadcast Function. */
+export const broadcastComposeInputSchema = z.object({
+  message: z.string().trim().min(10, 'Enter the broadcast text').max(4000),
+  audience: z.string().trim().min(2, 'Describe who this is for').max(120),
+})
+export type BroadcastComposeInput = z.infer<typeof broadcastComposeInputSchema>
+
 export const verificationRequestSchema = z.object({
   uid: z.string(),
   folioNumber: z.string(),
