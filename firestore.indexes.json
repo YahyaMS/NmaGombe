@@ -1,27 +1,19 @@
 {
   "indexes": [
     {
-      "collectionGroup": "directoryEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "specialty", "order": "ASCENDING" },
-        { "fieldPath": "displayName", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "directoryEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "searchTokens", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "displayName", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "news",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "publishedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
       ]
     },
     {

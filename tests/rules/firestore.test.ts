@@ -624,7 +624,58 @@ describe('events/{id}', () => {
   })
 })
 
-// ── Invariant 10: catch-all denies unknown paths ─────────────────────────────
+// ── Invariant 10: news is published-or-exec readable, exec-only writable ─────
+
+describe('news/{slug}', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'news/published-item'), {
+        title: 'Published communiqué',
+        status: 'published',
+      })
+      await setDoc(doc(ctx.firestore(), 'news/draft-item'), {
+        title: 'Draft communiqué',
+        status: 'draft',
+      })
+    })
+  })
+
+  test('unauthenticated can read a published item', async () => {
+    const db = anon().firestore()
+    await assertSucceeds(getDoc(doc(db, 'news/published-item')))
+  })
+
+  test('unauthenticated cannot read a draft', async () => {
+    const db = anon().firestore()
+    await assertFails(getDoc(doc(db, 'news/draft-item')))
+  })
+
+  test('verified non-exec member cannot read a draft', async () => {
+    const db = verified('regular-member').firestore()
+    await assertFails(getDoc(doc(db, 'news/draft-item')))
+  })
+
+  test('exec can read a draft', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(getDoc(doc(db, 'news/draft-item')))
+  })
+
+  test('non-exec cannot write news', async () => {
+    const db = verified('regular-member').firestore()
+    await assertFails(
+      updateDoc(doc(db, 'news/published-item'), { title: 'Tampered' })
+    )
+  })
+
+  test('exec can write news', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(
+      setDoc(doc(db, 'news/new-item'), { title: 'New', status: 'published' })
+    )
+  })
+})
+
+// ── Invariant 11: catch-all denies unknown paths ─────────────────────────────
 
 describe('catch-all denial', () => {
   test('unauthenticated cannot read an arbitrary unknown collection', async () => {
