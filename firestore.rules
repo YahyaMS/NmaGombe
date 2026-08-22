@@ -85,9 +85,46 @@ service cloud.firestore {
       allow write: if false; // Function/admin console only — the client never sets a price
     }
 
+    // Self-reported CPD/CME log. "chapter_event" is reserved for a future
+    // event-attendance Function write (Phase 2 registration linking, not
+    // built) — a client can only ever write "self_reported", and it's
+    // immutable after create so an honest entry can't be relabelled later.
+    // creditUnits' upper bound is a sanity/anti-abuse ceiling, not a claimed
+    // MDCN figure — we don't know MDCN's actual per-activity or annual point
+    // requirements and shouldn't encode a guess as if it were policy.
+    //
+    // No collection-group view for admin: `allow read: if isAdmin()` below
+    // only resolves at a *known* uid (e.g. an admin who already has a
+    // member's uid from /admin/members). Querying CPD entries across every
+    // member needs its own `match /{path=**}/entries/{id}` collection-group
+    // rule plus a collection-group index, and nothing here provides either.
+    // Deliberately not built — nothing today needs an aggregate CPD view.
+    function cpdEntryShape() {
+      return request.resource.data.keys().hasAll(
+               ['title', 'provider', 'creditUnits', 'dateAttended', 'source', 'createdAt'])
+        && request.resource.data.keys().hasOnly(
+               ['title', 'provider', 'creditUnits', 'dateAttended', 'certificateUrl', 'source', 'createdAt'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
+        && request.resource.data.provider is string
+        && request.resource.data.provider.size() > 0 && request.resource.data.provider.size() <= 160
+        && request.resource.data.creditUnits is number
+        && request.resource.data.creditUnits > 0 && request.resource.data.creditUnits <= 100
+        && request.resource.data.dateAttended is string
+        && request.resource.data.dateAttended.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.source == 'self_reported'
+        && (!('certificateUrl' in request.resource.data) || request.resource.data.certificateUrl is string);
+    }
+
     match /cpdEntries/{uid}/entries/{id} {
-      allow read, write: if isSelf(uid);
+      allow get, list: if isSelf(uid) && verified();
       allow read: if isAdmin();
+      allow create: if isSelf(uid) && verified() && cpdEntryShape()
+                    && request.resource.data.createdAt == request.time;
+      allow update: if isSelf(uid) && verified() && cpdEntryShape()
+                    && request.resource.data.source == resource.data.source
+                    && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isSelf(uid) && verified();
     }
 
     match /events/{id} {

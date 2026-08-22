@@ -25,6 +25,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore'
@@ -639,6 +640,125 @@ describe('events/{id}', () => {
     await assertFails(
       updateDoc(doc(db, 'events/cme-2025'), { title: 'Tampered' })
     )
+  })
+})
+
+// ── Invariant 9b: cpdEntries — self-reported only, verified-gated, no cross-member read ──
+
+describe('cpdEntries/{uid}/entries/{id}', () => {
+  const uid = 'cpd-member-001'
+  const otherUid = 'cpd-member-002'
+
+  function validEntry(overrides: Record<string, unknown> = {}) {
+    return {
+      title: 'Annual Paediatrics Update',
+      provider: 'NPA Gombe Branch',
+      creditUnits: 5,
+      dateAttended: '2026-03-14',
+      source: 'self_reported',
+      createdAt: serverTimestamp(),
+      ...overrides,
+    }
+  }
+
+  test('unverified (authenticated only) member cannot create an entry', async () => {
+    const db = authed(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry())
+    )
+  })
+
+  test('verified member can create a valid self-reported entry', async () => {
+    const db = verified(uid).firestore()
+    await assertSucceeds(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry())
+    )
+  })
+
+  test('cannot create with source other than self_reported', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry({ source: 'chapter_event' }))
+    )
+  })
+
+  test('cannot create for another uid', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${otherUid}/entries/e1`), validEntry())
+    )
+  })
+
+  test('cannot create with dateAttended in the wrong format', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry({ dateAttended: '14-03-2026' }))
+    )
+  })
+
+  test('cannot create with creditUnits above the sanity bound', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry({ creditUnits: 9999 }))
+    )
+  })
+
+  test('cannot create with zero or negative creditUnits', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `cpdEntries/${uid}/entries/e1`), validEntry({ creditUnits: 0 }))
+    )
+  })
+
+  describe('after an entry exists', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `cpdEntries/${uid}/entries/e1`), validEntry())
+      })
+    })
+
+    test('owner can update a field like title', async () => {
+      const db = verified(uid).firestore()
+      await assertSucceeds(
+        updateDoc(doc(db, `cpdEntries/${uid}/entries/e1`), { title: 'Corrected title' })
+      )
+    })
+
+    test('owner can attach a certificate after creation', async () => {
+      const db = verified(uid).firestore()
+      await assertSucceeds(
+        updateDoc(doc(db, `cpdEntries/${uid}/entries/e1`), {
+          certificateUrl: 'https://firebasestorage.googleapis.com/cpd/x/e1',
+        })
+      )
+    })
+
+    test('source cannot be changed after creation', async () => {
+      const db = verified(uid).firestore()
+      await assertFails(
+        updateDoc(doc(db, `cpdEntries/${uid}/entries/e1`), { source: 'chapter_event' })
+      )
+    })
+
+    test('owner can delete their own entry', async () => {
+      const db = verified(uid).firestore()
+      await assertSucceeds(deleteDoc(doc(db, `cpdEntries/${uid}/entries/e1`)))
+    })
+
+    test('another verified member cannot read this entry', async () => {
+      const db = verified(otherUid).firestore()
+      await assertFails(getDoc(doc(db, `cpdEntries/${uid}/entries/e1`)))
+    })
+
+    test('another verified member cannot delete this entry', async () => {
+      const db = verified(otherUid).firestore()
+      await assertFails(deleteDoc(doc(db, `cpdEntries/${uid}/entries/e1`)))
+    })
+
+    test('admin can read a specific member\'s entry by known uid', async () => {
+      const db = admin('admin-user').firestore()
+      await assertSucceeds(getDoc(doc(db, `cpdEntries/${uid}/entries/e1`)))
+    })
   })
 })
 

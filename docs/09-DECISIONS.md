@@ -152,6 +152,21 @@ metric. This is not a real saving: a member still downloads the same bytes withi
 opening the page. Don't read `/signup`'s clean bundle number as evidence the budget problem is
 solved — check `/pending`'s instead, or measure real transferred bytes, not the official metric.
 
+**Update, `/portal/cpd` (Phase 2, first slice built after this ADR).** Measured directly (gzipping
+each route's actual first-load chunks, since Turbopack's build output doesn't print a size table
+the way webpack's did): every authenticated portal route — `/portal`, `/portal/card`,
+`/portal/directory`, `/portal/profile`, `/admin` — is already at ~374–376KB gzip, not just
+`/pending`'s ~211KB; the overage is uniform across the portal, not a `/pending`-specific number.
+`/portal/cpd` lands in the same band (~375.7KB), and its own marginal cost above the next-closest
+route is under 1KB — confirming the overage here is entirely the shared SDK cost this ADR already
+tracks, not a new dependency this slice introduced. One candidate mitigation above is now
+partially foreclosed for this route specifically: `/portal/cpd` deliberately uses `onSnapshot`
+rather than a one-time `getDocs()`, because `getDocs()` "may return cached data or fail" while
+offline per `@firebase/firestore`'s own type docs — not a reliable guarantee, and "offline for the
+things that matter" is a `CLAUDE.md` non-negotiable. Moving this route to `firebase/firestore/lite`
+during the eventual bundle pass would trade away that offline guarantee, not just save bytes;
+whoever does that pass should treat it as a real design trade-off for this route, not a free win.
+
 ---
 ## ADR-012 — directoryEntries populate on verification, not from a pre-seeded roster
 **Context.** `06-ROADMAP.md`'s original step 3 assumed pre-seeding `directoryEntries` from the

@@ -67,7 +67,12 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 /portal/directory/[uid]          Member detail, subject to that member's visibility flags. Same
                                  directoryEntries doc, one field.
 /portal/profile                  Edit own details, set per-field visibility, set MDCN renewal month.
-/portal/cpd                      (Phase 2) CPD log, add entry, upload certificate, export summary.
+/portal/cpd                      CPD log: add self-reported entries, attach a certificate after
+                                 the fact (offline-friendly — entry creation doesn't wait on an
+                                 upload), export a print-optimised summary carrying its own
+                                 provenance (name, folio number, generation date, total credit
+                                 units) since a printed page leaves the system. No admin
+                                 cross-member view — see docs/03-DATA-MODEL.md.
 /portal/jobs                     (Phase 2) Locum and job board.
 /portal/jobs/new                 (Phase 2) Post a listing. Expiry required.
 /portal/documents                Member-only downloads: guidelines, forms, circulars.

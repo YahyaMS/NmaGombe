@@ -117,10 +117,33 @@ free when webhooks retry. Read: own payments, plus admin.
 `{ grade: amountKobo }` — the server's only source of truth for price. Admin-writable, never
 client-writable, and the client never sends an amount.
 
-### `cpdEntries/{uid}/entries/{id}` (Phase 2)
-`title, provider, creditUnits, dateAttended, certificateUrl, source ("chapter_event"|"self_reported")`
-Self-reported entries are labelled as such. We record what the member tells us; we do not
-certify it, and the export says so.
+### `cpdEntries/{uid}/entries/{id}`
+```
+title, provider, creditUnits (number, 0 < n <= 100 — a sanity/anti-abuse bound, not a
+                    claimed MDCN figure), dateAttended ("YYYY-MM-DD" string — a calendar
+                    day isn't an instant, and a Timestamp would import a timezone question
+                    with no correct answer; the string form also sorts lexicographically as
+                    chronologically, so orderBy works unchanged)
+certificateUrl?     // optional and addable after creation — certificate upload needs
+                    // network, entry creation doesn't, so a member offline must be able
+                    // to log the entry now and attach the file later
+source ("chapter_event"|"self_reported")   // client can only ever write "self_reported",
+                    // and it's immutable after create (firestore.rules). "chapter_event" is
+                    // reserved for a future event-attendance Function write once Phase 2's
+                    // registrations/{eventId}_{uid} attendance-linking is built — not built yet.
+createdAt
+```
+No client access beyond self: `allow get, list, create, update, delete: if isSelf(uid) && verified()`.
+`allow read: if isAdmin()` exists **only for a known uid** (e.g. an admin already looking at one
+member from `/admin/members`) — there is no collection-group rule or index, so a query across
+every member's CPD entries is not possible today and would need its own
+`match /{path=**}/entries/{id}` rule plus a collection-group index. Deliberately not built:
+nothing today needs an aggregate CPD view, and building the query path before there's a UI that
+needs it just leaves an unused permission surface. Revisit only if that changes.
+
+Self-reported entries are labelled as such on both the record and the printed export (see
+`/portal/cpd`) — we record what the member tells us, we do not certify it, and the export says
+so visibly, not just in the `source` field.
 
 ### `events/{slug}`
 `title, slug, description (markdown), location, startAt, status ("draft"|"published")`
@@ -161,6 +184,10 @@ family medical information. If in doubt, leave it out and handle it offline.
 5. A member cannot set their own `folioNumber` after verification (prevents identity swap).
 6. Storage: certificate and receipt paths are namespaced by uid and readable only by that uid
    plus admin. Do not rely on unguessable URLs.
+7. `cpdEntries` requires `verified()`, not just `isSelf(uid)` — an authenticated-but-unverified
+   account cannot create, read, or delete another self-supposedly-owned entry. `source` can only
+   ever be written as `"self_reported"` by a client, and is immutable once set — an entry cannot
+   be created honestly and relabelled `"chapter_event"` afterward.
 
 ## Indexes
 Composite indexes needed for: news by `status + publishedAt desc`, events by

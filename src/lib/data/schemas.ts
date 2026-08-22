@@ -191,6 +191,43 @@ export const broadcastComposeInputSchema = z.object({
 })
 export type BroadcastComposeInput = z.infer<typeof broadcastComposeInputSchema>
 
+/**
+ * cpdEntries/{uid}/entries/{id}. dateAttended is a plain "YYYY-MM-DD" string, not a
+ * Timestamp — see docs/03-DATA-MODEL.md for why. source is always "self_reported" for a
+ * client-created entry; "chapter_event" is reserved for a future Function write and is
+ * enforced (including immutability) in firestore.rules, not just here.
+ */
+export const cpdSourceSchema = z.enum(['chapter_event', 'self_reported'])
+export type CpdSource = z.infer<typeof cpdSourceSchema>
+
+export const cpdEntrySchema = z.object({
+  title: z.string(),
+  provider: z.string(),
+  creditUnits: z.number(),
+  dateAttended: z.string(),
+  certificateUrl: z.string().optional(),
+  source: cpdSourceSchema,
+})
+export type CpdEntry = z.infer<typeof cpdEntrySchema>
+
+/** What /portal/cpd's add-entry form submits. The 100 ceiling mirrors firestore.rules'
+ * sanity bound — not a claimed MDCN figure, just an anti-fat-finger check. */
+export const cpdEntryInputSchema = z.object({
+  title: z.string().trim().min(2, 'Enter a title').max(160),
+  provider: z.string().trim().min(2, 'Enter the provider or organiser').max(160),
+  creditUnits: z
+    .number({
+      required_error: 'Enter the number of credit units',
+      invalid_type_error: 'Enter the number of credit units',
+    })
+    .positive('Enter a positive number of credit units')
+    .max(100, 'That looks too high — check the value'),
+  dateAttended: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a valid date'),
+})
+export type CpdEntryInput = z.infer<typeof cpdEntryInputSchema>
+
 export const verificationRequestSchema = z.object({
   uid: z.string(),
   folioNumber: z.string(),

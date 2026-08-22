@@ -29,6 +29,7 @@ function formatEventDate(ts: UpcomingEvent['startAt']): string {
 const quickLinks = [
   { href: '/portal/card', label: 'Your folio card' },
   { href: '/portal/directory', label: 'Find a colleague' },
+  { href: '/portal/cpd', label: 'Your CPD log' },
   { href: '/portal/profile', label: 'Edit your profile' },
 ]
 
