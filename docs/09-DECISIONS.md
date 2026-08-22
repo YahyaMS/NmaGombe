@@ -225,3 +225,31 @@ consent revocation (which deletes the `publicDirectory` doc, not just stops upda
 suspension (which removes a member from `directoryEntries` too, not only the public one). Cost:
 one more Function, and directory updates are now eventually-consistent with a profile edit rather
 than synchronous with it — acceptable, since nothing currently depends on that being instant.
+
+---
+## ADR-015 — `middleware.ts` → `proxy.ts`; kept as a fast, non-authoritative first pass
+**Context.** Next.js 16 deprecated the `middleware.ts` file convention and renamed it to
+`proxy.ts` — same capability, and as of v16.0.0 Proxy defaults to the **Node.js runtime**, not
+Edge (confirmed against `node_modules/next/dist/docs/.../file-conventions/proxy.md`, not assumed
+from memory). That's a material change from when this project's gate was first built: Edge
+middleware could only check a cookie's *presence*, because `firebase-admin` cannot run there.
+Node-runtime Proxy can call the Admin SDK directly, which raised the question of whether the real,
+`checkRevoked: true` session check should just move into `src/proxy.ts` and drop the second check
+in the `/portal`/`/admin` layouts entirely.
+**Decision.** Rename the file (`src/proxy.ts`, export renamed to `proxy`) but keep the two-layer
+shape. `src/proxy.ts` now calls the real `verifySession()` (Admin SDK) instead of a bare
+presence check — genuine improvement, not just a rename — but still with `checkRevoked: false`,
+and the authoritative `checkRevoked: true` re-check stays server-side in the `/portal` and
+`/admin` layouts. Reasons this isn't collapsed to one layer: (1) Next's own docs warn that a
+matcher change, or a Server Function moved to a different route, can silently lose Proxy coverage
+— a bug there fails open, not closed; (2) revocation lookups are the more expensive check and
+don't belong on every request Proxy sees, including static assets before matcher exclusion; (3)
+this mirrors the same defence-in-depth reasoning `.claude/rules/security-rules.md` already asks
+for in Cloud Functions — never let one layer's pass stand in for authorisation everywhere it
+matters.
+**Consequence.** `src/lib/auth/session.ts`'s `verifySession()` is now genuinely shared, exercised
+identically by both layers, not two similar-looking checks that drift apart — `tests/auth/`
+covers each caller. `.claude/rules/nextjs-boundaries.md` item 8 (previously "Middleware runs on
+the Edge runtime, no Node APIs") is corrected to describe the Node-runtime reality; the migration
+codemod (`npx @next/codemod@canary middleware-to-proxy .`) is the documented path if this ever
+needs re-running on a future rename.

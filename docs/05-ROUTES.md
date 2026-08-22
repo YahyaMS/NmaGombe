@@ -99,7 +99,12 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 
 ## Route-level rules
 - Everything under `/portal` and `/admin` is `noindex`, guarded in middleware **and** re-checked
-  server-side. Middleware alone is not authorisation.
+  server-side. Middleware alone is not authorisation. Implemented as: `src/proxy.ts` (Next.js 16
+  renamed `middleware.ts` to `proxy.ts` — same capability, defaults to the Node.js runtime as of
+  16.0.0) does the fast first-pass check against the `__session` cookie, no revocation lookup;
+  `src/app/portal/layout.tsx` and `src/app/admin/layout.tsx` do the authoritative re-check
+  (`checkRevoked: true`) server-side, via `src/lib/auth/session.ts`. Both read only `__session`
+  (HttpOnly) — never `nma_display`, the separate display-only cookie the header reads.
 - `/verify/[folio]` is public, indexable, cached at the edge, and deliberately reveals nothing
   beyond membership standing.
 - `/doctors` is public but contains no contact details. Contact details live behind verification.
