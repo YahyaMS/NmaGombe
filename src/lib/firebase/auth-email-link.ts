@@ -96,19 +96,40 @@ export async function completeEmailLinkSignIn(url: string, email: string): Promi
   return result.user
 }
 
+/**
+ * Mints the server session (__session, HttpOnly) and the display-only
+ * cookie (nma_display) that src/proxy.ts, the /portal and /admin layouts,
+ * and HeaderAccountLink all read — see src/app/api/session/route.ts. Not
+ * best-effort: /portal and /admin are now gated server-side on __session
+ * existing, so a caller must surface failure here rather than swallow it,
+ * or a properly-signed-in member would be silently unable to reach either.
+ */
+export async function establishServerSession(idToken: string): Promise<void> {
+  const res = await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  })
+  if (!res.ok) throw new Error('Could not establish a server session.')
+}
+
 export type ReturningSignInDestination = 'admin' | 'member' | 'pending'
 
 /**
  * Completes a returning member's email-link sign-in and reports which
  * post-sign-in bucket they fall into, by custom claim rather than any
- * client-writable field.
+ * client-writable field. Establishes the server session with the same
+ * freshly-refreshed token used to decide the bucket, rather than forcing
+ * two separate token refreshes.
  */
 export async function completeReturningSignIn(
   url: string,
   email: string
 ): Promise<ReturningSignInDestination> {
   const user = await completeEmailLinkSignIn(url, email)
-  const token = await user.getIdTokenResult(true)
+  const idToken = await user.getIdToken(true)
+  await establishServerSession(idToken)
+  const token = await user.getIdTokenResult()
   if (token.claims.role === 'admin') return 'admin'
   if (token.claims.verified === true) return 'member'
   return 'pending'

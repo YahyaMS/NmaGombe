@@ -15,6 +15,7 @@ import {
   readStoredEmail,
   completeEmailLinkSignIn,
   completeReturningSignIn,
+  establishServerSession,
   describeSignInError,
 } from '@/lib/firebase/auth-email-link'
 
@@ -60,6 +61,8 @@ export function SignupForm() {
         const user = await completeEmailLinkSignIn(window.location.href, email)
         await createMemberProfile(user.uid, { ...draft, email })
         await submitVerificationRequest(user.uid, draft.folioNumber)
+        const idToken = await user.getIdToken(true)
+        await establishServerSession(idToken)
         clearSignupDraft()
         router.replace('/pending')
         return

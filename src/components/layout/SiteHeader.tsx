@@ -14,7 +14,7 @@ function hasCrest(): boolean {
   }
 }
 
-export function SiteHeader({ authAware = false }: { authAware?: boolean }) {
+export function SiteHeader() {
   const crestReady = hasCrest()
 
   return (
@@ -90,24 +90,7 @@ export function SiteHeader({ authAware = false }: { authAware?: boolean }) {
                 About
               </Link>
             </li>
-            {authAware ? (
-              <HeaderAccountLink />
-            ) : (
-              <li>
-                <Link
-                  href="/signin"
-                  className="type-small font-semibold transition-colors px-md py-xs"
-                  style={{
-                    backgroundColor: 'var(--color-surface)',
-                    color: 'var(--color-green)',
-                    borderRadius: 'var(--radius)',
-                    transitionDuration: 'var(--motion-fast)',
-                  }}
-                >
-                  Member sign in
-                </Link>
-              </li>
-            )}
+            <HeaderAccountLink />
           </ul>
         </nav>
       </div>

@@ -6,6 +6,9 @@ const config: Config = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }],
   },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   testMatch: ['**/tests/**/*.test.ts'],
   // Must run in-band: each test suite manages its own emulator connection
   maxWorkers: 1,

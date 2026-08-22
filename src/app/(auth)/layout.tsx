@@ -11,7 +11,7 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex flex-col min-h-dvh">
-      <SiteHeader authAware />
+      <SiteHeader />
       <main className="flex-1">{children}</main>
     </div>
   )
