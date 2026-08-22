@@ -1,0 +1,88 @@
+# Intake register item 01. This is the actual fix for "silly errors that should have been
+# caught at build time" — not a document. A doc is advice; this blocks the merge.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # THE important one. `next build` catches an entire class of errors that tsc and
+      # eslint do not: server/client boundary violations, non-serializable props crossing
+      # that boundary, static-rendering bailouts, bad metadata, route conflicts.
+      # If this is not in CI, those errors reach you at runtime instead.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000:web:000"
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_USE_EMULATORS: "true"
+
+      - name: Unit tests
+        run: npm run test
+
+      # tests/rules needs the Firestore emulator (see tests/rules/firestore.test.ts) —
+      # `emulators:exec` starts it, waits for readiness, runs the command, tears down.
+      - name: Firestore rules tests
+        run: npx firebase-tools emulators:exec --only firestore --project nma-gombe-test "npm run test:rules"
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # Closes the "no browser in the dev environment" gap that has been flagged for
+      # several slices. Every unclicked page gets clicked here, once, by a machine.
+      #
+      # tests/smoke/global-setup.ts mints signed-in fixtures against the Auth emulator
+      # for the authenticated-route tests, so this needs Auth + Firestore running too —
+      # `emulators:exec` wraps the whole Playwright run (which starts its own
+      # `next build && next start` webServer, see playwright.config.ts).
+      #
+      # No --project flag here, unlike the rules-tests step above: the Auth emulator's
+      # singleProjectMode locks sign-in/token-issuance to whatever project the emulator
+      # suite itself started with, so this must be .firebaserc's default
+      # ("nma-gombe-c5a9d", matching playwright.config.ts's FIREBASE_PROJECT_ID) — not
+      # the arbitrary "nma-gombe-test" the Firestore-only rules tests use, which doesn't
+      # hit that lock. Confirmed by reproducing the mismatch locally: it fails with
+      # "incorrect aud claim" once the Auth emulator is pinned to a different project.
+      - name: Smoke tests
+        run: npx firebase-tools emulators:exec --only auth,firestore "npm run test:smoke"
