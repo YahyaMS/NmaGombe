@@ -69,6 +69,41 @@ export async function publishNewsAdmin(input: NewsPublishInput, author: string):
   return slug
 }
 
+/** One news item, for the admin edit page — regardless of status, unlike
+ * lib/data/news.ts's public getPublishedNewsBySlug. */
+export async function getNewsByIdAdmin(slug: string): Promise<AdminNewsItem | null> {
+  const doc = await adminDb.collection('news').doc(slug).get()
+  if (!doc.exists) return null
+  const data = doc.data()
+  const parsed = newsSchema.safeParse(data)
+  if (!parsed.success) return null
+  const publishedAt = data?.publishedAt as FirebaseFirestore.Timestamp | undefined
+  return { ...parsed.data, publishedAt: publishedAt ? publishedAt.toDate().toISOString() : null }
+}
+
+/**
+ * Edits an already-published item in place. Never touches `slug`, `status`,
+ * `author` or `publishedAt` — an edit is a correction, not a re-publish, so
+ * it shouldn't reassign authorship or bump the item back to the top of a
+ * newest-first list. `excerpt` is re-derived from the new body, same as at
+ * publish time, or a correction to the body would leave a stale preview.
+ */
+export async function updateNewsAdmin(slug: string, input: NewsPublishInput, editedBy: string): Promise<void> {
+  const parsed = newsPublishInputSchema.parse(input)
+
+  await adminDb
+    .collection('news')
+    .doc(slug)
+    .update({
+      title: parsed.title,
+      body: parsed.body,
+      excerpt: excerptOf(parsed.body),
+      category: parsed.category,
+      lastEditedBy: editedBy,
+      lastEditedAt: new Date().toISOString(),
+    })
+}
+
 /**
  * The exec's own view, newest first. Everything published through this file is
  * status:'published' immediately (no draft step in v1 — see publishNewsAdmin),

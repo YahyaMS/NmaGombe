@@ -32,16 +32,16 @@ export async function listRegistrantsAdmin(eventId: string): Promise<RegistrantR
       const uid = data.uid as string
       const memberSnap = await adminDb.collection('members').doc(uid).get()
       const member = memberSnap.data()
-      const markedAt = data.attendanceMarkedAt as FirebaseFirestore.Timestamp | undefined
-      const unmarkedAt = data.attendanceUnmarkedAt as FirebaseFirestore.Timestamp | undefined
+      // Plain ISO strings, written by functions/src/registrations.ts — not
+      // Firestore Timestamps, so no .toDate() conversion here.
       return {
         uid,
         eventId,
         displayName: (member?.displayName as string | undefined) ?? '',
         folioNumber: (member?.folioNumber as string | undefined) ?? '',
         attended: data.attended === true,
-        attendanceMarkedAt: markedAt ? markedAt.toDate().toISOString() : null,
-        attendanceUnmarkedAt: unmarkedAt ? unmarkedAt.toDate().toISOString() : null,
+        attendanceMarkedAt: (data.attendanceMarkedAt as string | undefined) ?? null,
+        attendanceUnmarkedAt: (data.attendanceUnmarkedAt as string | undefined) ?? null,
         cpdEntryCredited: typeof data.cpdEntryId === 'string',
       }
     })

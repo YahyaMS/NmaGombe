@@ -123,7 +123,15 @@ export const newsCategoryLabels: Record<NewsCategory, string> = {
   obituary: 'Obituary',
 }
 
-/** news/{slug} — doc ID is the slug. Write: exec only (firestore.rules). */
+/**
+ * news/{slug} — doc ID is the slug. Write: exec only (firestore.rules).
+ * lastEditedBy/lastEditedAt are set only by the edit path (PUT
+ * /api/admin/news/[slug]) — absent on an item that's never been corrected
+ * since it was published. Plain ISO string, not a Timestamp: written and
+ * read entirely server-side via the Admin SDK, so there's no cross-SDK
+ * Timestamp-class mismatch to work around by keeping it out of this schema
+ * the way publishedAt is.
+ */
 export const newsSchema = z.object({
   title: z.string(),
   slug: z.string(),
@@ -132,6 +140,8 @@ export const newsSchema = z.object({
   author: z.string(),
   category: newsCategorySchema,
   status: z.enum(['draft', 'published']),
+  lastEditedBy: z.string().optional(),
+  lastEditedAt: z.string().optional(),
 })
 export type NewsItem = z.infer<typeof newsSchema>
 
@@ -157,9 +167,16 @@ export const eventSchema = z.object({
   status: z.enum(['draft', 'published']),
   /** Optional — unset means this event earns no CPD credit (e.g. a social
    * event). The 100 ceiling mirrors cpdEntries' own sanity bound (see
-   * cpdEntryInputSchema below) — not a claimed MDCN figure. Set once, at
-   * publish time: events have no edit path yet (docs/09-DECISIONS.md). */
+   * cpdEntryInputSchema below) — not a claimed MDCN figure. Editable after
+   * publishing (PUT /api/admin/events/[slug]) — a change only affects
+   * members marked attended from then on. markAttendance snapshots
+   * creditUnits onto the cpdEntries doc at the moment of marking rather
+   * than referencing the event live, so already-credited entries are never
+   * retroactively rewritten by an edit here — see docs/03-DATA-MODEL.md. */
   cpdCreditUnits: z.number().positive().max(100).optional(),
+  // See newsSchema's lastEditedBy/lastEditedAt comment — same reasoning.
+  lastEditedBy: z.string().optional(),
+  lastEditedAt: z.string().optional(),
 })
 export type EventItem = z.infer<typeof eventSchema>
 

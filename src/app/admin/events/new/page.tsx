@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { EventForm } from './EventForm'
+import { EventForm } from '@/components/admin/EventForm'
 
 export const metadata: Metadata = {
   title: 'New event — Admin — NMA Gombe',

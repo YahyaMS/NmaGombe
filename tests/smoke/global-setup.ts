@@ -24,9 +24,11 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { adminAuth, adminDb } from '../../src/lib/firebase/admin'
 
-// Fixed slug so tests/smoke/pages.spec.ts can reach a real
-// /admin/events/[slug]/attendance page, not just its not-found branch.
+// Fixed slugs so tests/smoke/pages.spec.ts can reach real
+// /admin/events/[slug]/attendance and /admin/.../[slug]/edit pages, not
+// just their not-found branches.
 export const SMOKE_EVENT_SLUG = 'smoke-test-event'
+export const SMOKE_NEWS_SLUG = 'smoke-test-news'
 
 const AUTH_EMULATOR_HOST = 'localhost:9099'
 
@@ -76,8 +78,9 @@ export default async function globalSetup(): Promise<void> {
   mkdirSync(FIXTURES_DIR, { recursive: true })
   writeFileSync(FIXTURES_PATH, JSON.stringify({ member: { token: member }, exec: { token: exec } }))
 
-  // A real published event so /admin/events/[slug]/attendance has something
-  // to render, not just its not-found branch.
+  // A real published event so /admin/events/[slug]/attendance and
+  // /admin/events/[slug]/edit have something to render, not just their
+  // not-found branches.
   await adminDb.doc(`events/${SMOKE_EVENT_SLUG}`).set({
     title: 'Smoke Test CME',
     slug: SMOKE_EVENT_SLUG,
@@ -86,5 +89,17 @@ export default async function globalSetup(): Promise<void> {
     status: 'published',
     startAt: new Date(),
     cpdCreditUnits: 2,
+  })
+
+  // Same reasoning, for /admin/news/[slug]/edit.
+  await adminDb.doc(`news/${SMOKE_NEWS_SLUG}`).set({
+    title: 'Smoke Test Communiqué',
+    slug: SMOKE_NEWS_SLUG,
+    body: 'Seeded by tests/smoke/global-setup.ts — not a real communiqué.',
+    excerpt: 'Seeded by tests/smoke/global-setup.ts — not a real communiqué.',
+    author: 'NMA Gombe',
+    category: 'communique',
+    status: 'published',
+    publishedAt: new Date(),
   })
 }

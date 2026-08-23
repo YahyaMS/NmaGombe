@@ -41,16 +41,42 @@ export async function EventsAdminList() {
             No events published yet.
           </p>
         ) : (
-          items.map((item, i) => (
-            <RegisterRow
-              key={item.slug}
-              index={formatDate(item.startAt)}
-              primary={item.title}
-              secondary={item.cpdCreditUnits ? `${item.location} · ${item.cpdCreditUnits} CPD unit${item.cpdCreditUnits === 1 ? '' : 's'}` : item.location}
-              href={`/admin/events/${item.slug}/attendance`}
-              last={i === items.length - 1}
-            />
-          ))
+          items.map((item, i) => {
+            const secondaryParts = [
+              item.cpdCreditUnits
+                ? `${item.location} · ${item.cpdCreditUnits} CPD unit${item.cpdCreditUnits === 1 ? '' : 's'}`
+                : item.location,
+            ]
+            if (item.lastEditedAt) secondaryParts.push(`Edited ${formatDate(item.lastEditedAt)}`)
+
+            return (
+              <RegisterRow
+                key={item.slug}
+                index={formatDate(item.startAt)}
+                primary={item.title}
+                secondary={secondaryParts.join(' · ')}
+                last={i === items.length - 1}
+                action={
+                  <>
+                    <Link
+                      href={`/admin/events/${item.slug}/attendance`}
+                      className="type-small font-semibold"
+                      style={{ color: 'var(--color-green)', textDecoration: 'none' }}
+                    >
+                      Attendance
+                    </Link>
+                    <Link
+                      href={`/admin/events/${item.slug}/edit`}
+                      className="type-small font-semibold"
+                      style={{ color: 'var(--color-ink-2)', textDecoration: 'none' }}
+                    >
+                      Edit
+                    </Link>
+                  </>
+                }
+              />
+            )
+          })
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@
  */
 
 import 'server-only'
+import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase/admin'
 import { eventPublishInputSchema, eventSchema, type EventItem, type EventPublishInput } from './schemas'
 import { slugify } from './slug'
@@ -43,6 +44,31 @@ export async function publishEventAdmin(input: EventPublishInput): Promise<strin
     })
 
   return slug
+}
+
+/**
+ * Edits an already-published event in place. Never touches `slug` or
+ * `status` — the doc ID and existing registrations/attendance/cpdEntries
+ * are all keyed to the slug, so changing it on an edit would orphan them.
+ * `FieldValue.delete()` for a cleared cpdCreditUnits: unlike publishEventAdmin's
+ * fresh `.set()`, this is an `.update()` on an existing doc, so simply
+ * omitting the field would leave the old value in place rather than clear it.
+ */
+export async function updateEventAdmin(slug: string, input: EventPublishInput, editedBy: string): Promise<void> {
+  const parsed = eventPublishInputSchema.parse(input)
+
+  await adminDb
+    .collection('events')
+    .doc(slug)
+    .update({
+      title: parsed.title,
+      description: parsed.description,
+      location: parsed.location,
+      startAt: new Date(parsed.startAt),
+      cpdCreditUnits: parsed.cpdCreditUnits !== undefined ? parsed.cpdCreditUnits : FieldValue.delete(),
+      lastEditedBy: editedBy,
+      lastEditedAt: new Date().toISOString(),
+    })
 }
 
 /** One event, for the admin attendance-marking page — regardless of status,

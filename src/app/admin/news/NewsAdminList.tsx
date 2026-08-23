@@ -44,16 +44,38 @@ export async function NewsAdminList() {
             Nothing published yet.
           </p>
         ) : (
-          items.map((item, i) => (
-            <RegisterRow
-              key={item.slug}
-              index={formatDate(item.publishedAt)}
-              primary={item.title}
-              secondary={newsCategoryLabels[item.category]}
-              href={`/news/${item.slug}`}
-              last={i === items.length - 1}
-            />
-          ))
+          items.map((item, i) => {
+            const secondaryParts = [newsCategoryLabels[item.category]]
+            if (item.lastEditedAt) secondaryParts.push(`Edited ${formatDate(item.lastEditedAt)}`)
+
+            return (
+              <RegisterRow
+                key={item.slug}
+                index={formatDate(item.publishedAt)}
+                primary={item.title}
+                secondary={secondaryParts.join(' · ')}
+                last={i === items.length - 1}
+                action={
+                  <>
+                    <Link
+                      href={`/news/${item.slug}`}
+                      className="type-small font-semibold"
+                      style={{ color: 'var(--color-green)', textDecoration: 'none' }}
+                    >
+                      View
+                    </Link>
+                    <Link
+                      href={`/admin/news/${item.slug}/edit`}
+                      className="type-small font-semibold"
+                      style={{ color: 'var(--color-ink-2)', textDecoration: 'none' }}
+                    >
+                      Edit
+                    </Link>
+                  </>
+                }
+              />
+            )
+          })
         )}
       </div>
     </div>

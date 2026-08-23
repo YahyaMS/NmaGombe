@@ -25,6 +25,16 @@ Corollary: nothing on the homepage should be dated unless it self-expires.
 
 If a row has no name against it, delete the feature. An unowned feature is a future embarrassment.
 
+## A correction is not automatically seen
+`/admin/events/[slug]/edit` and `/admin/news/[slug]/edit` fix a mistake in place — a typo, a
+wrong date, a wrong CPD credit figure. They do not notify anyone. A member who already read the
+communiqué yesterday, or already registered for the event, sees nothing change; the correction
+only reaches whoever loads the page again. That's fine for a typo. **For anything material — a
+changed date, a changed venue, a changed CPD figure — send a WhatsApp broadcast too
+(`/admin/broadcast`), not just the edit.** The edit fixes the record; the broadcast is what
+actually reaches a member who has already moved on with the wrong information. This is a process
+rule for whoever is editing, not something the software enforces.
+
 ## The one thing that must never lapse
 The weekly WhatsApp broadcast. It is the only thing that reliably pulls people back. Everything
 else can go quiet for a month without damage.

@@ -166,16 +166,25 @@ so visibly, not just in the `source` field.
 
 ### `events/{slug}`
 `title, slug, description (markdown), location, startAt, status ("draft"|"published"),
-cpdCreditUnits?`
-Publishing only — single-step create-and-publish, no draft/edit/unpublish in v1, same as `news`.
-Public list orders by `startAt` ascending (a calendar shows soonest-next, not most-recently
-posted); past events are removed by the admin, not auto-hidden (`docs/07-CONTENT-OPS.md`
-quarterly review — "delete, don't archive"). `cpdCreditUnits` is optional (unset = this event
-earns no CPD credit, e.g. a purely social event) and, like `cpdEntries.creditUnits`, bounded
-`0 < n <= 100` in both Zod and firestore.rules — an exec mistyping 500 instead of 5 shouldn't be
-storable. Set once at publish time: **events have no edit path**, so a missing or wrong
-`cpdCreditUnits` can't be corrected after the fact today (docs/09-DECISIONS.md flags this as a
-real gap worth its own slice, not a hypothetical one).
+cpdCreditUnits?, lastEditedBy?, lastEditedAt?`
+Single-step create-and-publish, same as `news` — still no draft or unpublish step in v1, but
+publishing is no longer one-way: `PUT /api/admin/events/[slug]` (`lib/data/eventsAdmin.ts`'s
+`updateEventAdmin`) lets an exec correct a mistake in place. The doc ID (`slug`) and `status`
+never change on an edit — `registrations`, attendance, and `cpdEntries` are all keyed to the
+slug, and changing it would orphan them. Public list orders by `startAt` ascending (a calendar
+shows soonest-next, not most-recently posted); past events are removed by the admin, not
+auto-hidden (`docs/07-CONTENT-OPS.md` quarterly review — "delete, don't archive"). `cpdCreditUnits`
+is optional (unset = this event earns no CPD credit, e.g. a purely social event) and, like
+`cpdEntries.creditUnits`, bounded `0 < n <= 100` in both Zod and firestore.rules — an exec
+mistyping 500 instead of 5 shouldn't be storable. **Editing `cpdCreditUnits` only affects members
+marked attended from that point on** — `markAttendance` snapshots `creditUnits` onto the
+`cpdEntries` doc at the moment of marking rather than reading the event live at display time, so
+a correction never retroactively rewrites credit already recorded. `lastEditedBy`/`lastEditedAt`
+are set only by the edit path (absent on an item never corrected since publishing) — see
+`docs/08-NDPA-COMPLIANCE.md`. Editing in place does not notify anyone who already saw the old
+version — see `docs/07-CONTENT-OPS.md` on when a correction needs a broadcast, not just an edit.
+`datetime-local` prefill on edit and the timezone assumption behind it: `docs/09-DECISIONS.md`
+ADR-017.
 
 ### `registrations/{eventId}_{uid}`
 ```
@@ -204,7 +213,12 @@ for two independent reasons: the transaction serialises the read-then-write, and
 own doc ID is deterministic, so even a partial race just overwrites the same document.
 
 ### `news/{slug}`
-`title, slug, body (markdown), excerpt, coverUrl, publishedAt, author, category ("communique"|"news"|"advocacy"|"obituary"), status ("draft"|"published")`
+`title, slug, body (markdown), excerpt, coverUrl, publishedAt, author, category ("communique"|"news"|"advocacy"|"obituary"), status ("draft"|"published"), lastEditedBy?, lastEditedAt?`
+Same edit-in-place addition as `events` (`PUT /api/admin/news/[slug]`, `updateNewsAdmin`):
+`slug`, `status`, `author` and `publishedAt` never change on an edit — a correction isn't a
+re-publish, so it shouldn't reassign authorship or bump the item back to the top of a
+newest-first list. `excerpt` is re-derived from the new body on every edit, or a body correction
+would leave a stale preview.
 
 ### `jobs/{id}` (Phase 2)
 `title, facility, town, type ("locum"|"permanent"|"nysc"), description, contactVia, postedBy, expiresAt, status`

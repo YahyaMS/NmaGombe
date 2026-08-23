@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { NewsForm } from './NewsForm'
+import { NewsForm } from '@/components/admin/NewsForm'
 
 export const metadata: Metadata = {
   title: 'New communiqué — Admin — NMA Gombe',

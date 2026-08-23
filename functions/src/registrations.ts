@@ -79,7 +79,16 @@ export const markAttendance = onCall({ region: REGION }, async (request) => {
     tx.update(registrationRef, {
       attended: true,
       attendanceMarkedBy: callerUid,
-      attendanceMarkedAt: FieldValue.serverTimestamp(),
+      // A plain ISO string, not FieldValue.serverTimestamp() — registrationSchema/
+      // cpdEntrySchema declare these audit fields as z.string(), and cpdEntrySchema
+      // is actually parsed client-side (lib/data/cpd.ts's subscribeToOwnCpdEntries).
+      // A native Timestamp there fails that safeParse for the whole entry, which is
+      // exactly how a withdrawn entry went missing from /portal/cpd instead of
+      // showing "Withdrawn" — this was already deployed and wrong. No transaction-
+      // retry concern: unlike the serverTimestamp() sentinel, this just reads the
+      // wall clock at whichever attempt actually commits, which is fine for an
+      // audit field with no ordering requirement across concurrent transactions.
+      attendanceMarkedAt: new Date().toISOString(),
       ...(earnsCredit ? { cpdEntryId } : {}),
     })
 
@@ -132,7 +141,7 @@ export const unmarkAttendance = onCall({ region: REGION }, async (request) => {
     tx.update(registrationRef, {
       attended: false,
       attendanceUnmarkedBy: callerUid,
-      attendanceUnmarkedAt: FieldValue.serverTimestamp(),
+      attendanceUnmarkedAt: new Date().toISOString(), // see markAttendance's comment on attendanceMarkedAt
     })
 
     // Withdraw, never delete — a member may already have printed the CPD
@@ -142,7 +151,7 @@ export const unmarkAttendance = onCall({ region: REGION }, async (request) => {
     const cpdEntryId = registration.cpdEntryId as string | undefined
     if (cpdEntryId) {
       tx.update(db.doc(`cpdEntries/${uid}/entries/${cpdEntryId}`), {
-        withdrawnAt: FieldValue.serverTimestamp(),
+        withdrawnAt: new Date().toISOString(), // plain string — see markAttendance's comment
         withdrawnBy: callerUid,
       })
     }

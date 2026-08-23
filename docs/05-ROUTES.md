@@ -96,12 +96,22 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
                                  /portal/profile, and this route is scoped to trust-field changes.
 /admin/payments                  Ledger, reconciliation, CSV export for the Treasurer.
 /admin/news/new  /admin/news     Three fields (title, category, body) and a publish button.
-                                 Single-step create-and-publish, no draft/edit/unpublish in v1 —
-                                 exec-gated (useExecGuard), matching isExec() in firestore.rules.
+                                 Single-step create-and-publish — still no draft or unpublish
+                                 step, but /admin/news/[slug]/edit lets an exec correct an
+                                 already-published item afterward.
+/admin/news/[slug]/edit          Same form as /admin/news/new, prefilled — corrects title,
+                                 category or body in place. Doesn't notify anyone who already
+                                 read it; see docs/07-CONTENT-OPS.md for when a correction needs
+                                 a broadcast too.
 /admin/events/new  /admin/events Five fields (title, location, date/time, description, optional
                                  CPD credit units) and a publish button. Same single-step,
                                  exec-gated pattern as news. The events list links each row to
-                                 its attendance route rather than the public event page.
+                                 both its attendance route and its edit route.
+/admin/events/[slug]/edit        Same form as /admin/events/new, prefilled — corrects any field
+                                 in place, including cpdCreditUnits. A correction only affects
+                                 members marked attended after the edit; it never rewrites credit
+                                 already recorded. Doesn't notify registrants; see
+                                 docs/07-CONTENT-OPS.md.
 /admin/events/[slug]/attendance  Mark/unmark attendance per registrant (httpsCallable
                                  markAttendance/unmarkAttendance — admin-callable tier, same
                                  shape as /admin/verification). Marking writes a CPD entry

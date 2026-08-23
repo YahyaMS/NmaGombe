@@ -372,3 +372,38 @@ document this the next time bundle work happens here, don't re-discover it. The 
 build instead of waiting for someone to remember to run `analyze`. Lighthouse mobile scores for
 any of this are still unverified — these are transferred-byte measurements, not a real-device
 performance run; that's a separate, still-open verification (register item 03).
+
+---
+## ADR-017 — Event date/time forms assume the exec is in Nigeria; accepted, not fixed
+**Context.** `EventForm`'s `startAt` field is a `datetime-local` input. The create path does
+`new Date(startAtString)` to turn it into a stored UTC `Timestamp` — and per the JS spec, a
+date-time string with no explicit offset is parsed as **the browser's local time zone**, not
+Africa/Lagos. Building the edit path (`/admin/events/[slug]/edit`) required prefilling that same
+input from the stored UTC value, which meant inverting whatever assumption create had made —
+and surfaced that create was never pinned to Africa/Lagos at all, just to wherever the exec's
+device happened to think it was.
+**Decision.** Keep the assumption, on both sides, rather than fix one and leave the other
+disagreeing. The edit form's `toDatetimeLocalValue()` (`src/components/admin/EventForm.tsx`)
+inverts create's exact browser-local-time behaviour — subtracting the same timezone offset
+`new Date(datetimeLocalString)` would have applied — so a value round-trips correctly for an
+exec sitting in the same time zone they (or a colleague) created it in. This is accepted with a
+known limitation, not treated as fixed: **every exec is assumed to be physically in Nigeria
+(Africa/Lagos, UTC+1, no DST) when they publish or edit an event.** An exec travelling abroad and
+scheduling an event from their laptop would have it silently stored and later re-displayed at
+the wrong local hour — wrong by their departure/return offset, not caught by any validation,
+because both the write and the read make the identical wrong assumption and therefore agree
+with each other.
+**Why not fix it properly now.** The correct fix — an explicit `Africa/Lagos` conversion at the
+form boundary, the same pattern `.claude/rules/nextjs-boundaries.md` item 2 already prescribes
+for *rendering* a stored date, applied here to *parsing* an entered one — is straightforward, not
+hard. It wasn't done in this slice because scoping it into the same PR as the
+edit-path build would have meant re-deriving and re-testing create's date handling too, for a
+failure mode (an exec travelling with a laptop) that hasn't happened yet and that the "small
+slice, not scope-creep" instruction for this work was explicit about avoiding. Recorded here so
+the next person who hits this finds the reasoning, not just the symptom — the fix, when it
+happens, touches both `EventForm.tsx`'s submit and its `toDatetimeLocalValue()` prefill together,
+not just one.
+**Consequence.** No code change from this ADR alone. `docs/03-DATA-MODEL.md`'s `events/{slug}`
+section points here. If a chapter event is ever scheduled by someone outside Nigeria, expect the
+displayed time to be wrong by their local offset from Lagos — that's this limitation, not a new
+bug.
