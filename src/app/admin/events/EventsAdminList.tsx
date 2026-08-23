@@ -46,8 +46,8 @@ export async function EventsAdminList() {
               key={item.slug}
               index={formatDate(item.startAt)}
               primary={item.title}
-              secondary={item.location}
-              href={`/events/${item.slug}`}
+              secondary={item.cpdCreditUnits ? `${item.location} · ${item.cpdCreditUnits} CPD unit${item.cpdCreditUnits === 1 ? '' : 's'}` : item.location}
+              href={`/admin/events/${item.slug}/attendance`}
               last={i === items.length - 1}
             />
           ))

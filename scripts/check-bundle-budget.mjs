@@ -56,7 +56,18 @@ const OFFLINE_ROUTES = new Set([
 // Route Handler — ADR-016's asymmetry: weight accepted here to keep a single
 // privileged write path, not doubled for a byte saving nobody on this route
 // (a handful of exec members) would notice.
-const ADMIN_CALLABLE_ROUTES = new Set(['/admin/verification', '/admin/members', '/admin/broadcast'])
+const ADMIN_CALLABLE_ROUTES = new Set([
+  '/admin/verification',
+  '/admin/members',
+  '/admin/broadcast',
+  // markAttendance/unmarkAttendance — same shape as the three above (Auth +
+  // Functions via httpsCallable, not converted to a Route Handler). Classified
+  // by architecture, not by current measurement: it happens to land under
+  // 200KB today, but belongs in this tier regardless, or a few KB of growth
+  // would fail with a confusing "public tier violated" message instead of
+  // the real story.
+  '/admin/events/[slug]/attendance',
+])
 
 // Not real pages, or not representative of production (see each comment) —
 // excluded rather than force-fit into a tier that would misreport them.

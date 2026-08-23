@@ -155,6 +155,11 @@ export const eventSchema = z.object({
   description: z.string(),
   location: z.string(),
   status: z.enum(['draft', 'published']),
+  /** Optional — unset means this event earns no CPD credit (e.g. a social
+   * event). The 100 ceiling mirrors cpdEntries' own sanity bound (see
+   * cpdEntryInputSchema below) — not a claimed MDCN figure. Set once, at
+   * publish time: events have no edit path yet (docs/09-DECISIONS.md). */
+  cpdCreditUnits: z.number().positive().max(100).optional(),
 })
 export type EventItem = z.infer<typeof eventSchema>
 
@@ -164,6 +169,11 @@ export const eventPublishInputSchema = z.object({
   location: z.string().trim().min(2, 'Enter a location').max(160),
   startAt: z.string().trim().min(1, 'Enter a date and time'),
   description: z.string().trim().min(10, 'Enter a description').max(20000),
+  cpdCreditUnits: z
+    .number({ invalid_type_error: 'Enter a number' })
+    .positive('Enter a positive number of credit units')
+    .max(100, 'That looks too high — check the value')
+    .optional(),
 })
 export type EventPublishInput = z.infer<typeof eventPublishInputSchema>
 
@@ -194,8 +204,12 @@ export type BroadcastComposeInput = z.infer<typeof broadcastComposeInputSchema>
 /**
  * cpdEntries/{uid}/entries/{id}. dateAttended is a plain "YYYY-MM-DD" string, not a
  * Timestamp — see docs/03-DATA-MODEL.md for why. source is always "self_reported" for a
- * client-created entry; "chapter_event" is reserved for a future Function write and is
- * enforced (including immutability) in firestore.rules, not just here.
+ * client-created entry; "chapter_event" entries are written only by markAttendance
+ * (functions/src/registrations.ts) via the Admin SDK, and are immutable to the client
+ * entirely (no update, no delete) once written — firestore.rules enforces this, not just
+ * here. withdrawnAt/withdrawnBy are set only by unmarkAttendance: withdrawal never deletes
+ * the entry (a member may already have printed it for MDCN — see docs/09-DECISIONS.md), it
+ * marks it withdrawn instead, and only markAttendance/unmarkAttendance ever touch these.
  */
 export const cpdSourceSchema = z.enum(['chapter_event', 'self_reported'])
 export type CpdSource = z.infer<typeof cpdSourceSchema>
@@ -207,6 +221,8 @@ export const cpdEntrySchema = z.object({
   dateAttended: z.string(),
   certificateUrl: z.string().optional(),
   source: cpdSourceSchema,
+  withdrawnAt: z.string().optional(),
+  withdrawnBy: z.string().optional(),
 })
 export type CpdEntry = z.infer<typeof cpdEntrySchema>
 
@@ -236,3 +252,26 @@ export const verificationRequestSchema = z.object({
   note: z.string().nullable().optional(),
 })
 export type VerificationRequestData = z.infer<typeof verificationRequestSchema>
+
+/**
+ * registrations/{eventId}_{uid} — doc ID is deterministic (see
+ * docs/03-DATA-MODEL.md), so double-registration is a rules-level no-op, not
+ * something application code has to detect. `attended` and everything after
+ * it are Function-only (markAttendance/unmarkAttendance,
+ * functions/src/registrations.ts) — a client can create the initial
+ * registration (verified() + own uid, firestore.rules) but every field
+ * about attendance is written only by those two Functions, never a direct
+ * client update, so attendance can never exist without the linked CPD entry
+ * being created in the same transaction.
+ */
+export const registrationSchema = z.object({
+  uid: z.string(),
+  eventId: z.string(),
+  attended: z.boolean(),
+  attendanceMarkedBy: z.string().optional(),
+  attendanceMarkedAt: z.string().optional(),
+  attendanceUnmarkedBy: z.string().optional(),
+  attendanceUnmarkedAt: z.string().optional(),
+  cpdEntryId: z.string().optional(),
+})
+export type RegistrationData = z.infer<typeof registrationSchema>

@@ -128,12 +128,31 @@ certificateUrl?     // optional and addable after creation — certificate uploa
                     // network, entry creation doesn't, so a member offline must be able
                     // to log the entry now and attach the file later
 source ("chapter_event"|"self_reported")   // client can only ever write "self_reported",
-                    // and it's immutable after create (firestore.rules). "chapter_event" is
-                    // reserved for a future event-attendance Function write once Phase 2's
-                    // registrations/{eventId}_{uid} attendance-linking is built — not built yet.
+                    // and it's immutable after create (firestore.rules). "chapter_event"
+                    // entries are written only by markAttendance
+                    // (functions/src/registrations.ts), via the Admin SDK — the doc ID is
+                    // deterministic ({eventId}_{uid}, same reasoning as registrations
+                    // below), so a double-mark overwrites the same doc rather than
+                    // duplicating credit.
+withdrawnAt?, withdrawnBy?   // set only by unmarkAttendance — see registrations below.
+                    // Withdrawal never deletes the entry: a member may already have
+                    // printed the CPD summary for MDCN, and a printed document silently
+                    // going missing from the portal is worse than one that's visibly
+                    // marked withdrawn. Excluded from the print view's total and entry
+                    // list (it's not valid credit any more); still visible, labelled, in
+                    // the on-screen log — the member should be able to see what happened
+                    // to their own record, not have it quietly vanish.
 createdAt
 ```
-No client access beyond self: `allow get, list, create, update, delete: if isSelf(uid) && verified()`.
+No client access beyond self, and only for `source == "self_reported"` — a `chapter_event`
+entry is **immutable to the client entirely**, no update or delete, once markAttendance writes
+it: `allow get, list: if isSelf(uid) && verified()`;
+`allow create, update, delete: if isSelf(uid) && verified() && resource.data.source ==
+"self_reported"` (create has no `resource.data` yet, so it's naturally exempt — a client can
+only ever create a `self_reported` entry to begin with, enforced the same way as before). Without
+this, a member could edit an exec-confirmed attendance entry's `creditUnits` or date after the
+fact — the same integrity gap `source`'s create-time immutability already closes, just at the
+wrong point in the lifecycle if update/delete aren't gated on it too.
 `allow read: if isAdmin()` exists **only for a known uid** (e.g. an admin already looking at one
 member from `/admin/members`) — there is no collection-group rule or index, so a query across
 every member's CPD entries is not possible today and would need its own
@@ -146,16 +165,43 @@ Self-reported entries are labelled as such on both the record and the printed ex
 so visibly, not just in the `source` field.
 
 ### `events/{slug}`
-`title, slug, description (markdown), location, startAt, status ("draft"|"published")`
+`title, slug, description (markdown), location, startAt, status ("draft"|"published"),
+cpdCreditUnits?`
 Publishing only — single-step create-and-publish, no draft/edit/unpublish in v1, same as `news`.
 Public list orders by `startAt` ascending (a calendar shows soonest-next, not most-recently
 posted); past events are removed by the admin, not auto-hidden (`docs/07-CONTENT-OPS.md`
-quarterly review — "delete, don't archive").
+quarterly review — "delete, don't archive"). `cpdCreditUnits` is optional (unset = this event
+earns no CPD credit, e.g. a purely social event) and, like `cpdEntries.creditUnits`, bounded
+`0 < n <= 100` in both Zod and firestore.rules — an exec mistyping 500 instead of 5 shouldn't be
+storable. Set once at publish time: **events have no edit path**, so a missing or wrong
+`cpdCreditUnits` can't be corrected after the fact today (docs/09-DECISIONS.md flags this as a
+real gap worth its own slice, not a hypothetical one).
 
-### `registrations/{eventId}_{uid}` (Phase 2 — not built)
-Registration ID is deterministic to make double-registration impossible. `firestore.rules`
-already has a match block for this (verified members can create their own registration; exec
-manages), written ahead of the UI/Function — nothing reads or writes it yet.
+### `registrations/{eventId}_{uid}`
+```
+uid, eventId
+attended (boolean)
+attendanceMarkedBy?, attendanceMarkedAt?     // set together, by markAttendance
+attendanceUnmarkedBy?, attendanceUnmarkedAt? // set together, by unmarkAttendance — never
+                    // clears attendanceMarkedBy/At, so the record shows both that
+                    // attendance was marked and that it was later withdrawn, by whom, when
+cpdEntryId?         // the linked cpdEntries doc's id — always {eventId}_{uid}, so this is
+                    // derivable, but stored for the UI's convenience
+```
+Registration ID is deterministic (`{eventId}_{uid}`) to make double-registration impossible at
+the rules level, not just by application-code convention. A member creates their own
+registration directly (`allow create: if verified() && request.resource.data.uid ==
+request.auth.uid` — not privileged, no Function needed, same reasoning as a member creating
+their own `members/{uid}` doc at signup). Every field about attendance is Function-only:
+`allow update: if false`, `allow delete: if isExec()` (cancelling/removing a registration
+outright isn't a trust concern the way marking attendance is). `markAttendance` and
+`unmarkAttendance` (`functions/src/registrations.ts`) are the only writers of the attendance
+fields, and each writes the registration and the linked `cpdEntries` doc in the same Firestore
+transaction — a transaction, not a batch, because the idempotency check (read current `attended`
+state, act only if it's changing) needs the read to be part of the same atomic operation, not
+just the writes. Two execs marking the same registrant at once resolve to one credit, not two,
+for two independent reasons: the transaction serialises the read-then-write, and the CPD entry's
+own doc ID is deterministic, so even a partial race just overwrites the same document.
 
 ### `news/{slug}`
 `title, slug, body (markdown), excerpt, coverUrl, publishedAt, author, category ("communique"|"news"|"advocacy"|"obituary"), status ("draft"|"published")`
@@ -188,6 +234,19 @@ family medical information. If in doubt, leave it out and handle it offline.
    account cannot create, read, or delete another self-supposedly-owned entry. `source` can only
    ever be written as `"self_reported"` by a client, and is immutable once set — an entry cannot
    be created honestly and relabelled `"chapter_event"` afterward.
+8. A `cpdEntries` doc with `source == "chapter_event"` cannot be updated or deleted by a
+   client at all, not even by its own owner — only `markAttendance`/`unmarkAttendance` (Admin
+   SDK) touch it. Without this, a member could edit an exec-confirmed attendance entry's
+   `creditUnits` or `dateAttended` after the fact, which defeats the reason `chapter_event` is a
+   separate label from `self_reported` in the first place.
+9. `registrations`' attendance fields (`attended`, `attendanceMarkedBy/At`,
+   `attendanceUnmarkedBy/At`, `cpdEntryId`) are Function-only — `allow update: if false`
+   entirely, not merely a trust-field carve-out on an otherwise-open update rule. A raw client
+   update that set `attended: true` without going through `markAttendance` would leave
+   attendance recorded with no linked CPD entry ever created — an inconsistent state, not just a
+   bypassed check.
+10. `events.cpdCreditUnits` is bounded `0 < n <= 100` in firestore.rules, not only in Zod — the
+    same reasoning as `cpdEntries.creditUnits`'s own bound.
 
 ## Indexes
 Composite indexes needed for: news by `status + publishedAt desc`, events by

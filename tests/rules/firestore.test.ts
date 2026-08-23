@@ -641,6 +641,118 @@ describe('events/{id}', () => {
       updateDoc(doc(db, 'events/cme-2025'), { title: 'Tampered' })
     )
   })
+
+  test('exec can set a valid cpdCreditUnits', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(
+      updateDoc(doc(db, 'events/cme-2025'), { cpdCreditUnits: 5 })
+    )
+  })
+
+  test('exec cannot set cpdCreditUnits above the sanity bound', async () => {
+    const db = exec('exec-user').firestore()
+    await assertFails(
+      updateDoc(doc(db, 'events/cme-2025'), { cpdCreditUnits: 500 })
+    )
+  })
+
+  test('exec cannot set cpdCreditUnits to zero', async () => {
+    const db = exec('exec-user').firestore()
+    await assertFails(
+      updateDoc(doc(db, 'events/cme-2025'), { cpdCreditUnits: 0 })
+    )
+  })
+})
+
+// ── Invariant 9c: registrations — self-create only, attendance is Function-only ──────
+
+describe('registrations/{eventId}_{uid}', () => {
+  const uid = 'reg-member-001'
+  const otherUid = 'reg-member-002'
+  const eventId = 'cme-2025'
+  const regId = `${eventId}_${uid}`
+
+  test('verified member can register themselves', async () => {
+    const db = verified(uid).firestore()
+    await assertSucceeds(
+      setDoc(doc(db, `registrations/${regId}`), { uid, eventId, attended: false })
+    )
+  })
+
+  test('unverified (authenticated only) member cannot register', async () => {
+    const db = authed(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `registrations/${regId}`), { uid, eventId, attended: false })
+    )
+  })
+
+  test('cannot register another uid', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `registrations/${eventId}_${otherUid}`), { uid: otherUid, eventId, attended: false })
+    )
+  })
+
+  test('cannot register with attended: true from the client', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `registrations/${regId}`), { uid, eventId, attended: true })
+    )
+  })
+
+  test('cannot smuggle an attendance field in at create time', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      setDoc(doc(db, `registrations/${regId}`), {
+        uid,
+        eventId,
+        attended: false,
+        attendanceMarkedBy: uid,
+      })
+    )
+  })
+
+  describe('after a registration exists', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `registrations/${regId}`), { uid, eventId, attended: false })
+      })
+    })
+
+    test('owner cannot update it directly — attendance is Function-only, not a trust-field carve-out', async () => {
+      const db = verified(uid).firestore()
+      await assertFails(
+        updateDoc(doc(db, `registrations/${regId}`), { attended: true })
+      )
+    })
+
+    test('exec cannot update it directly either', async () => {
+      const db = exec('exec-user').firestore()
+      await assertFails(
+        updateDoc(doc(db, `registrations/${regId}`), { attended: true })
+      )
+    })
+
+    test('owner can read their own registration', async () => {
+      const db = verified(uid).firestore()
+      await assertSucceeds(getDoc(doc(db, `registrations/${regId}`)))
+    })
+
+    test('another member cannot read someone else\'s registration', async () => {
+      const db = verified(otherUid).firestore()
+      await assertFails(getDoc(doc(db, `registrations/${regId}`)))
+    })
+
+    test('exec can delete (cancel) a registration', async () => {
+      const db = exec('exec-user').firestore()
+      await assertSucceeds(deleteDoc(doc(db, `registrations/${regId}`)))
+    })
+
+    test('the registrant cannot delete their own registration', async () => {
+      const db = verified(uid).firestore()
+      await assertFails(deleteDoc(doc(db, `registrations/${regId}`)))
+    })
+  })
 })
 
 // ── Invariant 9b: cpdEntries — self-reported only, verified-gated, no cross-member read ──
@@ -758,6 +870,34 @@ describe('cpdEntries/{uid}/entries/{id}', () => {
     test('admin can read a specific member\'s entry by known uid', async () => {
       const db = admin('admin-user').firestore()
       await assertSucceeds(getDoc(doc(db, `cpdEntries/${uid}/entries/e1`)))
+    })
+  })
+
+  describe('a chapter_event entry (written by markAttendance via the Admin SDK)', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(
+          doc(ctx.firestore(), `cpdEntries/${uid}/entries/evt1_${uid}`),
+          validEntry({ source: 'chapter_event' })
+        )
+      })
+    })
+
+    test('owner cannot update it — not even a harmless field like title', async () => {
+      const db = verified(uid).firestore()
+      await assertFails(
+        updateDoc(doc(db, `cpdEntries/${uid}/entries/evt1_${uid}`), { title: 'Edited' })
+      )
+    })
+
+    test('owner cannot delete it', async () => {
+      const db = verified(uid).firestore()
+      await assertFails(deleteDoc(doc(db, `cpdEntries/${uid}/entries/evt1_${uid}`)))
+    })
+
+    test('owner can still read it', async () => {
+      const db = verified(uid).firestore()
+      await assertSucceeds(getDoc(doc(db, `cpdEntries/${uid}/entries/evt1_${uid}`)))
     })
   })
 })

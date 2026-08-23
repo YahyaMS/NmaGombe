@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { subscribeToOwnMemberProfile } from '@/lib/data/members'
 import { getNextUpcomingEvent, type UpcomingEvent } from '@/lib/data/portalEvents'
+import { getOwnRegistration, registerForEvent } from '@/lib/data/registrations'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
 
@@ -16,6 +17,15 @@ const monthLabels = [
 ]
 
 const mdcnPortalUrl = process.env.NEXT_PUBLIC_MDCN_PORTAL_URL
+
+const registerLinkStyle = {
+  color: 'var(--color-green)',
+  textDecoration: 'underline',
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  cursor: 'pointer',
+} as const
 
 function titleLine(profile: MemberProfile): string {
   const grade = profile.grade ? gradeLabels[profile.grade] : ''
@@ -38,6 +48,8 @@ export function PortalDashboard() {
   const [stage, setStage] = useState<Stage>('loading')
   const [profile, setProfile] = useState<MemberProfile | null>(null)
   const [nextEvent, setNextEvent] = useState<UpcomingEvent | null | undefined>(undefined)
+  const [registered, setRegistered] = useState<boolean | undefined>(undefined)
+  const [registering, setRegistering] = useState(false)
 
   useEffect(() => {
     if (guardState !== 'ready' || !uid) return
@@ -58,6 +70,26 @@ export function PortalDashboard() {
       .then(setNextEvent)
       .catch(() => setNextEvent(null))
   }, [stage])
+
+  useEffect(() => {
+    if (!nextEvent || !uid) return
+    getOwnRegistration(uid, nextEvent.slug)
+      .then(setRegistered)
+      .catch(() => setRegistered(undefined))
+  }, [nextEvent, uid])
+
+  async function handleRegister() {
+    if (!uid || !nextEvent) return
+    setRegistering(true)
+    try {
+      await registerForEvent(uid, nextEvent.slug)
+      setRegistered(true)
+    } catch {
+      // Stays showing "Register" — a quiet failure here just means another tap.
+    } finally {
+      setRegistering(false)
+    }
+  }
 
   const shellStyle = { maxWidth: '560px' } as const
 
@@ -144,6 +176,20 @@ export function PortalDashboard() {
               {formatEventDate(nextEvent.startAt)} · {nextEvent.location}
             </p>
           </Link>
+          {registered === true && (
+            <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>You&rsquo;re registered</p>
+          )}
+          {registered === false && (
+            <button
+              type="button"
+              onClick={handleRegister}
+              disabled={registering}
+              className="type-small font-semibold mt-xs"
+              style={{ ...registerLinkStyle, opacity: registering ? 0.6 : 1 }}
+            >
+              {registering ? 'Registering…' : 'Register'}
+            </button>
+          )}
         </div>
       )}
 

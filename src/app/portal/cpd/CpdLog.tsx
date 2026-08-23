@@ -149,7 +149,12 @@ export function CpdLog() {
     )
   }
 
-  const totalCreditUnits = entries.reduce((sum, entry) => sum + entry.creditUnits, 0)
+  // A withdrawn chapter-event entry (attendance was unmarked after being credited) stays
+  // visible on screen — the member may wonder where the credit went — but never counts
+  // toward the total and never appears in the printed export, since it isn't valid credit
+  // any more. See docs/03-DATA-MODEL.md's cpdEntries withdrawal semantics.
+  const creditableEntries = entries.filter((entry) => !entry.withdrawnAt)
+  const totalCreditUnits = creditableEntries.reduce((sum, entry) => sum + entry.creditUnits, 0)
 
   return (
     <div className="mx-auto px-md py-2xl print:px-0 print:py-0" style={{ maxWidth: '640px' }}>
@@ -249,8 +254,8 @@ export function CpdLog() {
         {entries.length > 0 && (
           <div className="flex items-center justify-between mt-xl" style={{ borderTop: '1px solid var(--color-rule)', paddingTop: 'var(--spacing-md)' }}>
             <p className="type-small" style={{ color: 'var(--color-ink-2)' }}>
-              {entries.length} {entries.length === 1 ? 'entry' : 'entries'} · {totalCreditUnits} credit
-              units total
+              {creditableEntries.length} {creditableEntries.length === 1 ? 'entry' : 'entries'} ·{' '}
+              {totalCreditUnits} credit units total
             </p>
             <button
               type="button"
@@ -279,8 +284,9 @@ export function CpdLog() {
             </h1>
             <p className="type-body mt-xs">{memberName}</p>
             <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
-              Folio {folioNumber} · Generated {todayLagos()} · {entries.length}{' '}
-              {entries.length === 1 ? 'entry' : 'entries'} · {totalCreditUnits} credit units total
+              Folio {folioNumber} · Generated {todayLagos()} · {creditableEntries.length}{' '}
+              {creditableEntries.length === 1 ? 'entry' : 'entries'} · {totalCreditUnits} credit units
+              total
             </p>
             <p className="type-small mt-sm" style={{ color: 'var(--color-ink-3)' }}>
               Every entry below is self-reported by the member. The chapter records what the
@@ -289,69 +295,85 @@ export function CpdLog() {
           </div>
 
           <ul className="flex flex-col gap-md m-0 p-0" style={{ listStyle: 'none' }}>
-            {entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="break-inside-avoid px-md py-md"
-                style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)' }}
-              >
-                <div className="flex items-start justify-between gap-md">
-                  <div>
-                    <p className="type-body font-semibold" style={{ color: 'var(--color-ink)' }}>
-                      {entry.title}
-                    </p>
-                    <p className="type-small" style={{ color: 'var(--color-ink-2)' }}>
-                      {entry.provider}
-                    </p>
-                    <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
-                      {entry.dateAttended} · {entry.creditUnits} credit units · Self-reported
-                    </p>
+            {entries.map((entry) => {
+              const withdrawn = Boolean(entry.withdrawnAt)
+              const sourceLabel = withdrawn
+                ? 'Withdrawn'
+                : entry.source === 'chapter_event'
+                  ? 'Confirmed by NMA Gombe'
+                  : 'Self-reported'
+              return (
+                <li
+                  key={entry.id}
+                  className={withdrawn ? 'break-inside-avoid px-md py-md print:hidden' : 'break-inside-avoid px-md py-md'}
+                  style={{
+                    border: '1px solid var(--color-rule)',
+                    borderRadius: 'var(--radius)',
+                    opacity: withdrawn ? 0.6 : 1,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-md">
+                    <div>
+                      <p className="type-body font-semibold" style={{ color: 'var(--color-ink)' }}>
+                        {entry.title}
+                      </p>
+                      <p className="type-small" style={{ color: 'var(--color-ink-2)' }}>
+                        {entry.provider}
+                      </p>
+                      <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+                        {entry.dateAttended} · {entry.creditUnits} credit units · {sourceLabel}
+                      </p>
+                    </div>
+                    {entry.source === 'self_reported' && (
+                      <div className="flex flex-col items-end gap-xs print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(entry.id)}
+                          className="type-small"
+                          style={{ color: 'var(--color-danger)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-xs print:hidden">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(entry.id)}
-                      className="type-small"
-                      style={{ color: 'var(--color-danger)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
 
-                <div className="print:hidden mt-sm">
-                  {entry.certificateUrl ? (
-                    <a
-                      href={entry.certificateUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="type-small"
-                      style={{ color: 'var(--color-green)' }}
-                    >
-                      View certificate
-                    </a>
-                  ) : (
-                    <label
-                      className="type-small cpd-attach-label"
-                      style={{ color: 'var(--color-green)', cursor: 'pointer' }}
-                    >
-                      {uploadingId === entry.id ? 'Uploading…' : 'Attach certificate'}
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="sr-only"
-                        disabled={uploadingId === entry.id}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) void handleAttach(entry.id, file)
-                          e.target.value = ''
-                        }}
-                      />
-                    </label>
+                  {entry.source === 'self_reported' && (
+                    <div className="print:hidden mt-sm">
+                      {entry.certificateUrl ? (
+                        <a
+                          href={entry.certificateUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="type-small"
+                          style={{ color: 'var(--color-green)' }}
+                        >
+                          View certificate
+                        </a>
+                      ) : (
+                        <label
+                          className="type-small cpd-attach-label"
+                          style={{ color: 'var(--color-green)', cursor: 'pointer' }}
+                        >
+                          {uploadingId === entry.id ? 'Uploading…' : 'Attach certificate'}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="sr-only"
+                            disabled={uploadingId === entry.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void handleAttach(entry.id, file)
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                   )}
-                </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

@@ -27,13 +27,20 @@ export function EventForm() {
   const [location, setLocation] = useState('')
   const [startAt, setStartAt] = useState('')
   const [description, setDescription] = useState('')
-  const [errors, setErrors] = useState<{ title?: string; location?: string; startAt?: string; description?: string }>({})
+  const [cpdCreditUnits, setCpdCreditUnits] = useState('')
+  const [errors, setErrors] = useState<{ title?: string; location?: string; startAt?: string; description?: string; cpdCreditUnits?: string }>({})
   const [errorMessage, setErrorMessage] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    const parsed = eventPublishInputSchema.safeParse({ title, location, startAt, description })
+    const parsed = eventPublishInputSchema.safeParse({
+      title,
+      location,
+      startAt,
+      description,
+      cpdCreditUnits: cpdCreditUnits.trim() ? Number(cpdCreditUnits) : undefined,
+    })
     if (!parsed.success) {
       const fieldErrors = parsed.error.flatten().fieldErrors
       setErrors({
@@ -41,6 +48,7 @@ export function EventForm() {
         location: fieldErrors.location?.[0],
         startAt: fieldErrors.startAt?.[0],
         description: fieldErrors.description?.[0],
+        cpdCreditUnits: fieldErrors.cpdCreditUnits?.[0],
       })
       return
     }
@@ -93,6 +101,29 @@ export function EventForm() {
           {errors.startAt && (
             <p className="type-small mt-xs" style={{ color: 'var(--color-danger)' }}>{errors.startAt}</p>
           )}
+        </div>
+
+        <div>
+          <label htmlFor="cpdCreditUnits" className="type-small font-semibold" style={labelStyle}>
+            CPD credit units (optional)
+          </label>
+          <input
+            id="cpdCreditUnits"
+            type="number"
+            min="0"
+            step="0.5"
+            value={cpdCreditUnits}
+            onChange={(e) => setCpdCreditUnits(e.target.value)}
+            style={inputStyle}
+            aria-invalid={errors.cpdCreditUnits ? 'true' : undefined}
+          />
+          {errors.cpdCreditUnits && (
+            <p className="type-small mt-xs" style={{ color: 'var(--color-danger)' }}>{errors.cpdCreditUnits}</p>
+          )}
+          <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+            Leave blank if this event doesn&rsquo;t earn CPD credit. Can&rsquo;t be changed after
+            publishing.
+          </p>
         </div>
 
         <div>

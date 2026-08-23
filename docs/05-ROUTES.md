@@ -14,10 +14,10 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
                          same pattern as /verify — public page, no reason to ship the client SDK.
 /news/[slug]             Renders body through a small hand-written markdown subset (bold, links,
                          lists) — not a dependency; see lib/markdown.tsx.
-/events                  CME and chapter events calendar, soonest first. Publishing only —
-                         registration is Phase 2 (rules exist for `registrations/*` but nothing
-                         reads or writes it yet).
-/events/[slug]           Detail: date, location, description. No register action yet.
+/events                  CME and chapter events calendar, soonest first.
+/events/[slug]           Detail: date, location, description. No register action here — stays
+                         Firebase-SDK-free. Registration lives on /portal (the offline-tier
+                         route), keyed to the same event by slug.
 /doctors                 Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
 /verify/[folio]          QR target from the membership card. Renders: name, grade, "member in
                          good standing through <year>" or "not current". Nothing else.
@@ -44,8 +44,11 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 ```
 /portal                          (client) Dashboard: folio card, MDCN renewal reminder (date
                                  only, deep-links to the MDCN portal once NEXT_PUBLIC_MDCN_PORTAL_URL
-                                 is set — real URL not yet known), next event. Dues status omitted —
-                                 still blocked on the Paystack merchant account.
+                                 is set — real URL not yet known), next event with a Register
+                                 control in the same row (plain setDoc to `registrations/{eventId}_{uid}`
+                                 under rules, no Function — the write itself never needs offline
+                                 queueing). Dues status omitted — still blocked on the Paystack
+                                 merchant account.
 /portal/card                     (client) Full-screen folio card. Works offline. Downloadable —
                                  GET /portal/card/download server-renders a PNG from the member's
                                  own record (Authorization: Bearer <ID token>, re-checked there,
@@ -95,8 +98,19 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 /admin/news/new  /admin/news     Three fields (title, category, body) and a publish button.
                                  Single-step create-and-publish, no draft/edit/unpublish in v1 —
                                  exec-gated (useExecGuard), matching isExec() in firestore.rules.
-/admin/events/new  /admin/events Four fields (title, location, date/time, description) and a
-                                 publish button. Same single-step, exec-gated pattern as news.
+/admin/events/new  /admin/events Five fields (title, location, date/time, description, optional
+                                 CPD credit units) and a publish button. Same single-step,
+                                 exec-gated pattern as news. The events list links each row to
+                                 its attendance route rather than the public event page.
+/admin/events/[slug]/attendance  Mark/unmark attendance per registrant (httpsCallable
+                                 markAttendance/unmarkAttendance — admin-callable tier, same
+                                 shape as /admin/verification). Marking writes a CPD entry
+                                 (`source: "chapter_event"`) transactionally with the attendance
+                                 flag, keyed to a deterministic doc id so it can never double-
+                                 credit. Unmarking never deletes that entry — it marks it
+                                 withdrawn (a member may have already printed it for MDCN) and
+                                 leaves an audit trail on the registration
+                                 (attendanceMarkedBy/At, attendanceUnmarkedBy/At).
 /admin/broadcast                 Compose a WhatsApp broadcast message; logs what was sent.
 /admin/duesRates                 Set the year's rates by grade.
 /admin/welfare                   (exec only) Welfare cases.

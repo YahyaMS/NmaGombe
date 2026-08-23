@@ -10,6 +10,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { signInAs } from "./auth";
+import { SMOKE_EVENT_SLUG } from "./global-setup";
 
 const publicRoutes = [
   "/",
@@ -107,7 +108,7 @@ test.describe("authenticated routes render for the roles allowed to see them", (
     }
   });
 
-  test("exec: /admin, /admin/verification, /admin/members, /admin/broadcast, /admin/news(/new), /admin/events(/new)", async ({ page }) => {
+  test("exec: /admin, /admin/verification, /admin/members, /admin/broadcast, /admin/news(/new), /admin/events(/new), attendance", async ({ page }) => {
     await signInAs(page, "exec", "/admin");
     for (const route of [
       "/admin",
@@ -118,6 +119,7 @@ test.describe("authenticated routes render for the roles allowed to see them", (
       "/admin/news/new",
       "/admin/events",
       "/admin/events/new",
+      `/admin/events/${SMOKE_EVENT_SLUG}/attendance`,
     ]) {
       const res = await page.goto(route);
       expect(res?.status()).toBeLessThan(400);

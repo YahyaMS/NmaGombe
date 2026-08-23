@@ -39,9 +39,22 @@ export async function publishEventAdmin(input: EventPublishInput): Promise<strin
       location: parsed.location,
       status: 'published',
       startAt: new Date(parsed.startAt),
+      ...(parsed.cpdCreditUnits !== undefined ? { cpdCreditUnits: parsed.cpdCreditUnits } : {}),
     })
 
   return slug
+}
+
+/** One event, for the admin attendance-marking page — regardless of status,
+ * unlike lib/data/events.ts's public getPublishedEventBySlug. */
+export async function getEventByIdAdmin(slug: string): Promise<AdminEventItem | null> {
+  const doc = await adminDb.collection('events').doc(slug).get()
+  if (!doc.exists) return null
+  const data = doc.data()
+  const parsed = eventSchema.safeParse(data)
+  if (!parsed.success) return null
+  const startAt = data?.startAt as FirebaseFirestore.Timestamp | undefined
+  return { ...parsed.data, startAt: startAt ? startAt.toDate().toISOString() : null }
 }
 
 /**

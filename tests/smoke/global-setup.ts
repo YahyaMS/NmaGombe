@@ -22,7 +22,11 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { adminAuth } from '../../src/lib/firebase/admin'
+import { adminAuth, adminDb } from '../../src/lib/firebase/admin'
+
+// Fixed slug so tests/smoke/pages.spec.ts can reach a real
+// /admin/events/[slug]/attendance page, not just its not-found branch.
+export const SMOKE_EVENT_SLUG = 'smoke-test-event'
 
 const AUTH_EMULATOR_HOST = 'localhost:9099'
 
@@ -71,4 +75,16 @@ export default async function globalSetup(): Promise<void> {
 
   mkdirSync(FIXTURES_DIR, { recursive: true })
   writeFileSync(FIXTURES_PATH, JSON.stringify({ member: { token: member }, exec: { token: exec } }))
+
+  // A real published event so /admin/events/[slug]/attendance has something
+  // to render, not just its not-found branch.
+  await adminDb.doc(`events/${SMOKE_EVENT_SLUG}`).set({
+    title: 'Smoke Test CME',
+    slug: SMOKE_EVENT_SLUG,
+    description: 'Seeded by tests/smoke/global-setup.ts — not a real event.',
+    location: 'Test Fixture Hall',
+    status: 'published',
+    startAt: new Date(),
+    cpdCreditUnits: 2,
+  })
 }

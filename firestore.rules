@@ -85,13 +85,19 @@ service cloud.firestore {
       allow write: if false; // Function/admin console only — the client never sets a price
     }
 
-    // Self-reported CPD/CME log. "chapter_event" is reserved for a future
-    // event-attendance Function write (Phase 2 registration linking, not
-    // built) — a client can only ever write "self_reported", and it's
-    // immutable after create so an honest entry can't be relabelled later.
-    // creditUnits' upper bound is a sanity/anti-abuse ceiling, not a claimed
-    // MDCN figure — we don't know MDCN's actual per-activity or annual point
-    // requirements and shouldn't encode a guess as if it were policy.
+    // Self-reported CPD/CME log. "chapter_event" entries are written only by
+    // markAttendance (functions/src/registrations.ts), via the Admin SDK —
+    // a client can only ever create "self_reported", and once a doc's
+    // source is "chapter_event" the client cannot update OR delete it at
+    // all, not even its own owner (see the `resource.data.source ==
+    // 'self_reported'` guard below). Without that, a member could edit an
+    // exec-confirmed attendance entry's creditUnits or date after the fact
+    // — the same integrity gap source's create-time immutability already
+    // closes, just at the wrong point in the lifecycle if update/delete
+    // aren't gated on it too. creditUnits' upper bound is a sanity/anti-abuse
+    // ceiling, not a claimed MDCN figure — we don't know MDCN's actual
+    // per-activity or annual point requirements and shouldn't encode a guess
+    // as if it were policy.
     //
     // No collection-group view for admin: `allow read: if isAdmin()` below
     // only resolves at a *known* uid (e.g. an admin who already has a
@@ -121,22 +127,49 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isSelf(uid) && verified() && cpdEntryShape()
                     && request.resource.data.createdAt == request.time;
-      allow update: if isSelf(uid) && verified() && cpdEntryShape()
+      allow update: if isSelf(uid) && verified() && resource.data.source == 'self_reported'
+                    && cpdEntryShape()
                     && request.resource.data.source == resource.data.source
                     && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isSelf(uid) && verified();
+      allow delete: if isSelf(uid) && verified() && resource.data.source == 'self_reported';
+    }
+
+    // cpdCreditUnits' bound mirrors cpdEntries.creditUnits' own — an exec
+    // mistyping 500 instead of 5 shouldn't be storable. Optional: absent
+    // means this event earns no CPD credit (e.g. a social event).
+    function eventShapeValid() {
+      return !('cpdCreditUnits' in request.resource.data)
+        || (request.resource.data.cpdCreditUnits is number
+            && request.resource.data.cpdCreditUnits > 0
+            && request.resource.data.cpdCreditUnits <= 100);
     }
 
     match /events/{id} {
       allow get, list: if true;
-      allow write: if isExec();
+      allow write: if isExec() && eventShapeValid();
     }
 
+    // Registration id is deterministic ({eventId}_{uid} — see
+    // docs/03-DATA-MODEL.md), so double-registration is a rules-level no-op.
+    // A member creates their own registration directly (not privileged, no
+    // Function needed — same reasoning as creating their own members/{uid}
+    // doc at signup). Every attendance field is Function-only:
+    // `allow update: if false` entirely, not a trust-field carve-out on an
+    // otherwise-open rule — a raw client update that set attended:true
+    // without going through markAttendance would leave attendance recorded
+    // with no linked CPD entry ever created, an inconsistent state, not
+    // just a bypassed check. markAttendance/unmarkAttendance
+    // (functions/src/registrations.ts) write both documents in the same
+    // transaction.
     match /registrations/{id} {
       allow get: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow list: if isAdmin();
-      allow create: if verified() && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if isExec();
+      allow create: if verified() && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.eventId is string
+                    && request.resource.data.attended == false
+                    && request.resource.data.keys().hasOnly(['uid', 'eventId', 'attended']);
+      allow update: if false;
+      allow delete: if isExec();
     }
 
     match /news/{slug} {

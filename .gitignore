@@ -30,3 +30,6 @@ service-account*.json
 
 # Playwright global setup's minted Auth-emulator tokens — regenerated every run.
 tests/smoke/.generated/
+
+# Playwright's own run output.
+test-results/
