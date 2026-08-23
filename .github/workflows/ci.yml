@@ -45,6 +45,11 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_USE_EMULATORS: "true"
 
+      # Three tiers, not one — CLAUDE.md / docs/09-DECISIONS.md ADR-016. Reads the
+      # diagnostics the Build step above just produced; doesn't rebuild.
+      - name: Bundle budget
+        run: npm run check:budget
+
       - name: Unit tests
         run: npm run test
 

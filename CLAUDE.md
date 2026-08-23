@@ -13,9 +13,28 @@ proposing any architecture change — several obvious ideas were already rejecte
 reasons that are not obvious.
 
 ## Non-negotiable constraints
-- **Mobile-first, Android, expensive data.** Initial JS payload budget: **≤ 200KB gzipped**
-  per route. Total first-load transfer ≤ 350KB. If a dependency blows the budget, it does
-  not go in. Run `npm run analyze` before merging anything that adds a dependency.
+- **Mobile-first, Android, expensive data.** JS payload budget is tiered by what a route
+  actually needs — a single number across the whole app was found to be unreachable for any
+  route using the Firestore client SDK (measured, not assumed: Auth alone is ~44KB gzipped,
+  Firestore alone is ~162KB, and the Next.js/React framework floor every route pays is
+  ~144KB — 144 + 44 already exceeds 200KB before Firestore is counted). See
+  `docs/09-DECISIONS.md` ADR-016 for the measurements and reasoning behind each tier.
+  - **Public and server-rendered authenticated routes: ≤ 200KB gzipped, strict.** Measured
+    floor is ~144KB (public) to ~161KB (an SSR page with a small interactive form). This is
+    where first impressions and SEO live — hold this line.
+  - **Admin routes still calling a Cloud Function via `httpsCallable`** (`/admin/verification`,
+    `/admin/members`, `/admin/broadcast` — Auth + Functions, no Firestore): **≤ 250KB gzipped.**
+    Measured ~195–210KB. These stay on this path deliberately — see ADR-016 on why the write
+    doesn't move to a Route Handler.
+  - **Offline-capable member routes** (`/portal`, `/portal/card`, `/portal/directory`,
+    `/portal/cpd`, `/portal/profile` — genuinely need the Firestore client SDK): **≤ 400KB
+    gzipped**, accepted as the cost of real offline capability. Measured ~365–367KB. Every
+    other authenticated route must justify staying in this tier or move to the SSR pattern —
+    see ADR-016's per-route reasoning before adding a new one here.
+  - Total first-load transfer ≤ 350KB still applies to the public/SSR tier. The offline tier
+    is a known, deliberate exception to it, not a target to shrink further without cause.
+  - Run `npm run analyze` before merging anything that adds a dependency, and check which
+    tier the touched route is actually in before judging the number.
 - **Works offline for the things that matter**: membership card, member directory (last
   synced), clinical guidelines. PWA with a service worker, not optional.
 - **We do NOT handle MDCN licence payment or renewal.** MDCN has its own portal. We store a

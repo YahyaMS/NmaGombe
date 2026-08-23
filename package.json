@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "analyze": "next experimental-analyze",
+    "check:budget": "node scripts/check-bundle-budget.mjs",
     "emulators": "npm --prefix functions run build && firebase emulators:start",
     "test": "jest --testPathIgnorePatterns=tests/rules",
     "test:rules": "jest --testPathPattern=tests/rules --runInBand",

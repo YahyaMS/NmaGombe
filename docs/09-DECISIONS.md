@@ -268,3 +268,107 @@ covers each caller. `.claude/rules/nextjs-boundaries.md` item 8 (previously "Mid
 the Edge runtime, no Node APIs") is corrected to describe the Node-runtime reality; the migration
 codemod (`npx @next/codemod@canary middleware-to-proxy .`) is the documented path if this ever
 needs re-running on a future rename.
+
+---
+## ADR-016 — Three-tier JS budget, not one; admin routes accept weight, member routes fight for it
+**Context.** Building `/portal/cpd` (the first Phase 2 slice) surfaced that its route was
+~375.7KB gzipped first-load JS — measured by gzipping the exact chunks Next's own
+`route-bundle-stats.json` lists as that route's first load, not estimated. Every other
+authenticated portal route measured the same, ~370–376KB. ADR-011 already flagged that Firebase
+Auth+Firestore alone is ~211KB gzipped and exceeds the single 200KB budget in `CLAUDE.md`; this
+is the "dedicated bundle pass" ADR-011 said would be needed before launch.
+
+**What was actually measured, in order** (each step re-verified against the shipped bytes, not
+assumed from the previous step):
+1. **The interactive `next experimental-analyze` UI over-counts.** It showed `re2js` (83.97KB) on
+   every route including public ones. Grepping the actual shipped chunk files directly found zero
+   occurrences anywhere — `re2js` is a real transitive dependency of `@firebase/firestore`
+   (confirmed in that package's `package.json`) but isn't part of the browser bundle, likely a
+   Node-only code path. The analyzer's per-route view is not reliable for "what does this route's
+   first load actually ship" — `route-bundle-stats.json` + direct gzip of the listed files is.
+2. **`firebase/storage` was imported eagerly** in the old single-file `lib/firebase/client.ts`,
+   so every portal route paid for it whether or not it ever uploaded anything. Deferred to a
+   `getStorageClient()` function, loaded only at the point `/portal/cpd`'s certificate attach
+   calls it. Saved only ~5.4KB gzip — Storage's own code was never the big line item (~7KB raw);
+   removing it didn't let anything else drop out too, since Firestore/Auth pull in their own
+   transport (`webchannel`, gRPC-web) independently.
+3. **`db` (Firestore) was *also* eagerly bundled**, for the same reason: `client.ts` was one file
+   initializing `app`/`auth`/`db`/`functions` unconditionally at module top level, so a route
+   needing only `auth` (e.g. `/admin/verification` after its list moved to the Admin SDK) still
+   paid Firestore's ~161KB-gzip chunk for nothing — confirmed by grepping that chunk for
+   `initializeFirestore`/`persistentLocalCache` and finding them present despite the route never
+   calling a Firestore client function.
+4. **Split `lib/firebase/client.ts` into `app.ts` (init + a shared, verified emulator-connect
+   guard) + `auth.ts` + `functions.ts` + `db.ts`**, each independently importable, so a route only
+   bundles the service it actually calls. `client.ts` is now a thin re-export of `app`/`auth`/`db`
+   (what the offline tier needs) plus `getStorageClient()` — it deliberately does **not**
+   re-export `functions`, so importing it can never silently pull Firestore back in for a route
+   that only needs Auth.
+5. **The existing emulator-connect guard was checking a property, `_isEmulator`, that does not
+   exist anywhere in the installed Firebase SDK** — confirmed by grepping every `@firebase/*`
+   package. It was a silent no-op, not a working guard. Replaced with `markEmulatorConnected()`
+   in `app.ts`, which attaches a real flag to the `app` singleton (survives Fast Refresh via
+   `firebase/app`'s own `getApps()` registry, unlike a plain module-level variable).
+6. **`establishServerSession()`** (called by both client-side guard hooks on every authenticated
+   page load, including the offline tier) **lived in `auth-email-link.ts`**, which also imports
+   `db` for email-link rate-limiting — importing one function from that file bundled the whole
+   module. It has zero Firebase dependencies of its own (just `fetch`), so it moved to its own
+   `lib/firebase/session-bridge.ts`.
+
+**Decision — three tiers, not one, and an explicit asymmetry between them:**
+- **Public / SSR-authenticated: ≤ 200KB, strict.** Measured floor ~144.1KB (identical to
+  `/news`'s pre-existing number — the framework baseline every route pays) up to ~160.8KB for an
+  SSR page with a small interactive form (the `zod`-validated `/admin/news/new`,
+  `/admin/events/new`). This tier is now `/admin`, `/admin/news(/new)`, `/admin/events(/new)` —
+  converted from client Firestore reads/writes to Server Components reading via the Admin SDK,
+  with Route Handlers (`/api/admin/news`, `/api/admin/events`) doing the writes. These two had no
+  Cloud Function to begin with, so moving the write off the client doesn't create a second
+  privileged write path — there was only ever one.
+- **Admin, still `httpsCallable`: ≤ 250KB.** Measured ~195–210KB (`/admin/verification` 194.9KB,
+  `/admin/members` 195.2KB, `/admin/broadcast` 210.3KB — Auth + Functions, no Firestore, after the
+  module split above). These three mutate trust fields or write an audit log
+  (`decideVerification`, `setMemberStatus`, `setMemberRole`, `logBroadcast`) through an existing
+  Cloud Function. **Deliberately not converted to a Route Handler**, even though that would reach
+  the ~144KB tier too: two live paths to the same trust-field write is a wider security surface
+  than one (`CLAUDE.md` rule 1's whole reason for existing), and the byte saving on a route three
+  people open is not worth doubling the write surface on the most privileged actions in the
+  system. The list *read* on all three did move to the Admin SDK (Server Component), since a read
+  carries none of that risk.
+- **Offline-capable member routes: ≤ 400KB**, accepted cost of real offline capability
+  (ADR-002's whole reason Firestore was chosen over Supabase). Measured ~365.5–366.7KB:
+  `/portal`, `/portal/card`, `/portal/directory`, `/portal/directory/[uid]`, `/portal/cpd`,
+  `/portal/profile`. `/pending` (364.0KB) is the same tier for the same reason ADR-011 already
+  gave — it's mid-signup, not yet verified, but still needs the client Auth SDK.
+
+**The asymmetry, stated plainly:** the offline tier's weight is paid by hundreds of members on
+paid mobile data in Gombe. The admin tier's weight is paid by the Secretary and a couple of exec
+members. Optimise where the users are. Admin routes are where weight is accepted for a single
+privileged write path; member routes are where every KB is fought for. Do not "optimise" the
+`httpsCallable` admin routes later by moving their mutation to a Route Handler without
+re-deriving this trade-off first — the saving is real (~50KB) but was judged not worth a second
+write path to `members.status`/`role` or the verification/broadcast audit trail.
+
+**Two routes stay in the offline tier by deliberate exception, not oversight:**
+- **`/portal` (the dashboard).** It renders the folio card inline via a live `onSnapshot` on
+  `members/{uid}`, not just a link to `/portal/card` — the roadmap's launch plan is a WhatsApp
+  screenshot of exactly this screen. Splitting it to an SSR shell that links out to the card
+  instead would save ~226KB, but the dashboard is the first thing a member sees after signing in,
+  and `CLAUDE.md`'s offline list names the membership card — the dashboard renders the card, so
+  it inherits the requirement. Making a member tap through to see their own card to save bytes on
+  the one screen that proves the portal is worth opening was judged the wrong trade.
+- **`/portal/profile`.** The write (`updateOwnProfile`) stays on client Firestore under
+  `firestore.rules`, not a Route Handler, even though the read could be (and is) server-rendered.
+  Same reasoning as the admin fork: `firestore.rules` already denies trust-field changes and
+  freezes `folioNumber` after verification, backed by the 58 tests in `tests/rules`. Replacing
+  that with a Route Handler means re-implementing those constraints in TypeScript, enforced by
+  code instead of rules with an audited test suite behind them — not worth it for one route. The
+  cost accepted: `/portal/profile` stays near the offline tier's weight even though nothing on
+  the page needs to work offline.
+
+**Consequence.** `npm run analyze`'s interactive UI should not be trusted for per-route totals
+without cross-checking against `route-bundle-stats.json` and a direct gzip of the listed files —
+document this the next time bundle work happens here, don't re-discover it. The CI budget check
+(`.github/workflows/ci.yml`) enforces these three thresholds per route, so a regression fails the
+build instead of waiting for someone to remember to run `analyze`. Lighthouse mobile scores for
+any of this are still unverified — these are transferred-byte measurements, not a real-device
+performance run; that's a separate, still-open verification (register item 03).
