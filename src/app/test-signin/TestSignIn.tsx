@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '@/lib/firebase/client'
-import { establishServerSession } from '@/lib/firebase/auth-email-link'
+import { establishServerSession } from '@/lib/firebase/session-bridge'
 
 export function TestSignIn() {
   const router = useRouter()

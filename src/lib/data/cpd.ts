@@ -26,8 +26,7 @@ import {
   updateDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase/client'
+import { db, getStorageClient } from '@/lib/firebase/client'
 import { cpdEntrySchema, type CpdEntry, type CpdEntryInput } from './schemas'
 
 export interface CpdEntryRecord extends CpdEntry {
@@ -71,8 +70,16 @@ export async function deleteCpdEntry(uid: string, id: string): Promise<void> {
   await deleteDoc(doc(db, 'cpdEntries', uid, 'entries', id))
 }
 
-/** One certificate per entry — see storage.rules' /cpd/{uid}/{file} path. */
+/**
+ * One certificate per entry — see storage.rules' /cpd/{uid}/{file} path.
+ * Both the Storage SDK and the storage client are loaded here, at the point
+ * of upload, not at module load — see getStorageClient() in client.ts.
+ */
 export async function attachCpdCertificate(uid: string, id: string, file: File): Promise<void> {
+  const [{ ref, uploadBytes, getDownloadURL }, storage] = await Promise.all([
+    import('firebase/storage'),
+    getStorageClient(),
+  ])
   const fileRef = ref(storage, `cpd/${uid}/${id}`)
   await uploadBytes(fileRef, file)
   const url = await getDownloadURL(fileRef)

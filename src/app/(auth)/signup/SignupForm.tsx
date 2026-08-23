@@ -15,9 +15,9 @@ import {
   readStoredEmail,
   completeEmailLinkSignIn,
   completeReturningSignIn,
-  establishServerSession,
   describeSignInError,
 } from '@/lib/firebase/auth-email-link'
+import { establishServerSession } from '@/lib/firebase/session-bridge'
 
 type Stage = 'form' | 'sending' | 'sent' | 'completing' | 'need-email' | 'error'
 

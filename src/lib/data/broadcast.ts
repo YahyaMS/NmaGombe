@@ -10,7 +10,8 @@
 
 import { collection, getDocs, orderBy, query, type Timestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db, functions } from '@/lib/firebase/client'
+import { db } from '@/lib/firebase/client'
+import { functions } from '@/lib/firebase/functions'
 import { broadcastSchema, type Broadcast, type BroadcastComposeInput } from './schemas'
 
 export interface BroadcastRow extends Broadcast {

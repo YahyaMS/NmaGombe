@@ -18,6 +18,7 @@ import {
 import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore'
 import { auth } from './client'
 import { db } from './client'
+import { establishServerSession } from './session-bridge'
 import type { MemberSignupInput } from '@/lib/data/schemas'
 
 type SignupDraft = Omit<MemberSignupInput, 'email'>
@@ -94,23 +95,6 @@ export async function completeEmailLinkSignIn(url: string, email: string): Promi
   const result = await signInWithEmailLink(auth, email, url)
   window.localStorage.removeItem(STORED_EMAIL_KEY)
   return result.user
-}
-
-/**
- * Mints the server session (__session, HttpOnly) and the display-only
- * cookie (nma_display) that src/proxy.ts, the /portal and /admin layouts,
- * and HeaderAccountLink all read — see src/app/api/session/route.ts. Not
- * best-effort: /portal and /admin are now gated server-side on __session
- * existing, so a caller must surface failure here rather than swallow it,
- * or a properly-signed-in member would be silently unable to reach either.
- */
-export async function establishServerSession(idToken: string): Promise<void> {
-  const res = await fetch('/api/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  })
-  if (!res.ok) throw new Error('Could not establish a server session.')
 }
 
 export type ReturningSignInDestination = 'admin' | 'member' | 'pending'

@@ -11,7 +11,8 @@
 
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db, functions } from '@/lib/firebase/client'
+import { db } from '@/lib/firebase/client'
+import { functions } from '@/lib/firebase/functions'
 import { memberProfileSchema, type MemberProfile } from './schemas'
 
 export interface MemberRow extends MemberProfile {

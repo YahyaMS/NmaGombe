@@ -1,62 +1,50 @@
 /**
- * Firebase client-side SDK.
+ * Re-exports from the split modules — lib/firebase/app.ts (init),
+ * lib/firebase/auth.ts (auth), lib/firebase/db.ts (db). Existing offline-tier
+ * imports (`import { db, auth } from '@/lib/firebase/client'`) keep working
+ * unchanged: the offline tier (card, directory, cpd, portal, profile) needs
+ * both anyway, so importing them via this barrel costs nothing extra.
  *
- * Import from here only — never call initializeApp() elsewhere.
- * These keys are safe to expose: they identify the project but authorise nothing.
+ * Deliberately does NOT re-export `functions` — import it from
+ * '@/lib/firebase/functions' directly. The three admin routes still on
+ * httpsCallable (verification, members, broadcast) need auth + functions but
+ * not Firestore; re-exporting functions here would tempt a future import via
+ * this barrel that pulls db.ts's ~211KB-gzip Firestore SDK in for nothing.
+ * See docs/09-DECISIONS.md.
+ *
+ * Import from here only — never call initializeApp() elsewhere. These keys
+ * are safe to expose: they identify the project but authorise nothing.
  * Access control lives in firestore.rules + App Check.
  */
 
-import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, connectAuthEmulator } from 'firebase/auth'
-import {
-  initializeFirestore,
-  connectFirestoreEmulator,
-  persistentLocalCache,
-  persistentSingleTabManager,
-  memoryLocalCache,
-} from 'firebase/firestore'
-import { getStorage, connectStorageEmulator } from 'firebase/storage'
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions'
+export { app } from './app'
+export { auth } from './auth'
+export { db } from './db'
 
-const firebaseConfig = {
-  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-}
+// Storage loads only at the point something actually uploads — today that's
+// only /portal/cpd's certificate attach (lib/data/cpd.ts). Memoized: repeat
+// calls within one page load reuse the same connection/emulator setup, and
+// markEmulatorConnected('storage') (app.ts) makes repeat calls across a Fast
+// Refresh safe too — see app.ts's comment. (Previously this checked a
+// `_isEmulator` property on the storage instance; that property does not
+// exist anywhere in the installed Firebase SDK — confirmed by grepping every
+// @firebase/* package — so the check was silently a no-op. Fixed here to use
+// the real, verified mechanism; auth.ts/db.ts/functions.ts were built with
+// the real mechanism from the start.)
+import type { FirebaseStorage } from 'firebase/storage'
+import { app, usingEmulators, markEmulatorConnected } from './app'
 
-function getFirebaseApp(): FirebaseApp {
-  return getApps().length ? getApp() : initializeApp(firebaseConfig)
-}
+let storagePromise: Promise<FirebaseStorage> | undefined
 
-export const app = getFirebaseApp()
-export const auth = getAuth(app)
-// Persistent (IndexedDB) cache in the browser — required for "works offline"
-// (CLAUDE.md non-negotiable constraints; design.md's directory/card offline
-// states). Falls back to the in-memory cache during SSR, where indexedDB
-// doesn't exist. Single-tab: this app has no need for cross-tab sync yet.
-export const db = initializeFirestore(app, {
-  localCache:
-    typeof window !== 'undefined'
-      ? persistentLocalCache({ tabManager: persistentSingleTabManager({}) })
-      : memoryLocalCache(),
-})
-export const storage = getStorage(app)
-// Region matches Firestore's europe-west1 — see docs/09-DECISIONS.md ADR-008.
-export const functions = getFunctions(app, 'europe-west1')
-
-// Point at local emulators in development.
-// NEXT_PUBLIC_USE_EMULATORS=true is set in .env.local (never in production).
-if (
-  typeof window !== 'undefined' &&
-  process.env.NEXT_PUBLIC_USE_EMULATORS === 'true' &&
-  // Prevent double-connection on hot reload
-  !(auth as unknown as { _isEmulator?: boolean })._isEmulator
-) {
-  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
-  connectFirestoreEmulator(db, 'localhost', 8080)
-  connectStorageEmulator(storage, 'localhost', 9199)
-  connectFunctionsEmulator(functions, 'localhost', 5001)
+export function getStorageClient(): Promise<FirebaseStorage> {
+  if (!storagePromise) {
+    storagePromise = import('firebase/storage').then(({ getStorage, connectStorageEmulator }) => {
+      const storage = getStorage(app)
+      if (usingEmulators && markEmulatorConnected('storage')) {
+        connectStorageEmulator(storage, 'localhost', 9199)
+      }
+      return storage
+    })
+  }
+  return storagePromise
 }

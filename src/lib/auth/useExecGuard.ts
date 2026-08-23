@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase/client'
-import { establishServerSession } from '@/lib/firebase/auth-email-link'
+// Direct from auth.ts, not the '@/lib/firebase/client' barrel: this hook is
+// now only used by the admin routes still on httpsCallable (verification,
+// members, broadcast), which need auth but not Firestore — see
+// docs/09-DECISIONS.md.
+import { auth } from '@/lib/firebase/auth'
+import { establishServerSession } from '@/lib/firebase/session-bridge'
 
 type GuardState = 'checking' | 'ready' | 'redirecting'
 type ExecRole = 'exec' | 'admin'

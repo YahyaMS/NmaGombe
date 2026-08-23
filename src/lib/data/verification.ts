@@ -14,7 +14,8 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db, functions } from '@/lib/firebase/client'
+import { db } from '@/lib/firebase/client'
+import { functions } from '@/lib/firebase/functions'
 import { verificationRequestSchema, type VerificationRequestData } from './schemas'
 
 export interface VerificationRequest extends VerificationRequestData {
