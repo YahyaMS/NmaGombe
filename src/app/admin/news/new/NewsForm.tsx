@@ -1,10 +1,14 @@
 'use client'
 
+/**
+ * No Firebase import at all — posts to /api/admin/news, which re-checks
+ * authorisation itself and does the actual write via the Admin SDK. The
+ * admin layout already gates the page; there's nothing left for a client
+ * guard to protect here. See docs/09-DECISIONS.md for the conversion.
+ */
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { getOwnMemberProfile } from '@/lib/data/members'
-import { publishNews } from '@/lib/data/newsAdmin'
 import { newsPublishInputSchema, newsCategorySchema, newsCategoryLabels, type NewsCategory } from '@/lib/data/schemas'
 import { Field, inputStyle, labelStyle } from '@/components/ui/Field'
 
@@ -20,7 +24,6 @@ const primaryButtonStyle = {
 
 export function NewsForm() {
   const router = useRouter()
-  const { state: guardState, uid } = useExecGuard()
   const [stage, setStage] = useState<Stage>('ready')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<NewsCategory>('communique')
@@ -30,7 +33,6 @@ export function NewsForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!uid) return
 
     const parsed = newsPublishInputSchema.safeParse({ title, category, body })
     if (!parsed.success) {
@@ -43,18 +45,18 @@ export function NewsForm() {
     setStage('publishing')
 
     try {
-      const profile = await getOwnMemberProfile(uid)
-      const author = profile?.displayName || 'NMA Gombe'
-      const slug = await publishNews(parsed.data, author)
+      const res = await fetch('/api/admin/news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed.data),
+      })
+      if (!res.ok) throw new Error('publish failed')
+      const { slug } = await res.json()
       router.push(`/news/${slug}`)
     } catch {
       setErrorMessage("Couldn't publish — try again.")
       setStage('ready')
     }
-  }
-
-  if (guardState !== 'ready') {
-    return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '640px' }} aria-live="polite" />
   }
 
   const publishing = stage === 'publishing'

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { listBroadcastsAdmin } from '@/lib/data/broadcastAdminServer'
 import { BroadcastView } from './BroadcastView'
 
 export const metadata: Metadata = {
@@ -6,6 +7,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function AdminBroadcastPage() {
-  return <BroadcastView />
+export default async function AdminBroadcastPage() {
+  const history = await listBroadcastsAdmin()
+  return <BroadcastView initialHistory={history} />
 }

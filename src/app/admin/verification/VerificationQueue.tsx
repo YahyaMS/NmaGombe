@@ -1,24 +1,37 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+/**
+ * The list itself is server-rendered (see page.tsx, lib/data/verificationAdmin.ts)
+ * — no more onSnapshot subscription or per-row getVerificationSubject() round
+ * trip. This component only owns the interactive part: approve/reject, which
+ * still goes through decideVerification() (a Cloud Function via httpsCallable —
+ * see docs/09-DECISIONS.md on why that write path isn't being duplicated into
+ * a Route Handler). After a successful action, router.refresh() re-runs the
+ * page's server data fetch instead of a live listener keeping this in sync —
+ * a deliberate trade for bytes on a route only a couple of exec members open.
+ *
+ * useExecGuard is still needed here, unlike the read-only admin routes: the
+ * Cloud Function call needs a real client-side Firebase Auth session to
+ * attach an ID token, and the guard is what gets that session established
+ * and ready before a click can fire.
+ */
+
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase/client'
-import {
-  subscribeToVerificationQueue,
-  getVerificationSubject,
-  decideVerification,
-  type VerificationRequest,
-  type VerificationSubject,
-} from '@/lib/data/verification'
+import { useExecGuard } from '@/lib/auth/useExecGuard'
+import { decideVerification } from '@/lib/data/verification'
+import type { VerificationQueueRow } from '@/lib/data/verificationAdmin'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 
-type Stage = 'checking' | 'ready' | 'offline'
 type RowAction = 'idle' | 'confirming-reject' | 'busy'
 
-function formatDate(ts: VerificationRequest['submittedAt']): string {
-  if (!ts) return '—'
-  return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-NG', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'Africa/Lagos',
+  })
 }
 
 const primaryButtonStyle = {
@@ -45,67 +58,23 @@ const ghostButtonStyle = {
   cursor: 'pointer',
 } as const
 
-export function VerificationQueue() {
+export function VerificationQueue({ initialRequests }: { initialRequests: VerificationQueueRow[] }) {
   const router = useRouter()
-  const [stage, setStage] = useState<Stage>('checking')
-  const [requests, setRequests] = useState<VerificationRequest[] | null>(null)
-  const [subjects, setSubjects] = useState<Record<string, VerificationSubject>>({})
+  const { state: guardState } = useExecGuard()
   const [rowAction, setRowAction] = useState<Record<string, RowAction>>({})
   const [rowNote, setRowNote] = useState<Record<string, string>>({})
   const [rowError, setRowError] = useState<Record<string, string>>({})
-  const fetchedSubjects = useRef(new Set<string>())
-
-  useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.replace('/signup')
-        return
-      }
-      user.getIdTokenResult(true).then((token) => {
-        if (token.claims.role !== 'admin') {
-          router.replace('/')
-          return
-        }
-        setStage('ready')
-      })
-    })
-    return unsubAuth
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (stage !== 'ready') return
-    const unsub = subscribeToVerificationQueue(setRequests, () => setStage('offline'))
-    return unsub
-  }, [stage])
-
-  useEffect(() => {
-    if (!requests) return
-    const missing = requests
-      .map((r) => r.uid)
-      .filter((uid) => !fetchedSubjects.current.has(uid))
-    if (missing.length === 0) return
-    for (const uid of missing) fetchedSubjects.current.add(uid)
-    Promise.all(missing.map(async (uid) => [uid, await getVerificationSubject(uid)] as const)).then(
-      (pairs) => {
-        setSubjects((prev) => {
-          const next = { ...prev }
-          for (const [uid, subject] of pairs) if (subject) next[uid] = subject
-          return next
-        })
-      }
-    )
-  }, [requests])
 
   async function approve(requestId: string) {
     setRowAction((s) => ({ ...s, [requestId]: 'busy' }))
     setRowError((s) => ({ ...s, [requestId]: '' }))
     try {
       await decideVerification({ requestId, decision: 'approve' })
+      router.refresh()
     } catch {
       setRowError((s) => ({ ...s, [requestId]: "Couldn't approve — try again." }))
+      setRowAction((s) => ({ ...s, [requestId]: 'idle' }))
     }
-    setRowAction((s) => ({ ...s, [requestId]: 'idle' }))
   }
 
   async function reject(requestId: string) {
@@ -113,32 +82,19 @@ export function VerificationQueue() {
     setRowError((s) => ({ ...s, [requestId]: '' }))
     try {
       await decideVerification({ requestId, decision: 'reject', note: rowNote[requestId]?.trim() || undefined })
+      router.refresh()
     } catch {
       setRowError((s) => ({ ...s, [requestId]: "Couldn't reject — try again." }))
       setRowAction((s) => ({ ...s, [requestId]: 'confirming-reject' }))
-      return
     }
-    setRowAction((s) => ({ ...s, [requestId]: 'idle' }))
   }
 
-  if (stage === 'checking') {
+  if (guardState !== 'ready') {
     return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }} aria-live="polite" />
   }
 
-  if (stage === 'offline') {
-    return (
-      <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }}>
-        <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Offline</p>
-        <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>You&rsquo;re offline</h1>
-        <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-          Reconnect and reload to see the verification queue.
-        </p>
-      </div>
-    )
-  }
-
-  const pending = (requests ?? []).filter((r) => !r.decision)
-  const decided = (requests ?? []).filter((r) => r.decision)
+  const pending = initialRequests.filter((r) => !r.decision)
+  const decided = initialRequests.filter((r) => r.decision)
 
   return (
     <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }}>
@@ -149,27 +105,22 @@ export function VerificationQueue() {
       </p>
 
       <div className="mt-lg">
-        {requests === null ? null : pending.length === 0 ? (
+        {pending.length === 0 ? (
           <p className="type-body mt-lg" style={{ color: 'var(--color-ink-3)' }}>
             No pending requests.
           </p>
         ) : (
           pending.map((request) => {
-            const subject = subjects[request.uid]
             const action = rowAction[request.id] ?? 'idle'
             const busy = action === 'busy'
             return (
               <div key={request.id}>
                 <RegisterRow
                   index={formatDate(request.submittedAt)}
-                  primary={subject?.displayName || 'Loading…'}
-                  secondary={
-                    subject
-                      ? [subject.department, subject.facility, `Folio ${request.folioNumber}`, subject.email]
-                          .filter(Boolean)
-                          .join(' · ')
-                      : `Folio ${request.folioNumber}`
-                  }
+                  primary={request.displayName || 'Unnamed'}
+                  secondary={[request.department, request.facility, `Folio ${request.folioNumber}`, request.email]
+                    .filter(Boolean)
+                    .join(' · ')}
                   last={action === 'confirming-reject'}
                   action={
                     <div className="flex items-center gap-sm">
@@ -261,18 +212,15 @@ export function VerificationQueue() {
         <div className="mt-2xl">
           <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Decided</p>
           <div className="mt-md">
-            {decided.map((request, i) => {
-              const subject = subjects[request.uid]
-              return (
-                <RegisterRow
-                  key={request.id}
-                  index={formatDate(request.submittedAt)}
-                  primary={subject?.displayName || request.uid}
-                  secondary={`Folio ${request.folioNumber} · ${request.decision === 'approve' ? 'Approved' : 'Rejected'}`}
-                  last={i === decided.length - 1}
-                />
-              )
-            })}
+            {decided.map((request, i) => (
+              <RegisterRow
+                key={request.id}
+                index={formatDate(request.submittedAt)}
+                primary={request.displayName || request.uid}
+                secondary={`Folio ${request.folioNumber} · ${request.decision === 'approve' ? 'Approved' : 'Rejected'}`}
+                last={i === decided.length - 1}
+              />
+            ))}
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { listVerificationQueueAdmin } from '@/lib/data/verificationAdmin'
 import { VerificationQueue } from './VerificationQueue'
 
 export const metadata: Metadata = {
@@ -6,6 +7,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function VerificationPage() {
-  return <VerificationQueue />
+export default async function VerificationPage() {
+  const requests = await listVerificationQueueAdmin()
+  return <VerificationQueue initialRequests={requests} />
 }

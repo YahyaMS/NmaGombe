@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { listAllMembersAdmin } from '@/lib/data/membersAdminServer'
 import { MembersAdminList } from './MembersAdminList'
 
 export const metadata: Metadata = {
@@ -6,6 +7,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function AdminMembersPage() {
-  return <MembersAdminList />
+export default async function AdminMembersPage() {
+  const members = await listAllMembersAdmin()
+  return <MembersAdminList initialMembers={members} />
 }

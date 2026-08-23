@@ -1,37 +1,26 @@
-'use client'
+/**
+ * Server Component — no client Firebase SDK. The admin/exec-only gate is the
+ * layout's server-side session check (src/app/admin/layout.tsx); this file
+ * has no client-side guard because it renders nothing until that check has
+ * already passed. See docs/09-DECISIONS.md for the conversion this replaced.
+ */
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { listAllNews, type AdminNewsItem } from '@/lib/data/newsAdmin'
+import { listAllNewsAdmin } from '@/lib/data/newsAdmin'
 import { newsCategoryLabels } from '@/lib/data/schemas'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 
-type Stage = 'checking' | 'ready' | 'error'
-
-function formatDate(ts: AdminNewsItem['publishedAt']): string {
-  if (!ts) return '—'
-  return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-NG', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'Africa/Lagos',
+  })
 }
 
-export function NewsAdminList() {
-  const { state: guardState } = useExecGuard()
-  const [stage, setStage] = useState<Stage>('checking')
-  const [items, setItems] = useState<AdminNewsItem[]>([])
-
-  useEffect(() => {
-    if (guardState !== 'ready') return
-    listAllNews()
-      .then((result) => {
-        setItems(result)
-        setStage('ready')
-      })
-      .catch(() => setStage('error'))
-  }, [guardState])
-
-  if (guardState !== 'ready' || stage === 'checking') {
-    return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }} aria-live="polite" />
-  }
+export async function NewsAdminList() {
+  const items = await listAllNewsAdmin()
 
   return (
     <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }}>
@@ -50,19 +39,11 @@ export function NewsAdminList() {
       </div>
 
       <div className="mt-lg">
-        {stage === 'error' && (
-          <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
-            Couldn&rsquo;t load the list. Reload the page.
-          </p>
-        )}
-
-        {stage === 'ready' && items.length === 0 && (
+        {items.length === 0 ? (
           <p className="type-body" style={{ color: 'var(--color-ink-3)' }}>
             Nothing published yet.
           </p>
-        )}
-
-        {stage === 'ready' &&
+        ) : (
           items.map((item, i) => (
             <RegisterRow
               key={item.slug}
@@ -72,7 +53,8 @@ export function NewsAdminList() {
               href={`/news/${item.slug}`}
               last={i === items.length - 1}
             />
-          ))}
+          ))
+        )}
       </div>
     </div>
   )

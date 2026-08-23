@@ -1,12 +1,22 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+/**
+ * The list itself is server-rendered (see page.tsx, lib/data/membersAdminServer.ts).
+ * Search filters the already-loaded initialMembers prop client-side — same
+ * shape as before, just no more client-side list fetch. After a mutation,
+ * router.refresh() re-runs the page's server data fetch instead of locally
+ * patching state — see docs/09-DECISIONS.md, same pattern as
+ * /admin/verification.
+ */
+
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { listAllMembers, setMemberStatus, setMemberRole, type MemberRow } from '@/lib/data/membersAdmin'
+import { setMemberStatus, setMemberRole } from '@/lib/data/membersAdmin'
+import type { MemberRow } from '@/lib/data/membersAdminServer'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 import { inputStyle } from '@/components/ui/Field'
 
-type ListStage = 'checking' | 'ready' | 'error'
 type RowAction = 'idle' | 'confirming-suspend' | 'confirming-role' | 'busy'
 type Role = 'member' | 'exec' | 'admin'
 
@@ -52,29 +62,18 @@ function matches(row: MemberRow, q: string): boolean {
   return haystack.includes(q.toLowerCase())
 }
 
-export function MembersAdminList() {
+export function MembersAdminList({ initialMembers }: { initialMembers: MemberRow[] }) {
+  const router = useRouter()
   const { state: guardState, uid: ownUid, role: ownRole } = useExecGuard()
-  const [listStage, setListStage] = useState<ListStage>('checking')
-  const [members, setMembers] = useState<MemberRow[]>([])
   const [search, setSearch] = useState('')
 
   const [rowAction, setRowAction] = useState<Record<string, RowAction>>({})
   const [rowError, setRowError] = useState<Record<string, string>>({})
   const [roleDraft, setRoleDraft] = useState<Record<string, Role>>({})
 
-  useEffect(() => {
-    if (guardState !== 'ready') return
-    listAllMembers()
-      .then((rows) => {
-        setMembers(rows)
-        setListStage('ready')
-      })
-      .catch(() => setListStage('error'))
-  }, [guardState])
-
   const results = useMemo(
-    () => (search.trim() ? members.filter((m) => matches(m, search.trim())) : members),
-    [members, search]
+    () => (search.trim() ? initialMembers.filter((m) => matches(m, search.trim())) : initialMembers),
+    [initialMembers, search]
   )
 
   function draftRole(row: MemberRow): Role {
@@ -87,7 +86,7 @@ export function MembersAdminList() {
     setRowError((s) => ({ ...s, [row.uid]: '' }))
     try {
       await setMemberStatus({ uid: row.uid, status: nextStatus })
-      setMembers((prev) => prev.map((m) => (m.uid === row.uid ? { ...m, status: nextStatus } : m)))
+      router.refresh()
       setRowAction((s) => ({ ...s, [row.uid]: 'idle' }))
     } catch {
       setRowError((s) => ({ ...s, [row.uid]: "Couldn't update status — try again." }))
@@ -101,7 +100,7 @@ export function MembersAdminList() {
     setRowError((s) => ({ ...s, [row.uid]: '' }))
     try {
       await setMemberRole({ uid: row.uid, role: nextRole })
-      setMembers((prev) => prev.map((m) => (m.uid === row.uid ? { ...m, role: nextRole } : m)))
+      router.refresh()
       setRowAction((s) => ({ ...s, [row.uid]: 'idle' }))
     } catch {
       setRowError((s) => ({ ...s, [row.uid]: "Couldn't update role — try again." }))
@@ -109,7 +108,7 @@ export function MembersAdminList() {
     }
   }
 
-  if (guardState !== 'ready' || listStage === 'checking') {
+  if (guardState !== 'ready') {
     return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '820px' }} aria-live="polite" />
   }
 
@@ -131,20 +130,13 @@ export function MembersAdminList() {
       />
 
       <div className="mt-lg">
-        {listStage === 'error' && (
-          <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
-            Couldn&rsquo;t load members. Reload the page.
-          </p>
-        )}
-
-        {listStage === 'ready' && results.length === 0 && (
+        {results.length === 0 && (
           <p className="type-body" style={{ color: 'var(--color-ink-3)' }}>
             No members match your search.
           </p>
         )}
 
-        {listStage === 'ready' &&
-          results.map((row, i) => {
+        {results.map((row, i) => {
             const action = rowAction[row.uid] ?? 'idle'
             const busy = action === 'busy'
             const isSelf = row.uid === ownUid

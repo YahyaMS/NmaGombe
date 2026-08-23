@@ -1,75 +1,16 @@
 /**
- * All Firestore/Function access for the verification queue goes through here.
- * No inline getDocs/httpsCallable in components — see CLAUDE.md conventions.
+ * Client-SDK access for the verification decision — the one thing about
+ * verification that's still client-side. Reading the queue moved to the
+ * Admin SDK (lib/data/verificationAdmin.ts, server-only) once the list view
+ * was converted to a Server Component; this file used to also hold
+ * subscribeToVerificationQueue()/getVerificationSubject() for that, removed
+ * as dead code once VerificationQueue.tsx stopped calling them.
+ *
+ * No inline httpsCallable in components — see CLAUDE.md conventions.
  */
 
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  getDoc,
-  type Timestamp,
-  type Unsubscribe,
-} from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db } from '@/lib/firebase/client'
 import { functions } from '@/lib/firebase/functions'
-import { verificationRequestSchema, type VerificationRequestData } from './schemas'
-
-export interface VerificationRequest extends VerificationRequestData {
-  id: string
-  submittedAt: Timestamp | null
-  decidedAt: Timestamp | null
-}
-
-export interface VerificationSubject {
-  displayName: string
-  department: string
-  facility: string
-  email: string
-}
-
-/** Live queue, newest submission first. Includes already-decided requests — the UI splits them. */
-export function subscribeToVerificationQueue(
-  onChange: (requests: VerificationRequest[]) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  const q = query(collection(db, 'verificationRequests'), orderBy('submittedAt', 'desc'))
-  return onSnapshot(
-    q,
-    (snap) => {
-      const requests: VerificationRequest[] = []
-      for (const docSnap of snap.docs) {
-        const parsed = verificationRequestSchema.safeParse(docSnap.data())
-        if (!parsed.success) continue
-        const raw = docSnap.data()
-        requests.push({
-          id: docSnap.id,
-          ...parsed.data,
-          submittedAt: (raw.submittedAt as Timestamp) ?? null,
-          decidedAt: (raw.decidedAt as Timestamp) ?? null,
-        })
-      }
-      onChange(requests)
-    },
-    (err) => onError?.(err)
-  )
-}
-
-/** The submitter's name/department/facility/email, for display next to their request. */
-export async function getVerificationSubject(uid: string): Promise<VerificationSubject | null> {
-  const snap = await getDoc(doc(db, 'members', uid))
-  if (!snap.exists()) return null
-  const data = snap.data()
-  return {
-    displayName: typeof data.displayName === 'string' ? data.displayName : '',
-    department: typeof data.department === 'string' ? data.department : '',
-    facility: typeof data.facility === 'string' ? data.facility : '',
-    email: typeof data.email === 'string' ? data.email : '',
-  }
-}
 
 interface DecideVerificationInput {
   requestId: string

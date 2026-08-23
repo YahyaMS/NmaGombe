@@ -1,36 +1,23 @@
-'use client'
+/**
+ * Server Component — no client Firebase SDK. See NewsAdminList.tsx's comment;
+ * same conversion, same reasoning.
+ */
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { listAllEvents, type AdminEventItem } from '@/lib/data/eventsAdmin'
+import { listAllEventsAdmin } from '@/lib/data/eventsAdmin'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 
-type Stage = 'checking' | 'ready' | 'error'
-
-function formatDate(ts: AdminEventItem['startAt']): string {
-  if (!ts) return '—'
-  return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-NG', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'Africa/Lagos',
+  })
 }
 
-export function EventsAdminList() {
-  const { state: guardState } = useExecGuard()
-  const [stage, setStage] = useState<Stage>('checking')
-  const [items, setItems] = useState<AdminEventItem[]>([])
-
-  useEffect(() => {
-    if (guardState !== 'ready') return
-    listAllEvents()
-      .then((result) => {
-        setItems(result)
-        setStage('ready')
-      })
-      .catch(() => setStage('error'))
-  }, [guardState])
-
-  if (guardState !== 'ready' || stage === 'checking') {
-    return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }} aria-live="polite" />
-  }
+export async function EventsAdminList() {
+  const items = await listAllEventsAdmin()
 
   return (
     <div className="mx-auto px-md py-2xl" style={{ maxWidth: '760px' }}>
@@ -49,19 +36,11 @@ export function EventsAdminList() {
       </div>
 
       <div className="mt-lg">
-        {stage === 'error' && (
-          <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
-            Couldn&rsquo;t load the list. Reload the page.
-          </p>
-        )}
-
-        {stage === 'ready' && items.length === 0 && (
+        {items.length === 0 ? (
           <p className="type-body" style={{ color: 'var(--color-ink-3)' }}>
             No events published yet.
           </p>
-        )}
-
-        {stage === 'ready' &&
+        ) : (
           items.map((item, i) => (
             <RegisterRow
               key={item.slug}
@@ -71,7 +50,8 @@ export function EventsAdminList() {
               href={`/events/${item.slug}`}
               last={i === items.length - 1}
             />
-          ))}
+          ))
+        )}
       </div>
     </div>
   )

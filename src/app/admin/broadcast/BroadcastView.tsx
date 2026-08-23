@@ -1,14 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+/**
+ * History is server-rendered (see page.tsx, lib/data/broadcastAdminServer.ts).
+ * router.refresh() re-fetches it after a successful log, same pattern as
+ * /admin/verification and /admin/members — see docs/09-DECISIONS.md.
+ */
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { logBroadcast, listBroadcasts, type BroadcastRow } from '@/lib/data/broadcast'
+import { logBroadcast } from '@/lib/data/broadcast'
+import type { BroadcastRow } from '@/lib/data/broadcastAdminServer'
 import { broadcastComposeInputSchema } from '@/lib/data/schemas'
 import { Field, inputStyle, labelStyle } from '@/components/ui/Field'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 
 type FormStage = 'ready' | 'logging' | 'logged'
-type HistoryStage = 'checking' | 'ready' | 'error'
 
 const primaryButtonStyle = {
   backgroundColor: 'var(--color-green)',
@@ -26,12 +33,17 @@ const secondaryButtonStyle = {
   cursor: 'pointer',
 } as const
 
-function formatDate(ts: BroadcastRow['sentAt']): string {
-  if (!ts) return '—'
-  return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
+function formatDate(iso: BroadcastRow['sentAt']): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-NG', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'Africa/Lagos',
+  })
 }
 
-export function BroadcastView() {
+export function BroadcastView({ initialHistory }: { initialHistory: BroadcastRow[] }) {
+  const router = useRouter()
   const { state: guardState } = useExecGuard()
   const [formStage, setFormStage] = useState<FormStage>('ready')
   const [audience, setAudience] = useState('')
@@ -40,30 +52,6 @@ export function BroadcastView() {
   const [errorMessage, setErrorMessage] = useState('')
   const [loggedMessage, setLoggedMessage] = useState('')
   const [copied, setCopied] = useState(false)
-
-  const [historyStage, setHistoryStage] = useState<HistoryStage>('checking')
-  const [history, setHistory] = useState<BroadcastRow[]>([])
-
-  function fetchHistory() {
-    return listBroadcasts()
-      .then((rows) => {
-        setHistory(rows)
-        setHistoryStage('ready')
-      })
-      .catch(() => setHistoryStage('error'))
-  }
-
-  // Re-fetches after a successful log — resets to 'checking' first, unlike
-  // the mount effect below where the state already starts at 'checking'.
-  function reloadHistory() {
-    setHistoryStage('checking')
-    void fetchHistory()
-  }
-
-  useEffect(() => {
-    if (guardState !== 'ready') return
-    void fetchHistory()
-  }, [guardState])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -84,7 +72,7 @@ export function BroadcastView() {
       setFormStage('logged')
       setAudience('')
       setMessage('')
-      reloadHistory()
+      router.refresh()
     } catch {
       setErrorMessage("Couldn't log this broadcast — try again.")
       setFormStage('ready')
@@ -195,26 +183,19 @@ export function BroadcastView() {
         <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>History</p>
 
         <div className="mt-md">
-          {historyStage === 'error' && (
-            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
-              Couldn&rsquo;t load the history. Reload the page.
-            </p>
-          )}
-
-          {historyStage === 'ready' && history.length === 0 && (
+          {initialHistory.length === 0 && (
             <p className="type-body" style={{ color: 'var(--color-ink-3)' }}>
               No broadcasts logged yet.
             </p>
           )}
 
-          {historyStage === 'ready' &&
-            history.map((row, i) => (
+          {initialHistory.map((row, i) => (
               <RegisterRow
                 key={row.id}
                 index={formatDate(row.sentAt)}
                 primary={row.audience}
                 secondary={row.message}
-                last={i === history.length - 1}
+                last={i === initialHistory.length - 1}
               />
             ))}
         </div>

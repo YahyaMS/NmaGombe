@@ -1,9 +1,12 @@
 'use client'
 
+/**
+ * No Firebase import at all — posts to /api/admin/events. See NewsForm.tsx's
+ * comment; same conversion, same reasoning.
+ */
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useExecGuard } from '@/lib/auth/useExecGuard'
-import { publishEvent } from '@/lib/data/eventsAdmin'
 import { eventPublishInputSchema } from '@/lib/data/schemas'
 import { Field, inputStyle, labelStyle } from '@/components/ui/Field'
 
@@ -19,7 +22,6 @@ const primaryButtonStyle = {
 
 export function EventForm() {
   const router = useRouter()
-  const { state: guardState } = useExecGuard()
   const [stage, setStage] = useState<Stage>('ready')
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
@@ -47,16 +49,18 @@ export function EventForm() {
     setStage('publishing')
 
     try {
-      const slug = await publishEvent(parsed.data)
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed.data),
+      })
+      if (!res.ok) throw new Error('publish failed')
+      const { slug } = await res.json()
       router.push(`/events/${slug}`)
     } catch {
       setErrorMessage("Couldn't publish — try again.")
       setStage('ready')
     }
-  }
-
-  if (guardState !== 'ready') {
-    return <div className="mx-auto px-md py-2xl" style={{ maxWidth: '640px' }} aria-live="polite" />
   }
 
   const publishing = stage === 'publishing'

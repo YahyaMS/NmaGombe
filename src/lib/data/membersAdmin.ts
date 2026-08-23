@@ -1,34 +1,15 @@
 /**
- * Admin-side member management: search/list, suspend/reinstate, grant roles.
- * No inline getDocs/httpsCallable in components — see CLAUDE.md conventions.
+ * Admin-side member mutations only — setMemberStatus/setMemberRole go
+ * through Functions (firestore.rules denies all direct client writes to
+ * those trust fields, so the write can't skip the custom-claim sync). The
+ * list read moved to the Admin SDK (lib/data/membersAdminServer.ts,
+ * server-only) once /admin/members' list view became a Server Component.
  *
- * Listing is a direct client-SDK read (firestore.rules already permits
- * `get, list` to isAdmin() — unaffected by the members/{uid} update-rule
- * fix, which only tightened writes). Status/role changes go through
- * Functions — firestore.rules denies all direct client writes to those
- * trust fields, deliberately, so the write can't skip the custom-claim sync.
+ * No inline httpsCallable in components — see CLAUDE.md conventions.
  */
 
-import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { db } from '@/lib/firebase/client'
 import { functions } from '@/lib/firebase/functions'
-import { memberProfileSchema, type MemberProfile } from './schemas'
-
-export interface MemberRow extends MemberProfile {
-  uid: string
-}
-
-/** One-shot fetch, filtered client-side — same deliberate shape as /portal/directory. */
-export async function listAllMembers(): Promise<MemberRow[]> {
-  const snap = await getDocs(query(collection(db, 'members'), orderBy('displayName')))
-  const rows: MemberRow[] = []
-  for (const d of snap.docs) {
-    const parsed = memberProfileSchema.safeParse(d.data())
-    if (parsed.success) rows.push({ uid: d.id, ...parsed.data })
-  }
-  return rows
-}
 
 interface SetMemberStatusInput {
   uid: string

@@ -1,27 +1,25 @@
 /**
- * Client-SDK access to news/ for the admin (exec) side — creating and listing.
- * Public reads go through lib/data/news.ts (Admin SDK) instead — see that
- * file for why. firestore.rules gates writes to isExec(); this file doesn't
- * re-check that itself, the rules are the boundary (same as broadcasts, duesRates).
+ * Server-only. Admin-SDK access to news/ for the exec admin side — listing
+ * and publishing. Converted from a client-Firestore-rules-enforced write to
+ * this (docs/09-DECISIONS.md ADR-0XX): no Cloud Function ever wrote here, so
+ * there's no second privileged write path being created — the Route Handler
+ * (src/app/api/admin/news/route.ts) is now the only way this collection is
+ * written, and it re-checks isExec() itself (CLAUDE.md rule 2).
+ *
+ * IMPORTANT: the Admin SDK bypasses firestore.rules entirely. Every export
+ * here is called only from the Route Handler, which has already verified
+ * the caller is exec/admin — this file does not re-check itself.
+ *
+ * NEVER import this from a Client Component.
  */
 
-import {
-  collection,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  type Timestamp,
-} from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import 'server-only'
+import { adminDb } from '@/lib/firebase/admin'
 import { newsPublishInputSchema, newsSchema, type NewsItem, type NewsPublishInput } from './schemas'
-import { slugify, uniqueSlug } from './slug'
+import { slugify } from './slug'
 
-// See lib/data/news.ts's PublicNewsItem comment — Timestamp isn't in the shared schema.
 export interface AdminNewsItem extends NewsItem {
-  publishedAt: Timestamp | null
+  publishedAt: string | null
 }
 
 const EXCERPT_LENGTH = 160
@@ -38,38 +36,54 @@ function excerptOf(body: string): string {
   return plain.length > EXCERPT_LENGTH ? `${plain.slice(0, EXCERPT_LENGTH).trimEnd()}…` : plain
 }
 
-/** Single-step create-and-publish — no separate draft workflow (docs/05-ROUTES.md: "three fields and a publish button"). */
-export async function publishNews(input: NewsPublishInput, author: string): Promise<string> {
-  const parsed = newsPublishInputSchema.parse(input)
-  const slug = await uniqueSlug('news', slugify(parsed.title), 'communique')
+/** Appends -2, -3, ... until an unused doc ID is found. Mirrors lib/data/slug.ts's client version. */
+async function uniqueSlugAdmin(collectionPath: string, base: string, fallback: string): Promise<string> {
+  let candidate = base || fallback
+  let suffix = 2
+  while ((await adminDb.collection(collectionPath).doc(candidate).get()).exists) {
+    candidate = `${base || fallback}-${suffix}`
+    suffix += 1
+  }
+  return candidate
+}
 
-  await setDoc(doc(db, 'news', slug), {
-    title: parsed.title,
-    slug,
-    body: parsed.body,
-    excerpt: excerptOf(parsed.body),
-    author,
-    category: parsed.category,
-    status: 'published',
-    publishedAt: serverTimestamp(),
-  })
+/** Single-step create-and-publish — no separate draft workflow (docs/05-ROUTES.md). */
+export async function publishNewsAdmin(input: NewsPublishInput, author: string): Promise<string> {
+  const parsed = newsPublishInputSchema.parse(input)
+  const slug = await uniqueSlugAdmin('news', slugify(parsed.title), 'communique')
+
+  await adminDb
+    .collection('news')
+    .doc(slug)
+    .set({
+      title: parsed.title,
+      slug,
+      body: parsed.body,
+      excerpt: excerptOf(parsed.body),
+      author,
+      category: parsed.category,
+      status: 'published',
+      publishedAt: new Date(),
+    })
 
   return slug
 }
 
 /**
  * The exec's own view, newest first. Everything published through this file is
- * status:'published' immediately (no draft step in v1 — see publishNews), but
- * the query itself isn't filtered by status, so it won't need a change if a
- * draft workflow is added later.
+ * status:'published' immediately (no draft step in v1 — see publishNewsAdmin),
+ * but the query itself isn't filtered by status, so it won't need a change if
+ * a draft workflow is added later.
  */
-export async function listAllNews(): Promise<AdminNewsItem[]> {
-  const snap = await getDocs(query(collection(db, 'news'), orderBy('publishedAt', 'desc')))
+export async function listAllNewsAdmin(): Promise<AdminNewsItem[]> {
+  const snap = await adminDb.collection('news').orderBy('publishedAt', 'desc').get()
   const items: AdminNewsItem[] = []
   for (const d of snap.docs) {
     const data = d.data()
     const parsed = newsSchema.safeParse(data)
-    if (parsed.success) items.push({ ...parsed.data, publishedAt: (data.publishedAt as Timestamp) ?? null })
+    if (!parsed.success) continue
+    const publishedAt = data.publishedAt as FirebaseFirestore.Timestamp | undefined
+    items.push({ ...parsed.data, publishedAt: publishedAt ? publishedAt.toDate().toISOString() : null })
   }
   return items
 }

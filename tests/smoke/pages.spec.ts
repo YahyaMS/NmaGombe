@@ -107,9 +107,18 @@ test.describe("authenticated routes render for the roles allowed to see them", (
     }
   });
 
-  test("exec: /admin, /admin/verification", async ({ page }) => {
+  test("exec: /admin, /admin/verification, /admin/members, /admin/broadcast, /admin/news(/new), /admin/events(/new)", async ({ page }) => {
     await signInAs(page, "exec", "/admin");
-    for (const route of ["/admin", "/admin/verification"]) {
+    for (const route of [
+      "/admin",
+      "/admin/verification",
+      "/admin/members",
+      "/admin/broadcast",
+      "/admin/news",
+      "/admin/news/new",
+      "/admin/events",
+      "/admin/events/new",
+    ]) {
       const res = await page.goto(route);
       expect(res?.status()).toBeLessThan(400);
       await expect(page).toHaveURL((url) => url.pathname === route);
