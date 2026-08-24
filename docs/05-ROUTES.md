@@ -76,8 +76,20 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
                                  provenance (name, folio number, generation date, total credit
                                  units) since a printed page leaves the system. No admin
                                  cross-member view — see docs/03-DATA-MODEL.md.
-/portal/jobs                     (Phase 2) Locum and job board.
-/portal/jobs/new                 (Phase 2) Post a listing. Expiry required.
+/portal/jobs                     (client) Locum and job board. Newest-first; each row shows a
+                                 mono "expires in N days" badge, highlighted with --harmattan
+                                 inside its last 3 days — urgency comes from that badge, not
+                                 from the sort order. One-tap WhatsApp/call via the same
+                                 lib/whatsapp.ts helper the directory uses. Owner can edit
+                                 content, mark filled, or delete their own; exec/admin can
+                                 delete any listing (moderation is delete-only, no exec edit
+                                 path) — the first member-generated, unmoderated content in the
+                                 app.
+/portal/jobs/new                 (client) Post a listing. Expiry is compulsory and capped at 60
+                                 days regardless of type (locum defaults to 14, permanent/NYSC
+                                 to 45) — extending a listing means reposting, not editing, since
+                                 expiresAt is frozen once created. Contact number prefills from
+                                 the member's own profile phone, editable.
 /portal/documents                Member-only downloads: guidelines, forms, circulars.
 /portal/welfare                  (Phase 2) Welfare fund info + how to open a case (form only,
                                  not a case viewer).

@@ -220,9 +220,45 @@ re-publish, so it shouldn't reassign authorship or bump the item back to the top
 newest-first list. `excerpt` is re-derived from the new body on every edit, or a body correction
 would leave a stale preview.
 
-### `jobs/{id}` (Phase 2)
-`title, facility, town, type ("locum"|"permanent"|"nysc"), description, contactVia, postedBy, expiresAt, status`
-**Every job expires.** A board full of dead listings is worse than no board.
+### `jobs/{id}`
+`title, facility, town, type ("locum"|"permanent"|"nysc"), description, contactVia, postedBy, expiresAt, status ("active"|"filled"), createdAt`
+Doc ID is auto-generated — no natural unique key like a slug. `expiresAt` and `createdAt` stay
+out of `jobSchema` (`lib/data/schemas.ts`), the same treatment `events.ts` gives `startAt`: real
+Firestore Timestamps, not strings, so rules-level and query-level comparisons against
+`request.time` work; attached per-file (`lib/data/jobs.ts`) instead of importing the Firestore
+SDK's Timestamp type into the shared, SDK-free schema module.
+
+**Every job expires, and the expiry is compulsory, not advisory.** A board full of dead listings
+is worse than no board. Default expiry by type — locum 14 days, permanent/NYSC 45 — with a
+**60-day hard cap regardless of type**, enforced in both `firestore.rules` (`jobShapeValid()` +
+an explicit `expiresAt <= request.time + duration.value(60, 'd')` bound on create) and
+`jobPostInputSchema`'s Zod `.refine()`, so an out-of-range date is rejected by the form before a
+write is even attempted. `postedBy`, `expiresAt` and `createdAt` are **immutable on update** —
+an owner can correct their listing's content and flip `status` to `"filled"`, but cannot extend
+its life or reassign it to someone else. **Reposting, not editing, is the only way to extend a
+listing** — a fresh 60-day cap, and an honest signal that a role is still genuinely open, not a
+listing quietly kept alive past what compulsory expiry was meant to enforce.
+
+List order is newest-first (`createdAt` descending) — urgency is communicated by an
+`--harmattan`-highlighted "expires in N days" badge on each row (`design.md` §2: one of exactly
+two sanctioned uses of that colour), not by burying a fresh post under one that merely expires
+sooner.
+
+**This is the first member-generated, unmoderated content in the app** — every other collection
+is exec-authored (`news`, `events`) or strictly self-scoped (`cpdEntries`, `registrations`).
+Moderation here is **delete-only, not update**: `firestore.rules` lets `isExec()` delete any
+listing (something that shouldn't be on a chapter platform gets removed, not silently rewritten)
+but grants no exec update path at all — an exec correcting a member's own post would be a
+different, larger design problem than this slice takes on.
+
+A scheduled Cloud Function (`functions/src/jobs.ts`'s `cleanupExpiredJobs`, daily at 03:00
+Africa/Lagos) deletes listings expired more than 30 days — NDPA data-minimisation for
+`contactVia`, a phone number with no reason to be retained once a listing is no longer even
+recently relevant (`docs/08-NDPA-COMPLIANCE.md`). The 30-day grace window is separate from and
+longer than the moment a listing actually stops being shown: `lib/data/jobs.ts`'s query reads
+`status == 'active'` only and filters out anything already past `expiresAt` client-side, so a
+listing disappears from the board the instant it lapses, well before the Function ever deletes
+its document.
 
 ### `welfareCases/{id}` (Phase 2 — restricted)
 Readable only by `role: exec`. Minimum viable fields. No diagnoses, no clinical detail, no
@@ -261,10 +297,18 @@ family medical information. If in doubt, leave it out and handle it offline.
    bypassed check.
 10. `events.cpdCreditUnits` is bounded `0 < n <= 100` in firestore.rules, not only in Zod — the
     same reasoning as `cpdEntries.creditUnits`'s own bound.
+11. `jobs.postedBy`, `expiresAt` and `createdAt` are immutable on update — an owner can correct
+    content and mark a listing filled, but cannot extend its life, backdate it up a newest-first
+    list, or reassign it to someone else. `expiresAt` is bounded both `> request.time` and
+    `<= request.time + 60 days` at create, regardless of type. Moderation (`isExec()`) is
+    delete-only — there is no exec update path on this collection at all.
 
 ## Indexes
 Composite indexes needed for: news by `status + publishedAt desc`, events by
-`status + startAt asc`, jobs by `status + expiresAt` (Phase 2). **Not** directory — `/portal/directory` deliberately does one unfiltered `orderBy`
+`status + startAt asc`, jobs by `status + createdAt desc` (not `status + expiresAt` — the jobs
+list orders newest-first, not soonest-expiring; `expiresAt` filtering happens client-side per
+row instead, since Firestore requires a range filter's field to be the first `orderBy`, and that
+would have forced sorting by expiry). **Not** directory — `/portal/directory` deliberately does one unfiltered `orderBy`
 subscription and filters client-side (see `lib/data/directory.ts`), so no composite query, no
 composite index. (An earlier version of this doc listed two `directoryEntries` indexes for a
 server-filtered query pattern that was never built, referencing a `specialty` field that was

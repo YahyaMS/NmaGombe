@@ -335,10 +335,15 @@ assumed from the previous step):
   system. The list *read* on all three did move to the Admin SDK (Server Component), since a read
   carries none of that risk.
 - **Offline-capable member routes: ≤ 400KB**, accepted cost of real offline capability
-  (ADR-002's whole reason Firestore was chosen over Supabase). Measured ~365.5–366.7KB:
+  (ADR-002's whole reason Firestore was chosen over Supabase). Measured ~365.5–366.8KB:
   `/portal`, `/portal/card`, `/portal/directory`, `/portal/directory/[uid]`, `/portal/cpd`,
-  `/portal/profile`. `/pending` (364.0KB) is the same tier for the same reason ADR-011 already
-  gave — it's mid-signup, not yet verified, but still needs the client Auth SDK.
+  `/portal/jobs`, `/portal/jobs/new`, `/portal/profile`. `/pending` (364.0KB) is the same tier
+  for the same reason ADR-011 already gave — it's mid-signup, not yet verified, but still needs
+  the client Auth SDK.
+  `/portal/jobs`/`/portal/jobs/new` (366.0/365.9KB) join by measurement, not assumption — both
+  write directly to Firestore under `firestore.rules` (member-posted content, not privileged),
+  the same shape as `/portal/cpd`'s own create path, so the client Firestore SDK was never
+  avoidable here regardless of whether the board itself needs to work offline.
 
 **The asymmetry, stated plainly:** the offline tier's weight is paid by hundreds of members on
 paid mobile data in Gombe. The admin tier's weight is paid by the Secretary and a couple of exec
