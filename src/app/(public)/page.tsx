@@ -1,11 +1,20 @@
 /**
  * Homepage — /
  *
- * Logged out: display-scale statement, one photograph (Members of NMA Gombe),
- * two primary actions, register-row "what we do" section.
+ * display-scale statement, one photograph (Members of NMA Gombe), two
+ * primary actions, register-row "what we do" section. The second hero
+ * action (HeroAccountLink) and the folio-card section's link (FolioCtaLink)
+ * are session-aware client islands, reading nma_display — same pattern as
+ * HeaderAccountLink. No Firebase SDK, no move to dynamic rendering; this
+ * page is still a static Server Component.
  *
- * Logged in: folio card replaces the hero statement (Phase 1).
- * Same URL, different job — session detection in Phase 1.
+ * NOT done: this originally intended (see docs/09-DECISIONS.md ADR-018)
+ * for the folio-card section to show the signed-in visitor's own live card
+ * in place of the static demo card below. That was never built — only the
+ * two link-swap fixes above are. Fetching a member's own card data on a
+ * public route without either shipping the Firestore client SDK to a
+ * public page or moving it to dynamic rendering is a real design question,
+ * not a quick fix — a future slice, not silently assumed solved here.
  *
  * design.md §10. No feature grid, ever.
  */
@@ -14,6 +23,8 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { FolioCard } from '@/components/ui/FolioCard'
+import { HeroAccountLink } from './HeroAccountLink'
+import { FolioCtaLink } from './FolioCtaLink'
 
 export const metadata: Metadata = {
   title: 'Nigerian Medical Association — Gombe State Chapter',
@@ -89,19 +100,7 @@ export default function HomePage() {
             >
               Find a doctor
             </Link>
-            <Link
-              href="/signin"
-              className="type-body font-semibold px-lg py-sm transition-colors"
-              style={{
-                backgroundColor: 'transparent',
-                color: 'var(--color-surface)',
-                border: '1px solid rgba(255,255,255,0.40)',
-                borderRadius: 'var(--radius)',
-                transitionDuration: 'var(--motion-fast)',
-              }}
-            >
-              Member sign in
-            </Link>
+            <HeroAccountLink />
           </div>
         </div>
       </section>
@@ -162,8 +161,11 @@ export default function HomePage() {
       </section>
 
       {/* ── Folio card preview ──
-          Shows what members carry. In Phase 1 this section is replaced by the
-          member's own live card when they are signed in.
+          Shows what members carry — a demo card, always, for every visitor.
+          Replacing this with the signed-in visitor's own live card was the
+          original intent but was never built; see the file-level comment
+          above and docs/09-DECISIONS.md ADR-018. Only the link below it
+          (FolioCtaLink) is session-aware.
          ── */}
       <section
         aria-label="Digital membership card"
@@ -192,13 +194,7 @@ export default function HomePage() {
                 scannable for instant verification, and downloadable as an image.
                 Tap the card to flip it.
               </p>
-              <Link
-                href="/membership"
-                className="type-small font-semibold"
-                style={{ color: 'var(--color-green)', display: 'block', marginTop: 'var(--spacing-lg)' }}
-              >
-                Get verified →
-              </Link>
+              <FolioCtaLink />
             </div>
 
             {/* Demo card — Dr. Yahya's card as example */}

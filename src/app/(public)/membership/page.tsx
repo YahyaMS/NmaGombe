@@ -7,8 +7,8 @@
  */
 
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { gradeLabels, gradeSchema } from '@/lib/data/schemas'
+import { MembershipCta } from './MembershipCta'
 
 export const metadata: Metadata = {
   title: 'Membership — NMA Gombe',
@@ -157,38 +157,7 @@ export default function MembershipPage() {
       {/* ── CTA ── */}
       <section aria-label="Get started" style={{ backgroundColor: 'var(--color-green-wash)', borderTop: '1px solid var(--color-rule)' }}>
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              alignItems: 'center',
-              gap: 'var(--spacing-lg)',
-            }}
-          >
-            <div>
-              <p className="type-h2" style={{ color: 'var(--color-ink)' }}>Ready to join?</p>
-              <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-                Takes a few minutes. You&rsquo;ll need your MDCN folio number.
-              </p>
-            </div>
-            <Link
-              href="/signup"
-              className="type-body font-semibold px-lg py-sm whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--color-green)',
-                color: 'var(--color-surface)',
-                borderRadius: 'var(--radius)',
-              }}
-            >
-              Create your account
-            </Link>
-          </div>
-          <p className="type-small mt-lg" style={{ color: 'var(--color-ink-3)' }}>
-            Already have an account?{' '}
-            <Link href="/signin" style={{ color: 'var(--color-green)', textDecoration: 'underline' }}>
-              Sign in
-            </Link>
-          </p>
+          <MembershipCta />
         </div>
       </section>
     </article>

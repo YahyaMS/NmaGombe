@@ -18,8 +18,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { readDisplayCookie, resolveDisplayState, type DisplayAccountState } from '@/lib/auth/displayCookie'
 
-type AccountState = 'checking' | 'signed-out' | 'admin' | 'member' | 'pending'
+type AccountState = DisplayAccountState
 
 const pillStyle = {
   backgroundColor: 'var(--color-surface)',
@@ -36,16 +37,6 @@ const signOutLinkStyle = {
   padding: 0,
   cursor: 'pointer',
 } as const
-
-function readDisplayCookie(): { signedIn: boolean; role: 'member' | 'exec' | 'admin'; verified: boolean } | null {
-  const match = document.cookie.match(/(?:^|; )nma_display=([^;]*)/)
-  if (!match) return null
-  try {
-    return JSON.parse(decodeURIComponent(match[1]))
-  } catch {
-    return null
-  }
-}
 
 function destinationFor(state: AccountState): { label: string; href: string } {
   switch (state) {
@@ -70,17 +61,8 @@ export function HeaderAccountLink() {
     // instead would run during hydration too and produce a mismatch against
     // the server-rendered "nothing." This is the standard, unavoidable
     // shape for client-only state that can't be known at render time.
-    const display = readDisplayCookie()
-    const resolved: AccountState =
-      !display || !display.signedIn
-        ? 'signed-out'
-        : display.role === 'admin' || display.role === 'exec'
-          ? 'admin'
-          : display.verified
-            ? 'member'
-            : 'pending'
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(resolved)
+    setState(resolveDisplayState(readDisplayCookie()))
   }, [])
 
   async function handleSignOut() {

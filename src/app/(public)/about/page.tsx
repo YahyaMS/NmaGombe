@@ -8,6 +8,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { AboutJoinCta } from './AboutJoinCta'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -235,36 +236,7 @@ export default function AboutPage() {
       {/* ── CTA ── */}
       <section aria-label="Join" style={{ backgroundColor: 'var(--color-green-wash)', borderTop: '1px solid var(--color-rule)' }}>
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              alignItems: 'center',
-              gap: 'var(--spacing-lg)',
-            }}
-          >
-            <div>
-              <p className="type-eyebrow section-rule mb-sm" style={{ color: 'var(--color-ink-3)' }}>
-                Membership
-              </p>
-              <p className="type-h2" style={{ color: 'var(--color-ink)' }}>Join the chapter</p>
-              <p className="type-body" style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-sm)' }}>
-                Verified members access the full directory, pay dues online, and carry
-                a digital folio card.
-              </p>
-            </div>
-            <Link
-              href="/membership"
-              className="type-body font-semibold px-lg py-sm whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--color-green)',
-                color: 'var(--color-surface)',
-                borderRadius: 'var(--radius)',
-              }}
-            >
-              Learn more
-            </Link>
-          </div>
+          <AboutJoinCta />
         </div>
       </section>
     </article>
