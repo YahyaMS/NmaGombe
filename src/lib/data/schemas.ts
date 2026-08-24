@@ -292,3 +292,72 @@ export const registrationSchema = z.object({
   cpdEntryId: z.string().optional(),
 })
 export type RegistrationData = z.infer<typeof registrationSchema>
+
+export const jobTypeSchema = z.enum(['locum', 'permanent', 'nysc'])
+export type JobType = z.infer<typeof jobTypeSchema>
+
+export const jobTypeLabels: Record<JobType, string> = {
+  locum: 'Locum',
+  permanent: 'Permanent',
+  nysc: 'NYSC',
+}
+
+/** Compulsory-expiry defaults (docs/06-ROADMAP.md: "a board full of dead
+ * listings is worse than no board"). A locum gap is days to weeks; a
+ * permanent or NYSC posting can reasonably stay up longer. `JOB_MAX_EXPIRY_DAYS`
+ * is the hard cap firestore.rules enforces regardless of type — mirrored
+ * here so the create form can reject an out-of-range date before the write
+ * is even attempted, not just show a rules-denied error after the fact. */
+export const JOB_DEFAULT_EXPIRY_DAYS: Record<JobType, number> = {
+  locum: 14,
+  permanent: 45,
+  nysc: 45,
+}
+export const JOB_MAX_EXPIRY_DAYS = 60
+
+/**
+ * jobs/{id} — doc ID is auto-generated (no natural unique key). `expiresAt`
+ * stays out of this schema, the same treatment events.ts gives `startAt`:
+ * a Firestore Timestamp, not a string, so `firestore.rules`' and
+ * `lib/data/jobs.ts`'s query-level comparisons against `request.time` /
+ * `where('expiresAt', ...)` work — attached per-file instead of importing
+ * the Firestore SDK's Timestamp type into this shared, SDK-free module.
+ * `postedBy` and `expiresAt` are immutable once created (firestore.rules) —
+ * extending a listing means reposting, not editing, which is the honest
+ * signal that a role is still genuinely open, not just un-deleted
+ * (docs/03-DATA-MODEL.md).
+ */
+export const jobSchema = z.object({
+  title: z.string(),
+  facility: z.string(),
+  town: z.string(),
+  type: jobTypeSchema,
+  description: z.string(),
+  contactVia: z.string(),
+  postedBy: z.string(),
+  status: z.enum(['active', 'filled']),
+})
+export type JobItem = z.infer<typeof jobSchema>
+
+/** What /portal/jobs/new submits. `expiresAt` is a plain "YYYY-MM-DD" date
+ * string here (form input), converted to a Timestamp at the point of write
+ * (lib/data/jobs.ts) — same treatment as cpdEntries.dateAttended. */
+export const jobPostInputSchema = z
+  .object({
+    title: z.string().trim().min(4, 'Enter a title').max(160),
+    facility: z.string().trim().min(2, 'Enter a facility').max(160),
+    town: z.string().trim().min(2, 'Enter a town').max(120),
+    type: jobTypeSchema,
+    description: z.string().trim().min(10, 'Enter a description').max(4000),
+    contactVia: z.string().trim().min(10, 'Enter a contact number').max(20, 'That looks too long for a phone number'),
+    expiresAt: z.string().trim().min(1, 'Choose an expiry date'),
+  })
+  .refine(
+    (data) => {
+      const chosen = new Date(data.expiresAt).getTime()
+      const now = Date.now()
+      return chosen > now && chosen <= now + JOB_MAX_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    },
+    { message: `Choose a date between tomorrow and ${JOB_MAX_EXPIRY_DAYS} days out`, path: ['expiresAt'] }
+  )
+export type JobPostInput = z.infer<typeof jobPostInputSchema>

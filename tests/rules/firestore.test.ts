@@ -28,6 +28,7 @@ import {
   deleteDoc,
   collection,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore'
 
 const PROJECT_ID = 'nma-gombe-test'
@@ -950,6 +951,135 @@ describe('news/{slug}', () => {
     await assertSucceeds(
       setDoc(doc(db, 'news/new-item'), { title: 'New', status: 'published' })
     )
+  })
+})
+
+// ── Invariant 10b: jobs — member-posted, compulsory expiry, moderation is delete-only ──
+
+function daysFromNow(days: number): Timestamp {
+  return Timestamp.fromDate(new Date(Date.now() + days * 24 * 60 * 60 * 1000))
+}
+
+function validJob(overrides: Record<string, unknown> = {}) {
+  return {
+    title: 'Locum needed — weekend cover',
+    facility: 'General Hospital Gombe',
+    town: 'Gombe',
+    type: 'locum',
+    description: 'Weekend locum cover needed for the medical ward.',
+    contactVia: '08031234567',
+    postedBy: 'job-poster-001',
+    expiresAt: daysFromNow(14),
+    status: 'active',
+    createdAt: serverTimestamp(),
+    ...overrides,
+  }
+}
+
+describe('jobs/{id}', () => {
+  const posterUid = 'job-poster-001'
+  const otherUid = 'job-other-001'
+
+  test('unverified (authenticated only) member cannot create a listing', async () => {
+    const db = authed(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob()))
+  })
+
+  test('verified member can create a valid listing', async () => {
+    const db = verified(posterUid).firestore()
+    await assertSucceeds(setDoc(doc(db, 'jobs/job-1'), validJob()))
+  })
+
+  test('cannot create for another uid', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob({ postedBy: otherUid })))
+  })
+
+  test('cannot create with an expiry in the past', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob({ expiresAt: daysFromNow(-1) })))
+  })
+
+  test('cannot create with an expiry beyond the 60-day hard cap', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob({ expiresAt: daysFromNow(61) })))
+  })
+
+  test('cannot create with an invalid type', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob({ type: 'consultant' })))
+  })
+
+  test('cannot smuggle an extra field in at create time', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), { ...validJob(), boosted: true }))
+  })
+
+  test('cannot backdate createdAt at create time — must be the server timestamp', async () => {
+    const db = verified(posterUid).firestore()
+    await assertFails(setDoc(doc(db, 'jobs/job-1'), validJob({ createdAt: daysFromNow(-30) })))
+  })
+
+  describe('after a listing exists', () => {
+    const jobId = 'job-existing'
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `jobs/${jobId}`), validJob())
+      })
+    })
+
+    test('owner can edit content fields', async () => {
+      const db = verified(posterUid).firestore()
+      await assertSucceeds(
+        updateDoc(doc(db, `jobs/${jobId}`), { description: 'Updated description.' })
+      )
+    })
+
+    test('owner can mark their listing filled', async () => {
+      const db = verified(posterUid).firestore()
+      await assertSucceeds(updateDoc(doc(db, `jobs/${jobId}`), { status: 'filled' }))
+    })
+
+    test('owner cannot extend expiresAt via update — reposting is the honest way to renew', async () => {
+      const db = verified(posterUid).firestore()
+      await assertFails(updateDoc(doc(db, `jobs/${jobId}`), { expiresAt: daysFromNow(59) }))
+    })
+
+    test('owner cannot reassign postedBy via update', async () => {
+      const db = verified(posterUid).firestore()
+      await assertFails(updateDoc(doc(db, `jobs/${jobId}`), { postedBy: otherUid }))
+    })
+
+    test('owner cannot backdate createdAt via update — it would bump the listing on a newest-first list', async () => {
+      const db = verified(posterUid).firestore()
+      await assertFails(updateDoc(doc(db, `jobs/${jobId}`), { createdAt: daysFromNow(0) }))
+    })
+
+    test('another verified member cannot update someone else\'s listing', async () => {
+      const db = verified(otherUid).firestore()
+      await assertFails(updateDoc(doc(db, `jobs/${jobId}`), { description: 'Hijacked.' }))
+    })
+
+    test('exec cannot update someone else\'s listing — moderation here is delete-only', async () => {
+      const db = exec('exec-user').firestore()
+      await assertFails(updateDoc(doc(db, `jobs/${jobId}`), { description: 'Exec edit.' }))
+    })
+
+    test('owner can delete their own listing', async () => {
+      const db = verified(posterUid).firestore()
+      await assertSucceeds(deleteDoc(doc(db, `jobs/${jobId}`)))
+    })
+
+    test('another verified member cannot delete someone else\'s listing', async () => {
+      const db = verified(otherUid).firestore()
+      await assertFails(deleteDoc(doc(db, `jobs/${jobId}`)))
+    })
+
+    test('exec can delete a listing that should not be on the platform', async () => {
+      const db = exec('exec-user').firestore()
+      await assertSucceeds(deleteDoc(doc(db, `jobs/${jobId}`)))
+    })
   })
 })
 

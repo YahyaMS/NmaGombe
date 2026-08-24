@@ -177,12 +177,57 @@ service cloud.firestore {
       allow write: if isExec();
     }
 
+    // Compulsory expiry: 60 days is the hard cap regardless of type — a
+    // locum gap is days to weeks, not a season (docs/06-ROADMAP.md: "a board
+    // full of dead listings is worse than no board"). lib/data/schemas.ts's
+    // JOB_MAX_EXPIRY_DAYS mirrors this so the create form rejects an
+    // out-of-range date before the write is even attempted, not just show a
+    // rules-denied error after the fact.
+    function jobShapeValid() {
+      return request.resource.data.keys().hasAll(
+               ['title', 'facility', 'town', 'type', 'description', 'contactVia', 'postedBy', 'expiresAt', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(
+               ['title', 'facility', 'town', 'type', 'description', 'contactVia', 'postedBy', 'expiresAt', 'status', 'createdAt'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 160
+        && request.resource.data.facility is string
+        && request.resource.data.facility.size() > 0 && request.resource.data.facility.size() <= 160
+        && request.resource.data.town is string
+        && request.resource.data.town.size() > 0 && request.resource.data.town.size() <= 120
+        && request.resource.data.type in ['locum', 'permanent', 'nysc']
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 4000
+        && request.resource.data.contactVia is string
+        && request.resource.data.contactVia.size() > 0 && request.resource.data.contactVia.size() <= 40
+        && request.resource.data.status in ['active', 'filled'];
+    }
+
     match /jobs/{id} {
       allow get, list: if verified();
-      allow create: if verified() && request.resource.data.postedBy == request.auth.uid
-                    && request.resource.data.expiresAt > request.time; // expiry is mandatory
-      allow update, delete: if isExec()
-                    || (signedIn() && resource.data.postedBy == request.auth.uid);
+      allow create: if verified()
+                    && request.resource.data.postedBy == request.auth.uid
+                    && request.resource.data.expiresAt > request.time
+                    && request.resource.data.expiresAt <= request.time + duration.value(60, 'd')
+                    && request.resource.data.createdAt == request.time
+                    && jobShapeValid();
+      // Content can be corrected, but postedBy, expiresAt and createdAt are
+      // frozen — reposting is the honest way to extend a listing (a fresh
+      // 60-day cap, not a silently renewed one) or to bump it back to the
+      // top of a newest-first list, and postedBy can never be reassigned.
+      // Moderation is delete-only (below), not update — exec removes what
+      // shouldn't be on the platform rather than silently editing a
+      // member's own content.
+      allow update: if verified()
+                    && resource.data.postedBy == request.auth.uid
+                    && request.resource.data.postedBy == resource.data.postedBy
+                    && request.resource.data.expiresAt == resource.data.expiresAt
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && jobShapeValid();
+      // This is the first member-generated, unmoderated content in the app
+      // (every other write is exec-authored or self-scoped) — exec/admin
+      // can remove a listing that shouldn't be here; the poster can also
+      // remove their own.
+      allow delete: if isExec() || (signedIn() && resource.data.postedBy == request.auth.uid);
     }
 
     // Sensitive. Exec only. No clinical or family detail is stored here at all.
