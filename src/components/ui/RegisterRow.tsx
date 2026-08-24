@@ -17,6 +17,10 @@ interface RegisterRowProps {
   /** Mono index — folio for a doctor, date for a communiqué. Omit if the content
    *  type has no natural identifier. Never invent one. */
   index?: string
+  /** Overrides the index's colour. Default `--color-ink-3`. The one sanctioned
+   *  use elsewhere is `--color-harmattan` for a time-critical index (an
+   *  expiring listing) — see design.md §2. Never decorative. */
+  indexColor?: string
   /** Primary content (title / name) */
   primary: ReactNode
   /** Supporting detail (specialty, date, role) */
@@ -44,17 +48,22 @@ const rowStyle = {
 
 function RowContent({
   index,
+  indexColor,
   primary,
   secondary,
   action,
-}: Pick<RegisterRowProps, 'index' | 'primary' | 'secondary' | 'action'>) {
+}: Pick<RegisterRowProps, 'index' | 'indexColor' | 'primary' | 'secondary' | 'action'>) {
   return (
     <>
-      {/* Mono index — hangs optically outside text block */}
+      {/* Mono index — hangs optically outside text block. aria-hidden: every
+          caller either duplicates this in accessible text elsewhere in the
+          row or treats it as purely decorative — a caller with substantive
+          index content the row's own text doesn't otherwise carry (e.g. an
+          expiry countdown) must also fold it into `secondary`. */}
       {index != null ? (
         <span
           className="type-eyebrow"
-          style={{ color: 'var(--color-ink-3)', minWidth: '6ch', flexShrink: 0 }}
+          style={{ color: indexColor ?? 'var(--color-ink-3)', minWidth: '6ch', flexShrink: 0 }}
           aria-hidden="true"
         >
           {index}
@@ -88,6 +97,7 @@ function RowContent({
 
 export function RegisterRow({
   index,
+  indexColor,
   primary,
   secondary,
   action,
@@ -109,6 +119,7 @@ export function RegisterRow({
       >
         <RowContent
           index={index}
+          indexColor={indexColor}
           primary={primary}
           secondary={secondary}
           action={action}
@@ -121,6 +132,7 @@ export function RegisterRow({
     <div className={className} style={{ ...rowStyle, ...border }}>
       <RowContent
         index={index}
+        indexColor={indexColor}
         primary={primary}
         secondary={secondary}
         action={action}

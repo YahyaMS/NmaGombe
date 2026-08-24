@@ -98,9 +98,9 @@ test.describe("authenticated routes render for the roles allowed to see them", (
   // data boundary, exercised only by routes that pass Firestore documents into
   // client islands — none of which were signed-in before this fixture existed.
 
-  test("verified member: /portal, /portal/card, /portal/directory, /portal/cpd, /portal/profile", async ({ page }) => {
+  test("verified member: /portal, /portal/card, /portal/directory, /portal/cpd, /portal/jobs(/new), /portal/profile", async ({ page }) => {
     await signInAs(page, "member", "/portal");
-    for (const route of ["/portal", "/portal/card", "/portal/directory", "/portal/cpd", "/portal/profile"]) {
+    for (const route of ["/portal", "/portal/card", "/portal/directory", "/portal/cpd", "/portal/jobs", "/portal/jobs/new", "/portal/profile"]) {
       const res = await page.goto(route);
       expect(res?.status()).toBeLessThan(400);
       await expect(page).toHaveURL((url) => url.pathname === route);

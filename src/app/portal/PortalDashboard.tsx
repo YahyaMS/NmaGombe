@@ -40,6 +40,7 @@ const quickLinks = [
   { href: '/portal/card', label: 'Your folio card' },
   { href: '/portal/directory', label: 'Find a colleague' },
   { href: '/portal/cpd', label: 'Your CPD log' },
+  { href: '/portal/jobs', label: 'Jobs & locums' },
   { href: '/portal/profile', label: 'Edit your profile' },
 ]
 
