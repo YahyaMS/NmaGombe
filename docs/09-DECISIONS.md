@@ -412,3 +412,61 @@ not just one.
 section points here. If a chapter event is ever scheduled by someone outside Nigeria, expect the
 displayed time to be wrong by their local offset from Lagos — that's this limitation, not a new
 bug.
+
+---
+## ADR-018 — Service worker caching strategy: network-first for HTML, cache-first for immutable assets only
+**Context.** A production bug report (member-reported, several days into the site being live)
+turned out to be `public/sw.js` caching page HTML **cache-first**, under a cache name
+(`nma-shell-v1`) that never changed between deployments. The `activate` handler's own cleanup
+logic — delete any cache whose name doesn't match the current constants — was correct in
+principle but a no-op in practice, because the constants it compared against never changed. Once
+a visitor's browser cached the shell (which happens on the very first visit, by design — the
+whole point of a PWA shell), every subsequent visit served that same cached HTML forever,
+regardless of how many times the site was redeployed. Because a soft (client-side) navigation
+from a stale cached page runs on the JS bundle that page's stale HTML references, the damage
+wasn't limited to that one page: navigating from a stale `/` into `/portal` rendered `/portal`
+using old, frozen client code, even though the server had current code the whole time. Multiple
+days of routine visual review were effectively performed against stale builds without anyone
+knowing, because nothing about a "successful Vercel deploy" or a passing smoke suite (a fresh
+browser context per test — see below) would have surfaced it.
+**Decision.**
+- **Navigation requests (HTML documents): network-first**, cache only as a fallback for being
+  offline. An HTML document is not immutable content — caching it cache-first means serving
+  stale pages *by design*, not by bug. This is the actual fix; the version bump below is
+  secondary.
+- **Static assets (JS/CSS/fonts/images): unchanged, cache-first.** Next.js content-hashes these
+  filenames, so a changed file is a new URL the cache has never seen — cache-first here was
+  already correct and needed no version scheme at all.
+- **Cache name for HTML only** (`nma-html-${CACHE_VERSION}`) is versioned per deploy —
+  `scripts/inject-sw-version.mjs`, run as npm's `prebuild` hook, substitutes the deploying
+  commit's SHA (`VERCEL_GIT_COMMIT_SHA` on Vercel, `git rev-parse` locally) into `public/sw.js`
+  before `next build` runs. This makes the `activate` handler's existing cleanup logic
+  meaningful for the first time. The asset cache (`nma-assets`) is deliberately **not**
+  versioned and never purged on `activate` — content-hashing already guarantees correctness, and
+  purging it on every deploy risks a tab still running the previous version requesting a chunk
+  whose cache entry was just deleted out from under it.
+- **`sw.js` itself is served with `Cache-Control: no-cache`** (`next.config.ts`). If the worker
+  script's own bytes were cacheable by the browser's HTTP cache, this fix — or any future one —
+  might never actually reach a returning visitor's browser at all.
+- **`skipWaiting()`/`clients.claim()` kept** (already present) so a new worker takes over
+  immediately rather than waiting for every open tab to close, which on a phone can be days. Safe
+  under the new strategy specifically because the asset cache is never purged: a tab still
+  running old JS can still resolve any chunk URL that JS asks for, even after a new worker has
+  taken over.
+- **`/portal`, `/admin`, `/api/` remain untouched by the worker entirely** (`NEVER_CACHE`) — the
+  one thing the original version already had right, and why admin-approval state was reported as
+  correctly reflecting even while everything else looked frozen.
+**Consequence — this is the important part, so it's stated plainly.** Every visual review of this
+site performed by anyone before this fix landed was potentially performed against a stale build,
+not the one actually deployed. That includes any executive demo given on a phone that had
+previously loaded the site — see `docs/07-CONTENT-OPS.md` for the recovery-path note added for
+exactly that audience. Going forward: **the smoke suite cannot catch this class of regression**
+(`tests/smoke/pages.spec.ts` — Playwright gives every test a fresh browser context, so no service
+worker ever persists between tests; every smoke test is architecturally a first visit).
+`tests/smoke/pages.spec.ts`'s `service worker serves fresh content on a second visit` test closes
+that gap: it loads a page in a **persistent** context, waits for the worker to activate, reloads,
+and asserts the reload's content still matches the live server response rather than a cache hit
+— the second-visit case, which is what every real returning visitor after day one actually is.
+Any future change to `public/sw.js` must keep HTML navigation network-first; a future engineer
+tempted to "optimise" it back to cache-first for perceived speed would silently reintroduce this
+exact bug.

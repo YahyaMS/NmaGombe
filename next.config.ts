@@ -30,6 +30,17 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=86400' },
         ],
       },
+      // The opposite of manifest.json, deliberately: the service worker
+      // script must never be cached by the browser's own HTTP cache, or a
+      // fix to it (like this one) never reaches anyone. Browsers already
+      // re-check sw.js periodically regardless of headers, but "periodically"
+      // isn't "now" — see docs/09-DECISIONS.md ADR-018.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache' },
+        ],
+      },
     ]
   },
 

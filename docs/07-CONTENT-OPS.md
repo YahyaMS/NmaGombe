@@ -35,6 +35,26 @@ changed date, a changed venue, a changed CPD figure — send a WhatsApp broadcas
 actually reaches a member who has already moved on with the wrong information. This is a process
 rule for whoever is editing, not something the software enforces.
 
+## If someone says "the site hasn't changed in days"
+Believe them before you doubt the deploy. `docs/09-DECISIONS.md` ADR-018 records a real incident
+where a service-worker caching bug meant a returning visitor's browser silently kept serving a
+build from days earlier — every deploy since then succeeded, and the site still looked frozen for
+anyone who'd already loaded it once. That specific bug is fixed, but the fix only takes effect for
+someone once their browser picks up the new worker, which needs one online visit. **If someone —
+especially an exec who was shown the site before this landed — is still seeing anything stale,
+give them this:**
+1. Reload the page once while online. This alone is usually enough now that HTML is fetched
+   fresh on every navigation rather than served from cache.
+2. If that doesn't clear it: on the phone or computer in question, open the browser's site
+   settings for the page (or DevTools → Application → Service Workers on desktop) and choose
+   "Unregister" / "Clear site data," then reload.
+3. As a last resort, a fully hard reload (clear browsing data for the site, or open the URL in a
+   fresh private/incognito window) always works — that's how this was confirmed and diagnosed in
+   the first place.
+**If you demoed the site to the executives from a device that had it open before this fix
+shipped, assume they saw a stale version and may still be seeing one** — this is worth a direct
+follow-up message, not waiting for someone to notice and report it again.
+
 ## The one thing that must never lapse
 The weekly WhatsApp broadcast. It is the only thing that reliably pulls people back. Everything
 else can go quiet for a month without damage.
