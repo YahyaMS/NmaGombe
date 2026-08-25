@@ -6,6 +6,11 @@
  * ID-1 proportions (ISO 7810, 1.586:1). Ground: --green-deep.
  * One shadow, 8px radius — the only boxed surface permitted by the design system.
  * Flips on tap (450ms, cubic-bezier(.2,.8,.2,1)) to reveal folio + QR code.
+ * QR is generated client-side (lib/render/qr.ts, shared with the
+ * downloadable PNG and verify OG image) — genuinely scannable, not the
+ * decorative placeholder this used to be. Encodes NEXT_PUBLIC_SITE_URL,
+ * currently Vercel's own alias, not the chapter's eventual real domain —
+ * see docs/09-DECISIONS.md ADR-019.
  *
  * Pending-verification state: --rule-strong ground, never looks official.
  * Dues-outstanding state: --harmattan bar at foot, year struck through.
@@ -15,8 +20,9 @@
  * design.md §6.
  */
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import Image from 'next/image'
+import { verifyQrDataUrl, verifyUrlFor } from '@/lib/render/qr'
 
 export type FolioCardStatus =
   | 'active'
@@ -36,50 +42,31 @@ interface FolioCardProps {
   lastSynced?: string
 }
 
-// Minimal QR-pattern SVG (placeholder — Phase 1 replaces with real qrcode library)
-function QrPlaceholder() {
+/**
+ * Real QR (lib/render/qr.ts) — the same generator the downloadable PNG and
+ * verify OG image already used. `dataUrl` is null only for the brief window
+ * before the async generation resolves; a plain white box (not a fake QR
+ * pattern) fills that gap, so nothing on screen ever claims to be scannable
+ * when it isn't.
+ */
+function FolioQr({ dataUrl, size }: { dataUrl: string | null; size: number }) {
+  if (!dataUrl) {
+    return (
+      <div
+        aria-hidden="true"
+        style={{ width: size, height: size, backgroundColor: '#fff', borderRadius: '2px' }}
+      />
+    )
+  }
   return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-label="QR code"
-      style={{ display: 'block', borderRadius: '2px', backgroundColor: '#fff' }}
-    >
-      {/* Top-left finder */}
-      <rect x="4" y="4" width="14" height="14" rx="1" fill="#013A1F" />
-      <rect x="7" y="7" width="8" height="8" fill="#fff" />
-      <rect x="9" y="9" width="4" height="4" fill="#013A1F" />
-      {/* Top-right finder */}
-      <rect x="30" y="4" width="14" height="14" rx="1" fill="#013A1F" />
-      <rect x="33" y="7" width="8" height="8" fill="#fff" />
-      <rect x="35" y="9" width="4" height="4" fill="#013A1F" />
-      {/* Bottom-left finder */}
-      <rect x="4" y="30" width="14" height="14" rx="1" fill="#013A1F" />
-      <rect x="7" y="33" width="8" height="8" fill="#fff" />
-      <rect x="9" y="35" width="4" height="4" fill="#013A1F" />
-      {/* Data modules — representative pattern */}
-      <rect x="20" y="4" width="4" height="4" fill="#013A1F" />
-      <rect x="26" y="4" width="2" height="2" fill="#013A1F" />
-      <rect x="20" y="10" width="2" height="2" fill="#013A1F" />
-      <rect x="24" y="8" width="4" height="4" fill="#013A1F" />
-      <rect x="20" y="20" width="8" height="2" fill="#013A1F" />
-      <rect x="30" y="20" width="4" height="4" fill="#013A1F" />
-      <rect x="36" y="20" width="8" height="2" fill="#013A1F" />
-      <rect x="20" y="24" width="4" height="2" fill="#013A1F" />
-      <rect x="26" y="24" width="2" height="4" fill="#013A1F" />
-      <rect x="30" y="26" width="6" height="2" fill="#013A1F" />
-      <rect x="38" y="24" width="6" height="4" fill="#013A1F" />
-      <rect x="20" y="28" width="2" height="6" fill="#013A1F" />
-      <rect x="24" y="30" width="4" height="2" fill="#013A1F" />
-      <rect x="30" y="30" width="2" height="6" fill="#013A1F" />
-      <rect x="34" y="32" width="4" height="2" fill="#013A1F" />
-      <rect x="40" y="30" width="4" height="6" fill="#013A1F" />
-      <rect x="24" y="34" width="4" height="4" fill="#013A1F" />
-      <rect x="36" y="36" width="2" height="6" fill="#013A1F" />
-      <rect x="40" y="38" width="4" height="6" fill="#013A1F" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element -- a generated data URL, not an optimizable remote asset
+    <img
+      src={dataUrl}
+      alt=""
+      width={size}
+      height={size}
+      style={{ display: 'block', borderRadius: '2px' }}
+    />
   )
 }
 
@@ -92,11 +79,23 @@ export function FolioCard({
   lastSynced,
 }: FolioCardProps) {
   const [flipped, setFlipped] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const flipHintId = useId()
   const isPending = status === 'pending'
   const isDuesOutstanding = status === 'dues-outstanding'
   const isOffline = status === 'offline'
   const showDues = Boolean(duesYear) && status !== 'dues-not-recorded'
+  const verifyUrl = verifyUrlFor(folioNumber)
+
+  useEffect(() => {
+    let cancelled = false
+    void verifyQrDataUrl(verifyUrl).then((dataUrl) => {
+      if (!cancelled) setQrDataUrl(dataUrl)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [verifyUrl])
 
   const groundColor = isPending
     ? 'var(--color-rule-strong)'
@@ -253,7 +252,7 @@ export function FolioCard({
                 flexShrink: 0,
               }}
             >
-              <QrPlaceholder />
+              <FolioQr dataUrl={qrDataUrl} size={48} />
             </div>
           </div>
 
@@ -336,7 +335,7 @@ export function FolioCard({
             aria-hidden="true"
             style={{ filter: 'brightness(0) invert(1)', opacity: 0.30 }}
           />
-          <QrPlaceholder />
+          <FolioQr dataUrl={qrDataUrl} size={48} />
           <p
             className="type-folio"
             style={{ color: 'rgba(255,255,255,0.75)', fontSize: '13px', textAlign: 'center' }}
@@ -347,7 +346,9 @@ export function FolioCard({
             className="type-eyebrow"
             style={{ color: 'rgba(255,255,255,0.60)', fontSize: '9px', textAlign: 'center' }}
           >
-            Scan to verify membership · nmagombe.org.ng/verify/{folioNumber.replace(/\//g, '-')}
+            {/* Protocol stripped for display — same convention as
+                folioCardImage.tsx's downloadable card. */}
+            Scan to verify membership · {verifyUrl.replace(/^https?:\/\//, '')}
           </p>
         </div>
       </div>

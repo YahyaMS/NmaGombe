@@ -463,10 +463,45 @@ previously loaded the site — see `docs/07-CONTENT-OPS.md` for the recovery-pat
 exactly that audience. Going forward: **the smoke suite cannot catch this class of regression**
 (`tests/smoke/pages.spec.ts` — Playwright gives every test a fresh browser context, so no service
 worker ever persists between tests; every smoke test is architecturally a first visit).
-`tests/smoke/pages.spec.ts`'s `service worker serves fresh content on a second visit` test closes
+`tests/smoke/service-worker.spec.ts`'s `service worker serves fresh content on a second visit` test closes
 that gap: it loads a page in a **persistent** context, waits for the worker to activate, reloads,
 and asserts the reload's content still matches the live server response rather than a cache hit
 — the second-visit case, which is what every real returning visitor after day one actually is.
 Any future change to `public/sw.js` must keep HTML navigation network-first; a future engineer
 tempted to "optimise" it back to cache-first for perceived speed would silently reintroduce this
 exact bug.
+
+---
+## ADR-019 — Real QR wired to NEXT_PUBLIC_SITE_URL, not a hardcoded (and non-resolving) domain
+**Context.** `components/ui/FolioCard.tsx`'s on-screen QR was `QrPlaceholder()` — a hand-drawn SVG
+encoding nothing — while `lib/render/qr.ts` already generated a genuinely scannable QR for the
+downloadable PNG and verify OG image, hardcoded to `nmagombe.org.ng`. Checked before wiring
+anything: that domain does not resolve at all (`getaddrinfo ENOTFOUND`), `docs/00-INTAKE.md` item
+19 (domain registration) is still open and unstruck, Vercel's project has zero domains attached,
+and `firebase.json` has no `hosting` config either. So the *existing*, already-shipped
+downloadable-card and OG-image QR codes were encoding a dead domain the whole time — real QR
+mechanics, pointed at nothing. This wasn't caught by the codebase audit that found the on-screen
+placeholder, because that audit checked whether comments/docs matched code, not whether a
+hardcoded runtime value actually resolves.
+**Decision.** `lib/render/qr.ts`'s `verifyUrlFor()` now builds an absolute `/verify/[folio]` URL
+from `NEXT_PUBLIC_SITE_URL` (validated, `lib/firebase/env.ts`) instead of a hardcoded host. Wired
+into `FolioCard.tsx` directly — the same generator the PNG/OG-image path already used, one
+implementation for all three surfaces. `NEXT_PUBLIC_SITE_URL` in Production currently resolves to
+`https://nma-gombe-tau.vercel.app` (confirmed by reading the live homepage's `metadataBase`-derived
+`og:image` URL, not by trusting Vercel's masked env-var listing) — Vercel's own stable alias, not
+the chapter's eventual real domain. Shipped anyway, deliberately, for the **on-screen and
+downloadable** card only: both regenerate fresh from the current env var on every render/download,
+so there is no permanence problem — the QR simply encodes whatever's currently true. A **printed**
+physical card is a different artefact entirely: once printed, its QR is permanent in a way a
+webpage isn't, and a card issued today would carry a QR pointing at a Vercel preview alias forever.
+Printing was explicitly out of scope for this decision and must not be treated as silently covered
+by it.
+**Consequence.** Every card view/download from now on is genuinely scannable and resolves
+correctly, using whatever domain is currently configured. When the real `.org.ng` domain is
+registered and `NEXT_PUBLIC_SITE_URL` is updated to it, every on-screen/downloaded card
+automatically starts encoding the new domain with no code change — but anyone who **printed** a
+card before that point holds a QR pointing at the old Vercel alias, which will likely still resolve
+(Vercel doesn't reuse stable aliases across unrelated projects) but is not the chapter's real
+address. If and when physical printing becomes a real plan, revisit this ADR before shipping it —
+the honest fix then is holding printing until the domain lands, not assuming this decision already
+covers it.

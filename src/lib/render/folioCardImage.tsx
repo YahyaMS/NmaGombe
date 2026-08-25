@@ -220,7 +220,10 @@ export function buildFolioCardElement(
               color: inkFaint,
             }}
           >
-            {assets.verifyUrl}
+            {/* Protocol stripped for display only — the QR itself still
+                encodes the full absolute URL. "https://" is clutter a human
+                reading the card doesn't need; a scanner never reads this text. */}
+            {assets.verifyUrl.replace(/^https?:\/\//, '')}
           </span>
         )}
       </div>
