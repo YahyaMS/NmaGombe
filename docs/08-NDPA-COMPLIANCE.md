@@ -21,9 +21,10 @@ large media companies over cross-border data transfers, so this is not theoretic
 4. **Purpose limitation.** Data collected for membership administration is not used for anything
    else. No selling, no sharing with recruiters or pharmaceutical companies, no matter who asks.
    Write that into the privacy notice as a commitment, because someone will ask.
-5. **Security.** App Check on, TLS only, least-privilege rules, no personal data in logs or
-   error reports, no personal data in third-party analytics or in URLs. Storage paths namespaced
-   by uid.
+5. **Security.** TLS only, least-privilege rules, no personal data in logs or error reports, no
+   personal data in third-party analytics or in URLs. Storage paths namespaced by uid. App Check
+   is client-wired but not yet enforced — see `09-DECISIONS.md` ADR-020; do not cite it as an
+   active control until enforcement is confirmed on.
 6. **Rights.** A member can see their data (`/portal/profile`), correct it, export it, and
    request deletion. Build the export in Phase 1; it is three lines of code then and a fire drill
    later. Note that payment records may need retention for financial-record purposes even after

@@ -9,7 +9,7 @@
 | Database | **Cloud Firestore** | Best-in-class offline persistence, which matters more here than query power. Shared with a future React Native app. |
 | Server logic | **Cloud Functions** | Payment webhooks, receipt generation, custom claims, scheduled reminders. |
 | Files | **Firebase Storage** | Certificates, photos, exec portraits. |
-| Abuse control | **App Check** | Stops scripted scraping of the directory. Non-optional given the data is personal. |
+| Abuse control | **App Check** | Meant to stop scripted scraping of the directory — non-optional given the data is personal. Client-side wiring exists (`lib/firebase/app.ts`); enforcement is not yet on. See ADR-020. |
 | Payments | **Paystack** | Local cards + bank transfer, subscriptions available, straightforward webhooks. |
 | Hosting | **Vercel** or Firebase Hosting | Either is free at this scale. Vercel handles Next.js server rendering with less configuration. |
 | CMS | **Custom Firestore-backed admin** | See ADR-005. A headless CMS is a second system to maintain and pay for; the Secretary needs three forms, not an editorial platform. |

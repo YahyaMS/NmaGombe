@@ -505,3 +505,43 @@ card before that point holds a QR pointing at the old Vercel alias, which will l
 address. If and when physical printing becomes a real plan, revisit this ADR before shipping it —
 the honest fix then is holding printing until the domain lands, not assuming this decision already
 covers it.
+
+---
+## ADR-020 — App Check: client wired, enforcement deliberately deferred to a second, later step
+**Context.** A codebase-honesty audit found `lib/firebase/client.ts` asserting "Access control
+lives in firestore.rules + App Check" as a present-tense fact, and `docs/02-ARCHITECTURE.md`,
+`docs/03-DATA-MODEL.md`, `docs/06-ROADMAP.md`, and `docs/08-NDPA-COMPLIANCE.md` each citing App
+Check as an active mitigation against directory scraping — while `lib/firebase/app.ts`'s own
+comment said, correctly, "Not built yet." No App Check code existed anywhere. `NEXT_PUBLIC_APPCHECK_SITE_KEY`
+was reserved in `.env.example` and validated (optional) in `lib/firebase/env.ts`, but nothing read
+it. Real activation needs a reCAPTCHA v3 site key registered in Firebase Console under App Check —
+a console action outside this codebase, not something that can be produced from here.
+**Decision.** Two steps, deliberately not taken together:
+1. **Client-side init, shipped now** (`lib/firebase/app.ts`). Dynamically imports
+   `firebase/app-check` and calls `initializeAppCheck()` with `ReCaptchaV3Provider`, but only when
+   `env.NEXT_PUBLIC_APPCHECK_SITE_KEY` is actually set and emulators are off. Today that variable
+   is unset in every environment, so this is a genuine no-op — not just functionally inert but
+   zero bundle cost too, since the dynamic import never fires. Once a real site key is registered
+   and set in Vercel, this starts attaching a token to every Firestore/Auth/Functions/Storage call
+   on the next deploy, with no further code change.
+2. **Enforcement — NOT shipped, and must not be shipped until step 1 is confirmed live in
+   production.** Enforcement means two separate things, both still undone on purpose: turning on
+   "Enforce" per-service (Firestore, Storage) in Firebase Console, and adding
+   `enforceAppCheck: true` to each `onCall` in `functions/src/` (`decideVerification`,
+   `markAttendance`, `unmarkAttendance`, `setMemberStatus`, `setMemberRole`, `logBroadcast`).
+   **Deliberately not added to the Functions source in this pass**, specifically because this
+   project's standing instruction is to deploy Cloud Functions automatically once a slice is
+   tested — if `enforceAppCheck: true` had been written into the Functions now, an ordinary
+   "tested, so deploy it" pass could ship it to production before any client is actually sending
+   App Check tokens, which would reject every real exec/admin action (verification decisions,
+   attendance marking, member status/role changes, broadcast logging) alongside the scripted
+   traffic it's meant to stop. That is a self-inflicted outage of every admin workflow in the app,
+   not a security improvement.
+**Consequence.** Every doc claim above has been corrected to state the true current split: client
+wiring exists, enforcement does not, and citing "App Check" as an active control anywhere is wrong
+until this ADR's step 2 is deliberately, separately done. The activation sequence when the chapter
+is ready: (a) register the reCAPTCHA v3 site key in Firebase Console, (b) set
+`NEXT_PUBLIC_APPCHECK_SITE_KEY` in Vercel and redeploy, (c) confirm via Firebase Console's App
+Check metrics that real production traffic is showing verified tokens, (d) only then add
+`enforceAppCheck: true` to the six `onCall` functions above and turn on "Enforce" for Firestore
+and Storage. Skipping straight to (d) is the failure mode this ADR exists to name.

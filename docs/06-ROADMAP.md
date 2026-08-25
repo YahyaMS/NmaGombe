@@ -59,6 +59,6 @@ empty portal is the most expensive way to fail.
 | **Paystack account can't be opened** | Resolve intake item 5 before designing the dues UI. Fallback: bank-transfer instructions plus manual admin marking, same ledger. |
 | **Volunteer burnout** | The Secretary's whole job is three forms on a phone. Anything that needs a laptop won't happen. |
 | **Exec turnover loses the keys** | Chapter-owned email, shared vault, written handover doc, domain paid from a budget line. |
-| **Directory scraped** | App Check, verified-only access, per-field visibility, rate-limited search, no bulk endpoint. |
+| **Directory scraped** | Verified-only access, per-field visibility, rate-limited search, no bulk endpoint. App Check adds a further layer once enforced — client-wired, not yet enforced; see `09-DECISIONS.md` ADR-020. |
 | **Reputational incident** — wrong medical info published | Only communiqués and guideline links; no original clinical advice content in Phase 1. |
 | **Bundle budget** — Firebase Auth+Firestore alone (~211KB gzipped) exceeds the 200KB/route budget on every authenticated route | Known and accepted through build-order steps 1–5; must be resolved with a dedicated bundle pass before launch. See `09-DECISIONS.md` ADR-011. |

@@ -3,8 +3,11 @@
 ## Threat model, stated plainly
 The valuable asset is a verified list of doctors with phone numbers. That is worth money to
 recruiters, drug reps, and scammers, and its exposure is an NDPA incident. Assume someone will
-try to scrape it. Design accordingly: App Check on, per-field visibility, no bulk endpoint,
+try to scrape it. Design accordingly: App Check enforced, per-field visibility, no bulk endpoint,
 rate-limited search, and never a client-readable collection containing every member's phone number.
+App Check is client-wired but **not yet enforced** — see `09-DECISIONS.md` ADR-020. Until
+enforcement is on, the load-bearing control against scraping is Firestore rules
+(`verified()` gating on `directoryEntries`) plus the absence of a bulk-read endpoint, not App Check.
 
 ## Identity tiers
 | Tier | How it is granted | Can see |

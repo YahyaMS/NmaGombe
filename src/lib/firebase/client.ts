@@ -14,7 +14,10 @@
  *
  * Import from here only — never call initializeApp() elsewhere. These keys
  * are safe to expose: they identify the project but authorise nothing.
- * Access control lives in firestore.rules + App Check.
+ * Access control lives in firestore.rules. App Check (app.ts) adds a second
+ * layer against scripted access, but is not yet enforced — see
+ * docs/09-DECISIONS.md ADR-020. Rules alone are what's actually load-bearing
+ * today.
  */
 
 export { app } from './app'
