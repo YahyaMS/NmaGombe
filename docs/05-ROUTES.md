@@ -4,9 +4,16 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 
 ## Public
 ```
-/                        Home. Public: what the chapter is, latest communiqué, upcoming CME,
-                         find-a-doctor entry point. Logged in: the folio card and dues status
-                         replace the hero. Same URL, different job.
+/                        Home. Signed out: what the chapter is, find-a-doctor entry point, a
+                         demo folio card with "Get verified →", and the single latest
+                         communiqué (absent entirely if none is published). Signed in as a
+                         verified member/admin: the folio-card section shows the visitor's
+                         own real card (GET /api/portal/own-card, session-cookie authenticated,
+                         own record only) with "Go to your portal →" in place of the demo card
+                         and CTA — falls back to the demo card silently on any fetch failure.
+                         Pending: no card, a short "under review" note. Same URL, different job.
+                         No dues status shown anywhere here — still blocked on the Paystack
+                         merchant account, same as /portal.
 /about                   Chapter, history, constitution/bye-laws.
 /about/executives        Current exec with portraits and tenure. Past execs as an archive.
 /news                    Communiqués, news, advocacy, obituaries. Filterable by ?category=,

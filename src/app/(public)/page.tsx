@@ -2,19 +2,14 @@
  * Homepage — /
  *
  * display-scale statement, one photograph (Members of NMA Gombe), two
- * primary actions, register-row "what we do" section. The second hero
- * action (HeroAccountLink) and the folio-card section's link (FolioCtaLink)
- * are session-aware client islands, reading nma_display — same pattern as
- * HeaderAccountLink. No Firebase SDK, no move to dynamic rendering; this
- * page is still a static Server Component.
- *
- * NOT done: this originally intended (see docs/09-DECISIONS.md ADR-018)
- * for the folio-card section to show the signed-in visitor's own live card
- * in place of the static demo card below. That was never built — only the
- * two link-swap fixes above are. Fetching a member's own card data on a
- * public route without either shipping the Firestore client SDK to a
- * public page or moving it to dynamic rendering is a real design question,
- * not a quick fix — a future slice, not silently assumed solved here.
+ * primary actions, register-row "what we do" section. Two session-aware
+ * client islands read nma_display — same pattern as HeaderAccountLink:
+ * HeroAccountLink (the second hero action) and HomeFolioCard (the folio-card
+ * section, which additionally fetches /api/portal/own-card for a verified
+ * member's own card — an authenticated Route Handler call, not the Firestore
+ * client SDK, so this stays a static Server Component with no move to
+ * dynamic rendering). The communiqué section below is plain server data —
+ * Admin SDK via lib/data/news.ts, the same pattern /news already uses.
  *
  * design.md §10. No feature grid, ever.
  */
@@ -22,9 +17,11 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { FolioCard } from '@/components/ui/FolioCard'
 import { HeroAccountLink } from './HeroAccountLink'
-import { FolioCtaLink } from './FolioCtaLink'
+import { HomeFolioCard } from './HomeFolioCard'
+import { listPublishedNews } from '@/lib/data/news'
+import { newsCategoryLabels } from '@/lib/data/schemas'
+import { RegisterRow } from '@/components/ui/RegisterRow'
 
 export const metadata: Metadata = {
   title: 'Nigerian Medical Association — Gombe State Chapter',
@@ -32,7 +29,14 @@ export const metadata: Metadata = {
     'Find a verified doctor in Gombe State, access member resources, and connect with the NMA Gombe chapter.',
 }
 
-export default function HomePage() {
+function formatCommuniqueDate(ts: { toDate: () => Date } | null): string {
+  if (!ts) return '—'
+  return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
+}
+
+export default async function HomePage() {
+  const [latestCommunique] = await listPublishedNews()
+
   return (
     <>
       {/* ── Hero ── */}
@@ -161,58 +165,55 @@ export default function HomePage() {
       </section>
 
       {/* ── Folio card preview ──
-          Shows what members carry — a demo card, always, for every visitor.
-          Replacing this with the signed-in visitor's own live card was the
-          original intent but was never built; see the file-level comment
-          above and docs/09-DECISIONS.md ADR-018. Only the link below it
-          (FolioCtaLink) is session-aware.
+          Signed out (or pending): the demo card, "Get verified →" / "Check
+          your status →". Signed in as a verified member/admin: the
+          visitor's own real card, fetched from /api/portal/own-card. All
+          session-aware logic lives in HomeFolioCard — see its file comment.
          ── */}
       <section
         aria-label="Digital membership card"
         style={{ backgroundColor: 'var(--color-green-wash)', borderTop: '1px solid var(--color-rule)' }}
       >
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: 'var(--spacing-xl)',
-              alignItems: 'center',
-            }}
-            className="sm:grid-cols-2"
-          >
-            {/* Copy */}
-            <div>
-              <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
-                Digital folio card
-              </p>
-              <h2 className="type-h2" style={{ color: 'var(--color-ink)' }}>
-                Your membership in your pocket
-              </h2>
-              <p className="type-body" style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-md)', maxWidth: '42ch' }}>
-                Verified members carry a digital folio card — available offline,
-                scannable for instant verification, and downloadable as an image.
-                Tap the card to flip it.
-              </p>
-              <FolioCtaLink />
-            </div>
-
-            {/* Demo card — Dr. Yahya's card as example */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <FolioCard
-                name="Dr. Yahya Musa Sulaiman"
-                grade="Consultant Obstetrician & Gynaecologist"
-                folioNumber="NMA/GM/62376"
-                duesYear="2026"
-                status="active"
-              />
-            </div>
-          </div>
+          <HomeFolioCard
+            copy={
+              <>
+                <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+                  Digital folio card
+                </p>
+                <h2 className="type-h2" style={{ color: 'var(--color-ink)' }}>
+                  Your membership in your pocket
+                </h2>
+                <p className="type-body" style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-md)', maxWidth: '42ch' }}>
+                  Verified members carry a digital folio card — available offline,
+                  scannable for instant verification, and downloadable as an image.
+                  Tap the card to flip it.
+                </p>
+              </>
+            }
+          />
         </div>
       </section>
 
-      {/* Communiqués — renders only when Firestore returns data (Phase 1).
-          Empty = section absent entirely, not an empty panel. */}
+      {/* ── Latest communiqué ──
+          Server data, Admin SDK (lib/data/news.ts) — same pattern as /news.
+          Absent entirely when nothing is published yet, never an empty panel. */}
+      {latestCommunique && (
+        <section aria-label="Latest communiqué" style={{ backgroundColor: 'var(--color-paper)', borderTop: '1px solid var(--color-rule)' }}>
+          <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+            <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+              Latest communiqué
+            </p>
+            <RegisterRow
+              index={formatCommuniqueDate(latestCommunique.publishedAt)}
+              primary={latestCommunique.title}
+              secondary={`${newsCategoryLabels[latestCommunique.category]} · ${latestCommunique.excerpt}`}
+              href={`/news/${latestCommunique.slug}`}
+              last
+            />
+          </div>
+        </section>
+      )}
     </>
   )
 }

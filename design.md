@@ -302,10 +302,18 @@ feel considered, the layout is wrong.
 ## 10. Page-level decisions
 
 **Homepage.** Logged out: a display-scale statement of what the chapter is, one photograph, and
-two actions — *Find a doctor* (primary) and *Member sign in*. Below it, the most recent
-communiqués as register rows, and nothing else. Logged in: the folio card replaces the statement,
-dues status sits beneath it, and the directory search field is the first interactive element.
-Same URL, different job. No feature grid, ever.
+two actions — *Find a doctor* (primary) and *Member sign in*. Below it, the single latest
+communiqué as a register row — absent entirely, not empty, when nothing is published — and
+nothing else. Logged in as a verified member: the folio card section shows the visitor's own
+real card in place of the demo card, "Go to your portal →" in place of "Get verified →"; falls
+back to the demo card silently if the card fetch fails. Same URL, different job. No feature grid,
+ever.
+
+Scoped down from an earlier version of this spec, which additionally described a plural list of
+communiqués, dues status beneath the logged-in card, and the directory search field as the first
+interactive element for a logged-in visitor. None of those three shipped — dues status has no
+data source yet (no Paystack merchant account), and the other two were simply out of scope for
+this slice. Revisit deliberately, not by drifting back toward this paragraph's old wording.
 
 **Directory (the anchor).** Search field is the first thing on the page and is focused on desktop
 load. Results are register rows. Filters are a bottom sheet on mobile, an inline row on desktop —
