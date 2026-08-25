@@ -64,6 +64,29 @@ async function mintToken(fixture: FixtureUser): Promise<string> {
   return adminAuth.createCustomToken(fixture.uid)
 }
 
+/**
+ * The Auth user + custom claims above are enough for anything gated only on
+ * the session (proxy.ts, the layouts). They are NOT enough for
+ * PortalDashboard, which reads the signed-in member's own members/{uid}
+ * document (subscribeToOwnMemberProfile) to render its content at all — with
+ * no such document, /portal shows its own honest "We couldn't load your
+ * profile" error state, which the pre-existing smoke tests never caught
+ * because they only assert status code and banner visibility, both of which
+ * pass on that error state too. Seeded for both fixtures — exec accounts are
+ * members too, and AdminDashboard doesn't need this today, but a future
+ * admin page reading the caller's own profile shouldn't hit the same gap.
+ */
+async function seedMemberProfile(fixture: FixtureUser, displayName: string, folioNumber: string): Promise<void> {
+  await adminDb.doc(`members/${fixture.uid}`).set({
+    displayName,
+    department: 'General Practice',
+    folioNumber,
+    email: fixture.email,
+    status: 'verified',
+    role: fixture.claims.role,
+  })
+}
+
 export default async function globalSetup(): Promise<void> {
   const [member, exec] = await Promise.all([
     mintToken(FIXTURE_USERS.member),
@@ -74,6 +97,11 @@ export default async function globalSetup(): Promise<void> {
         `fixture users. Start it first: npm run emulators.\n${err}`
     )
   })
+
+  await Promise.all([
+    seedMemberProfile(FIXTURE_USERS.member, 'Smoke Test Member', 'NMA/GM/SMOKE-001'),
+    seedMemberProfile(FIXTURE_USERS.exec, 'Smoke Test Exec', 'NMA/GM/SMOKE-002'),
+  ])
 
   mkdirSync(FIXTURES_DIR, { recursive: true })
   writeFileSync(FIXTURES_PATH, JSON.stringify({ member: { token: member }, exec: { token: exec } }))
