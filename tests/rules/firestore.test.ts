@@ -397,7 +397,9 @@ describe('members/{uid} — profile self-update', () => {
         phone: '+2348001234567',
         whatsapp: '+2348001234567',
         visibility: { phone: true, whatsapp: false, email: false, facility: true },
-        publicListingConsent: true,
+        // A ConsentRecord, not a bare boolean (schemas.ts) — matches what
+        // updateOwnProfile actually sends, not just what rules would allow.
+        publicListingConsent: { granted: true, at: new Date().toISOString(), noticeVersion: '2026-08-25' },
       })
     )
   })

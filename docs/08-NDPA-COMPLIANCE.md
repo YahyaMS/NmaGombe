@@ -60,7 +60,7 @@ purpose, its lawful basis, its retention period, and who can read it. No row, no
 | `subspecialty` | further specialty detail, directory search | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
 | `town` | coarse location for directory search | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
 | `whatsapp` | one-tap contact between colleagues | consent (opt-in) | while a member | self, admin, verified members if opted in |
-| `publicListingConsent` | governs whether the member's name appears on the public, unauthenticated `/doctors` page | consent | while a member | self, admin |
+| `publicListingConsent` (`{granted, at, noticeVersion}`) | governs whether the member's name appears on the public, unauthenticated `/doctors` page — `at`/`noticeVersion` record when this was last set and under which notice text, so a bare yes/no isn't the only evidence of consent | consent | while a member | self, admin |
 | `cpdEntries.*` (title, provider, creditUnits, dateAttended) | lets the member hold their own CME/CPD evidence record for MDCN renewal season | contract (membership administration) | while a member | self, admin (only at a known uid — no cross-member query) |
 | `cpdEntries.*.certificateUrl` | optional uploaded proof of attendance for a logged CPD entry | consent (member-initiated upload) | while a member | self, admin (only at a known uid) |
 | `registrations.*` (eventId, attended) | lets a member register for a chapter event and lets exec confirm real attendance, which is what triggers CPD credit — not registration alone | contract (membership administration) | while a member | self (own registration only), exec/admin |

@@ -27,6 +27,12 @@ function str(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+/** publicListingConsent is a ConsentRecord ({granted, at, noticeVersion}),
+ * not a bare boolean — see schemas.ts. */
+function consentGranted(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && (value as { granted?: unknown }).granted === true
+}
+
 export const onMemberWrite = onDocumentWritten(
   { document: 'members/{uid}', region: REGION },
   async (event) => {
@@ -69,7 +75,7 @@ export const onMemberWrite = onDocumentWritten(
     // Public listing needs explicit consent — see ADR-013/014. Never phone,
     // whatsapp, or email: this object literal is the only place that could
     // ever leak them here, and it doesn't reference either field.
-    if (after.publicListingConsent === true) {
+    if (consentGranted(after.publicListingConsent)) {
       await publicRef.set({
         displayName,
         department,

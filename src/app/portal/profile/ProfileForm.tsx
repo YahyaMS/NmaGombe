@@ -77,7 +77,7 @@ export function ProfileForm() {
           phone: profile.phone ?? '',
           whatsapp: profile.whatsapp ?? '',
           visibility: profile.visibility ?? emptyForm.visibility,
-          publicListingConsent: profile.publicListingConsent ?? false,
+          publicListingConsent: profile.publicListingConsent?.granted ?? false,
           mdcnRenewalMonth: profile.mdcnRenewalMonth,
         })
       }

@@ -20,6 +20,7 @@ import {
   memberSignupSchema,
   memberProfileSchema,
   profileUpdateSchema,
+  PUBLIC_LISTING_CONSENT_NOTICE_VERSION,
   type MemberSignupInput,
   type MemberProfile,
   type ProfileUpdateInput,
@@ -63,7 +64,13 @@ export async function updateOwnProfile(uid: string, input: ProfileUpdateInput): 
     phone: parsed.phone || deleteField(),
     whatsapp: parsed.whatsapp || deleteField(),
     visibility: parsed.visibility,
-    publicListingConsent: parsed.publicListingConsent,
+    // Re-stamped on every save, not only the first time this flips true — see
+    // schemas.ts's ConsentRecord comment for why that's the honest choice.
+    publicListingConsent: {
+      granted: parsed.publicListingConsent,
+      at: new Date().toISOString(),
+      noticeVersion: PUBLIC_LISTING_CONSENT_NOTICE_VERSION,
+    },
     mdcnRenewalMonth: parsed.mdcnRenewalMonth ?? deleteField(),
     updatedAt: serverTimestamp(),
   })

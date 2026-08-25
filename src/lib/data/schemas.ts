@@ -42,6 +42,29 @@ export const visibilitySchema = z.object({
 })
 export type Visibility = z.infer<typeof visibilitySchema>
 
+/**
+ * Bump whenever the consent language shown next to the public-listing
+ * checkbox (ProfileForm.tsx) changes materially — this is what
+ * `ConsentRecord.noticeVersion` records having been shown at save time.
+ */
+export const PUBLIC_LISTING_CONSENT_NOTICE_VERSION = '2026-08-25'
+
+/**
+ * A bare boolean can't demonstrate consent to a regulator — NDPA requires
+ * being able to show *when* and *under what notice text* someone consented,
+ * not just their current yes/no. `at`/`noticeVersion` are stamped at every
+ * profile save (lib/data/members.ts's updateOwnProfile), not only the first
+ * time `granted` flips true — so this always represents "the state of this
+ * flag as last recorded, and when," never a stale claim about the original
+ * consent moment specifically.
+ */
+export const consentRecordSchema = z.object({
+  granted: z.boolean(),
+  at: z.string(),
+  noticeVersion: z.string(),
+})
+export type ConsentRecord = z.infer<typeof consentRecordSchema>
+
 export const memberProfileSchema = z.object({
   displayName: z.string(),
   department: z.string(),
@@ -56,7 +79,7 @@ export const memberProfileSchema = z.object({
   phone: z.string().optional(),
   whatsapp: z.string().optional(),
   visibility: visibilitySchema.optional(),
-  publicListingConsent: z.boolean().optional(),
+  publicListingConsent: consentRecordSchema.optional(),
   duesPaidThrough: z.number().optional(),
   /** 1-12. Member-entered, for a reminder only — never fees, never payment. See ADR/CLAUDE.md. */
   mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
@@ -73,6 +96,9 @@ export const profileUpdateSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   whatsapp: z.string().trim().max(20).optional(),
   visibility: visibilitySchema,
+  // Just the checkbox's current intent — updateOwnProfile (lib/data/members.ts)
+  // wraps this into a full ConsentRecord (with `at`/`noticeVersion`) at write
+  // time. The form only ever needs to say yes/no, not stamp itself.
   publicListingConsent: z.boolean(),
   mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
 })
@@ -98,7 +124,7 @@ export type DirectoryEntry = z.infer<typeof directoryEntrySchema>
 
 /**
  * publicDirectory/{uid} — projected by the same onMemberWrite trigger, only
- * while publicListingConsent === true. Never phone, whatsapp, or email — no
+ * while publicListingConsent.granted === true. Never phone, whatsapp, or email — no
  * write path writes them here, so there's nothing to filter on read. See
  * docs/03-DATA-MODEL.md and docs/09-DECISIONS.md ADR-013/014.
  */

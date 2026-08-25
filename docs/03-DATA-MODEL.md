@@ -35,11 +35,16 @@ grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // 
                         // /portal/profile — not collected at signup (ADR-014)
 subspecialty, town, phone, whatsapp   // set later, in /portal/profile
 visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool }
-publicListingConsent: boolean  // default false. Member-writable, NOT a trust field — but the
-                        // onMemberWrite trigger only writes publicDirectory when this is true.
-                        // Gates listing on the public, indexable /doctors page specifically;
-                        // separate from the visibility flags above, which gate contact fields
-                        // inside the member-only directory. See ADR-013.
+publicListingConsent: { granted: bool, at: string, noticeVersion: string }  // default absent
+                        // (= not granted). A ConsentRecord, not a bare boolean — NDPA requires
+                        // being able to show when and under what notice text someone consented,
+                        // not just their current yes/no. Re-stamped on every /portal/profile
+                        // save, not only the first time granted flips true. Member-writable, NOT
+                        // a trust field — but the onMemberWrite trigger only writes
+                        // publicDirectory when granted is true. Gates listing on the public,
+                        // indexable /doctors page specifically; separate from the visibility
+                        // flags above, which gate contact fields inside the member-only
+                        // directory. See ADR-013.
 status: "pending" | "verified" | "rejected" | "suspended"   // FUNCTION-ONLY in the general
                         // case, but this slice's rules allow a client `create` of exactly
                         // status:"pending" (no Function exists yet to do it instead — see
@@ -78,7 +83,7 @@ displayName, department, grade?, facility?, town?, folioNumber
 searchTokens: string[] // same shape as directoryEntries
 ```
 Never phone, whatsapp, or email — no code path writes them here. Upserted by the same
-`onMemberWrite` trigger, only while `status === "verified" && publicListingConsent === true`;
+`onMemberWrite` trigger, only while `status === "verified" && publicListingConsent.granted === true`;
 deleted the moment either flips false, so revoking consent removes the listing immediately.
 `00-INTAKE.md` item 25 (exec-ratified consent language) is cleared; `/doctors` reads this
 collection via the Admin SDK (`lib/data/publicDirectory.ts`), zero client JS, same posture as
