@@ -26,7 +26,8 @@ npm install
 npm run dev                  # http://localhost:3000
 npm run emulators            # Firebase emulators (auth, firestore, functions)
 npm run test:rules           # Firestore security rules unit tests
-npm run analyze              # bundle budget check
+npm run check:budget         # bundle budget check (after `npm run build`) — see ADR-016
+npm run check:routes         # docs/05-ROUTES.md's [Built] tags match real page files
 ```
 
 ## Environments
