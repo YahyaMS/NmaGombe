@@ -39,8 +39,10 @@ route — that's a judgement call for whoever writes the line.
                          stays Firebase-SDK-free. Registration lives on /portal (the offline-tier
                          route), keyed to the same event by slug.
 /doctors                 [Built] Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
-/verify/[folio]          [Built] QR target from the membership card. Renders: name, grade,
-                         "member in good standing through <year>" or "not current". Nothing else.
+/verify/[folio]          [Built] QR target from the membership card. Renders: a "Verified
+                         member" or "Not a current member" pill, name, grade, facility, folio
+                         number. No dues year — dues aren't implemented yet, so there is no
+                         "good standing through <year>" to show; this page never invents one.
                          This page is the chapter's credibility in public. Keep it austere.
                          Its opengraph-image renders that member's actual folio card (or the
                          same "No record found" text as the page, for an unmatched folio) so a
@@ -102,11 +104,13 @@ route — that's a judgement call for whoever writes the line.
                                  shows a mono "expires in N days" badge, highlighted with
                                  --harmattan inside its last 3 days — urgency comes from that
                                  badge, not from the sort order. One-tap WhatsApp/call via the
-                                 same lib/whatsapp.ts helper the directory uses. Owner can edit
-                                 content, mark filled, or delete their own; exec/admin can
-                                 delete any listing (moderation is delete-only, no exec edit
-                                 path) — the first member-generated, unmoderated content in the
-                                 app.
+                                 same lib/whatsapp.ts helper the directory uses. Owner can mark
+                                 their own listing filled or delete it; exec/admin can delete any
+                                 listing (moderation is delete-only, no exec edit path) — the
+                                 first member-generated, unmoderated content in the app.
+                                 firestore.rules separately permits an owner to update content
+                                 fields (docs/03-DATA-MODEL.md) — there is no edit UI for it yet;
+                                 reposting is the only way to change a listing today.
 /portal/jobs/new                 [Built] (client) Post a listing. Expiry is compulsory and capped
                                  at 60 days regardless of type (locum defaults to 14, permanent/
                                  NYSC to 45) — extending a listing means reposting, not editing,
