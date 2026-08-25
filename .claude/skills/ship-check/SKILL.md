@@ -8,7 +8,7 @@ description: Pre-merge verification for the NMA Gombe project — types, tests, 
 Run in order. Report pass/fail per item, and do not report "done" with a failure outstanding.
 
 ```bash
-npm run typecheck && npm run lint && npm run test && npm run test:rules && npm run analyze
+npm run typecheck && npm run lint && npm run test && npm run test:rules && npm run check:routes && npm run analyze
 ```
 
 Then verify by inspection:
@@ -22,5 +22,7 @@ Then verify by inspection:
 7. Money is integer kobo. Amounts come from the server, never the client.
 8. New copy is sentence case, active voice, no exclamation marks.
 9. Lighthouse mobile ≥90 on the touched route, throttled to Slow 4G.
+10. New route shipped? `docs/05-ROUTES.md` tags it `[Built]` — `check:routes` only catches a
+    route tagged Built with no file behind it, not one that's real but undocumented.
 
 Finish with a one-line conventional commit message. Do not push without being asked.

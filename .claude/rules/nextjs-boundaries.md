@@ -76,7 +76,7 @@ layouts). See `docs/09-DECISIONS.md` ADR-015 and `docs/05-ROUTES.md`'s route-lev
 ---
 
 ## Before reporting a slice done
-`npm run typecheck && npm run lint && npm run build && npm run test && npm run test:rules`
+`npm run typecheck && npm run lint && npm run build && npm run test && npm run test:rules && npm run check:routes`
 
 **`npm run build` is the one that matters here.** Typecheck and lint catch none of items 1–8.
 The build catches most of them. Do not report a slice complete without a clean build — and do

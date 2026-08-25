@@ -29,6 +29,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # docs/05-ROUTES.md tags every route [Built]/[Planned]/[Not started]. This catches the
+      # one direction that can silently drift: a route claimed [Built] with no page file
+      # behind it — the exact class of "docs describing behaviour that doesn't exist" a past
+      # audit found by hand. Source-only, no build needed, so it runs before the Build step.
+      - name: Routes doc matches reality
+        run: npm run check:routes
+
       # THE important one. `next build` catches an entire class of errors that tsc and
       # eslint do not: server/client boundary violations, non-serializable props crossing
       # that boundary, static-rendering bailouts, bad metadata, route conflicts.
