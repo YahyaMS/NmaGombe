@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           <p>
             Signing up: your name, specialty, MDCN folio number and email. Once verified, you can
             add your grade, subspecialty, practice location, phone and WhatsApp number in your
-            profile — none of that is required. If you pay dues, we keep a record of the payment.
+            profile — none of that is required.
           </p>
         </Section>
 
@@ -94,16 +94,15 @@ export default function PrivacyPage() {
             You can view and correct most of your own data any time in your profile. To request
             a full copy of your data, or to have your account and data deleted, contact the
             secretariat directly — there isn&rsquo;t yet a self-service export button, so this is
-            handled by request for now. Payment records may need to be kept for a period after a
-            deletion request for financial record-keeping purposes.
+            handled by request for now.
           </p>
         </Section>
 
         <Section title="Who processes it">
           <p>
-            Google (Firebase) hosts the data. Paystack processes dues payments. Our hosting
-            provider serves the site itself. Each is a data processor acting on the chapter&rsquo;s
-            instructions, not an independent user of your data.
+            Google (Firebase) hosts the data. Our hosting provider serves the site itself. Each
+            is a data processor acting on the chapter&rsquo;s instructions, not an independent
+            user of your data.
           </p>
         </Section>
 
