@@ -18,6 +18,35 @@ const monthLabels = [
 
 const mdcnPortalUrl = process.env.NEXT_PUBLIC_MDCN_PORTAL_URL
 
+// Same threshold JobsBoard.tsx uses for its "expiring soon" badge — one
+// consistent meaning of "soon" across the app, not a value invented here.
+const EXPIRING_SOON_DAYS = 3
+
+/**
+ * mdcnRenewalMonth is member-entered, month-only (no day) — see
+ * docs/03-DATA-MODEL.md. "Urgent" is therefore the coarsest thing that's
+ * still honest: the current calendar month, in Africa/Lagos, matches it.
+ * Pinned explicitly rather than reading the browser's local month — see
+ * .claude/rules/nextjs-boundaries.md rule 2 on not trusting ambient locale.
+ */
+function isMdcnRenewalMonth(renewalMonth: number): boolean {
+  const currentMonth = Number(
+    new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Lagos', month: 'numeric' }).format(new Date())
+  )
+  return currentMonth === renewalMonth
+}
+
+function daysUntil(ts: UpcomingEvent['startAt']): number {
+  const ms = ts.toDate().getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)))
+}
+
+function countdownLabel(days: number): string {
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  return `In ${days} days`
+}
+
 const registerLinkStyle = {
   color: 'var(--color-green)',
   textDecoration: 'underline',
@@ -147,9 +176,16 @@ export function PortalDashboard() {
           className="mt-lg"
           style={{ padding: 'var(--spacing-md) 0', borderTop: '1px solid var(--color-rule)' }}
         >
-          <p className="type-eyebrow" style={{ color: 'var(--color-ink-3)' }}>MDCN renewal</p>
+          <p
+            className="type-eyebrow"
+            style={{ color: isMdcnRenewalMonth(profile.mdcnRenewalMonth) ? 'var(--color-harmattan)' : 'var(--color-ink-3)' }}
+          >
+            MDCN renewal
+          </p>
           <p className="type-body mt-xs" style={{ color: 'var(--color-ink)' }}>
-            Your licence renews in {monthLabels[profile.mdcnRenewalMonth - 1]}.
+            {isMdcnRenewalMonth(profile.mdcnRenewalMonth)
+              ? 'Your licence renews this month.'
+              : `Your licence renews in ${monthLabels[profile.mdcnRenewalMonth - 1]}.`}
           </p>
           {mdcnPortalUrl && (
             <a
@@ -178,7 +214,12 @@ export function PortalDashboard() {
             </p>
           </Link>
           {registered === true && (
-            <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>You&rsquo;re registered</p>
+            <p
+              className="type-small mt-xs"
+              style={{ color: daysUntil(nextEvent.startAt) <= EXPIRING_SOON_DAYS ? 'var(--color-harmattan)' : 'var(--color-ink-3)' }}
+            >
+              You&rsquo;re registered · {countdownLabel(daysUntil(nextEvent.startAt))}
+            </p>
           )}
           {registered === false && (
             <button

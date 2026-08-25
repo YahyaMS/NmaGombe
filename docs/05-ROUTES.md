@@ -70,7 +70,12 @@ route — that's a judgement call for whoever writes the line.
                                  next event with a Register control in the same row (plain setDoc
                                  to `registrations/{eventId}_{uid}` under rules, no Function — the
                                  write itself never needs offline queueing). Dues status omitted —
-                                 still blocked on the Paystack merchant account.
+                                 still blocked on the Paystack merchant account. Both reminders are
+                                 in-app only, computed at read time on every visit — not a push,
+                                 email or WhatsApp nudge; nothing reaches a member who doesn't open
+                                 the page. The renewal line and a registered member's event line
+                                 both switch to --harmattan when the renewal month has arrived, or
+                                 the event is within 3 days — calm the rest of the year.
 /portal/card                     [Built] (client) Full-screen folio card. Works offline.
                                  Downloadable — GET /portal/card/download server-renders a PNG
                                  from the member's own record (Authorization: Bearer <ID token>,

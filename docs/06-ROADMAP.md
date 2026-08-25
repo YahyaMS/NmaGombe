@@ -38,7 +38,11 @@ directory has real entries before the broad announcement.
 - Jobs/locum board with compulsory expiry.
 - Welfare fund information + case-opening form (exec-only viewer).
 - Clinical guideline repository, offline-cached.
-- Scheduled reminders: dues cycle, MDCN renewal month, upcoming events.
+- Scheduled reminders: dues cycle, MDCN renewal month, upcoming events. MDCN renewal month and
+  a registered member's upcoming event both ship an in-app urgency treatment on `/portal`
+  (`--harmattan` inside the renewal month / last 3 days) — not a push, email, or WhatsApp nudge;
+  nothing "scheduled" runs, it's computed on every visit. Dues cycle still blocked on the
+  Paystack merchant account, same as everything else dues-related.
 
 **Do not start Phase 2 until ≥ 30% of the roster is verified.** Building more features for an
 empty portal is the most expensive way to fail.
