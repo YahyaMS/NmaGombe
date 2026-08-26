@@ -316,11 +316,13 @@ describe('duesRates/{year}', () => {
 // ── Invariant 6: welfareCases — exec-only ────────────────────────────────────
 
 describe('welfareCases/{id}', () => {
+  const requesterUid = 'doc-005'
+
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'welfareCases/case-001'), {
         status: 'open',
-        requester: 'doc-005',
+        requester: requesterUid,
       })
     })
   })
@@ -338,6 +340,107 @@ describe('welfareCases/{id}', () => {
   test('unauthenticated cannot read welfareCases', async () => {
     const db = anon().firestore()
     await assertFails(getDoc(doc(db, 'welfareCases/case-001')))
+  })
+
+  test('the requester who opened a case cannot read it back', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(getDoc(doc(db, 'welfareCases/case-001')))
+  })
+
+  test('verified member can open their own case with the exact allowed shape', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertSucceeds(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: requesterUid,
+        status: 'open',
+        createdAt: serverTimestamp(),
+      })
+    )
+  })
+
+  test('authenticated-but-unverified member cannot open a case', async () => {
+    const db = authed(requesterUid).firestore()
+    await assertFails(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: requesterUid,
+        status: 'open',
+        createdAt: serverTimestamp(),
+      })
+    )
+  })
+
+  test('cannot open a case for another uid', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: 'someone-else',
+        status: 'open',
+        createdAt: serverTimestamp(),
+      })
+    )
+  })
+
+  test('cannot open a case with a status other than "open"', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: requesterUid,
+        status: 'resolved',
+        createdAt: serverTimestamp(),
+      })
+    )
+  })
+
+  test('cannot smuggle an amount in at create time', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: requesterUid,
+        status: 'open',
+        createdAt: serverTimestamp(),
+        amount: 5000000,
+      })
+    )
+  })
+
+  test('cannot backdate createdAt at create time — must be the server timestamp', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(
+      setDoc(doc(db, 'welfareCases/case-new'), {
+        requester: requesterUid,
+        status: 'open',
+        createdAt: daysFromNow(-1),
+      })
+    )
+  })
+
+  test('member cannot update their own case after creating it', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(updateDoc(doc(db, 'welfareCases/case-001'), { status: 'in_review' }))
+  })
+
+  test('member cannot delete their own case', async () => {
+    const db = verified(requesterUid).firestore()
+    await assertFails(deleteDoc(doc(db, 'welfareCases/case-001')))
+  })
+
+  test('exec can create a case directly with a full shape, including an amount', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(
+      setDoc(doc(db, 'welfareCases/case-exec-opened'), {
+        requester: requesterUid,
+        status: 'in_review',
+        amount: 5000000,
+        createdAt: serverTimestamp(),
+      })
+    )
+  })
+
+  test('exec can update a case — record an amount and change status', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(
+      updateDoc(doc(db, 'welfareCases/case-001'), { status: 'resolved', amount: 5000000 })
+    )
   })
 })
 

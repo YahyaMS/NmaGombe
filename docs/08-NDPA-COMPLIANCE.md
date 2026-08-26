@@ -40,8 +40,16 @@ large media companies over cross-border data transfers, so this is not theoretic
 ## Special handling: welfare data
 Welfare and benevolent-fund cases can shade into health and family information about members
 and their dependants. Rule: the system stores **case identifier, requesting member, status, and
-amount** only. Narrative detail, diagnoses and family circumstances stay offline with the
-Welfare Committee. Do not build a field that invites someone to type a diagnosis into it.
+amount** only (built as `welfareCases/{id}`: `requester`, `status`, `amount`, `createdAt` —
+docs/03-DATA-MODEL.md). Narrative detail, diagnoses and family circumstances stay offline with
+the Welfare Committee. Do not build a field that invites someone to type a diagnosis into it.
+
+Readable only by `role: exec` — including by the member who opened the case. This is a deliberate
+exception to the "Rights" item below: a member cannot self-serve a view of their own welfare
+case through the app (`/portal/welfare` is create-only by `firestore.rules`, not just by UI
+choice). If a member asks what the chapter holds on them, the Welfare Committee answers that
+request directly, off-platform — the same as any other Subject Access Request, just not
+self-service for this one sensitive collection.
 
 ## Change control
 **Any pull request that adds a personal-data field must add a row here** stating the field, its

@@ -122,8 +122,13 @@ route — that's a judgement call for whoever writes the line.
                                  since expiresAt is frozen once created. Contact number prefills
                                  from the member's own profile phone, editable.
 /portal/documents                [Not started] Member-only downloads: guidelines, forms, circulars.
-/portal/welfare                  [Planned] (Phase 2) Welfare fund info + how to open a case (form
-                                 only, not a case viewer).
+/portal/welfare                  [Built] Welfare fund info (placeholder — real eligibility/coverage
+                                 copy not supplied yet, docs/00-INTAKE.md item 24) + a one-tap
+                                 "Request welfare assistance" action. Plain client Firestore
+                                 create under firestore.rules — no Cloud Function. Genuinely "form
+                                 only, not a case viewer": a member can create their own case but
+                                 never read, update or delete it back, so there is no way to show
+                                 "you already have an open case," on this load or any later one.
 ```
 
 ## Admin (`role: admin` or `exec`)
@@ -169,8 +174,12 @@ route — that's a judgement call for whoever writes the line.
                                  (attendanceMarkedBy/At, attendanceUnmarkedBy/At).
 /admin/broadcast                 [Built] Compose a WhatsApp broadcast message; logs what was sent.
 /admin/duesRates                 [Not started] Set the year's rates by grade.
-/admin/welfare                   [Planned] (exec only) Welfare cases. Same Phase 2 status as
-                                 /portal/welfare.
+/admin/welfare                   [Built] (exec only) Welfare case queue — requester name (looked
+                                 up from members/{uid}, not duplicated into the case document),
+                                 status, recorded amount, inline editable. Admin SDK via
+                                 PATCH /api/admin/welfare/[id] (session-cookie authenticated, same
+                                 pattern as /api/admin/events), not the Firestore client SDK —
+                                 same conversion as /admin/news and /admin/events.
 ```
 
 ## Route-level rules

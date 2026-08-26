@@ -387,3 +387,30 @@ export const jobPostInputSchema = z
     { message: `Choose a date between tomorrow and ${JOB_MAX_EXPIRY_DAYS} days out`, path: ['expiresAt'] }
   )
 export type JobPostInput = z.infer<typeof jobPostInputSchema>
+
+export const welfareCaseStatusSchema = z.enum(['open', 'in_review', 'resolved', 'declined'])
+export type WelfareCaseStatus = z.infer<typeof welfareCaseStatusSchema>
+
+export const welfareCaseStatusLabels: Record<WelfareCaseStatus, string> = {
+  open: 'Open',
+  in_review: 'In review',
+  resolved: 'Resolved',
+  declined: 'Declined',
+}
+
+/**
+ * welfareCases/{id} — doc ID is auto-generated, same reasoning as jobs/{id}.
+ * `amount` is kobo, integer, absent (not zero) until an exec records a grant
+ * — see docs/03-DATA-MODEL.md. `createdAt` stays out of this schema, same
+ * Timestamp treatment jobs/events give theirs, attached per-file instead.
+ *
+ * Deliberately four fields total, including this schema's three plus
+ * createdAt — no category, no free text, no clinical or family detail
+ * (docs/08-NDPA-COMPLIANCE.md's "special handling: welfare data").
+ */
+export const welfareCaseSchema = z.object({
+  requester: z.string(),
+  status: welfareCaseStatusSchema,
+  amount: z.number().int().nonnegative().optional(),
+})
+export type WelfareCase = z.infer<typeof welfareCaseSchema>

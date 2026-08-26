@@ -202,6 +202,16 @@ service cloud.firestore {
         && request.resource.data.status in ['active', 'filled'];
     }
 
+    // A member's entire write surface on welfareCases: exactly this shape,
+    // nothing else. No amount (absent, not zero — see docs/03-DATA-MODEL.md),
+    // no status other than "open", no requester but themselves.
+    function welfareCaseCreateValid() {
+      return request.resource.data.keys().hasOnly(['requester', 'status', 'createdAt'])
+        && request.resource.data.requester == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time;
+    }
+
     match /jobs/{id} {
       allow get, list: if verified();
       allow create: if verified()
@@ -230,9 +240,19 @@ service cloud.firestore {
       allow delete: if isExec() || (signedIn() && resource.data.postedBy == request.auth.uid);
     }
 
-    // Sensitive. Exec only. No clinical or family detail is stored here at all.
+    // Sensitive. No clinical or family detail is stored here at all.
+    // A verified member may open their own case — create only, exactly the
+    // shape welfareCaseCreateValid() allows — but can never read, update or
+    // delete it back, their own case included; see docs/03-DATA-MODEL.md for
+    // why that's a rules fact, not just a UI omission ("form only, not a
+    // case viewer"). Everything else is exec-only, direct client read/write,
+    // no Function layer — a deliberate asymmetry from this file's usual
+    // trust-field-goes-through-a-Function pattern, because there is no trust
+    // field here a member could otherwise smuggle: their entire write
+    // surface is "create exactly one shape," not "update anything."
     match /welfareCases/{id} {
-      allow read, write: if isExec();
+      allow read, update, delete: if isExec();
+      allow create: if isExec() || (verified() && welfareCaseCreateValid());
     }
 
     match /broadcasts/{id} {

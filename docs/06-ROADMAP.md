@@ -36,7 +36,9 @@ directory has real entries before the broad announcement.
 - Event registration with attendance-linked CPD credit — the loop that makes chapter CME
   measurably more valuable than any other CME the member could attend.
 - Jobs/locum board with compulsory expiry.
-- Welfare fund information + case-opening form (exec-only viewer).
+- Welfare fund information + case-opening form (exec-only viewer). Built — `/portal/welfare`,
+  `/admin/welfare`. Real eligibility/coverage copy still not supplied (`docs/00-INTAKE.md` item
+  24); the info panel ships as a marked placeholder until it is.
 - Clinical guideline repository, offline-cached.
 - Scheduled reminders: dues cycle, MDCN renewal month, upcoming events. MDCN renewal month and
   a registered member's upcoming event both ship an in-app urgency treatment on `/portal`

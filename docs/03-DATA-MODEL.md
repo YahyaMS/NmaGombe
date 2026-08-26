@@ -268,9 +268,26 @@ longer than the moment a listing actually stops being shown: `lib/data/jobs.ts`'
 listing disappears from the board the instant it lapses, well before the Function ever deletes
 its document.
 
-### `welfareCases/{id}` (Phase 2 — restricted)
-Readable only by `role: exec`. Minimum viable fields. No diagnoses, no clinical detail, no
-family medical information. If in doubt, leave it out and handle it offline.
+### `welfareCases/{id}`
+`requester, status ("open"|"in_review"|"resolved"|"declined"), amount, createdAt`
+Doc ID is auto-generated, same reasoning as `jobs/{id}`. `amount` is kobo, integer, absent (not
+zero) until an exec records a grant — a case with no amount yet is not the same fact as a
+zero-naira grant. `createdAt` is a real Firestore Timestamp, attached per-file like `jobs`' and
+`events`' own timestamp fields.
+
+**Deliberately four fields, nothing more.** No category, no free-text reason, no diagnoses, no
+family medical information — `docs/08-NDPA-COMPLIANCE.md`'s "special handling: welfare data"
+rule. The requester's contact details are never duplicated in here; the Committee looks the
+requester up by `requester` (uid) via `/admin/members` the same way any exec already can. If in
+doubt, leave a field out and handle it offline.
+
+**Readable only by `role: exec`, including by the requester who created it.** `firestore.rules`
+grants a verified member exactly one thing: `create` a case with `requester` forced to their own
+uid, `status` forced to `"open"`, and `amount` absent — no read, update, or delete of any kind.
+This is what makes `/portal/welfare` "form only, not a case viewer" (`docs/05-ROUTES.md`) a rules
+fact, not just a UI choice: a member cannot open a second tab and read their own submission back.
+Everything past submission — status, amount, resolution — is handled by the Welfare Committee
+directly (`/admin/welfare`), off-platform after that, matching the "handle it offline" rule above.
 
 ### `broadcasts/{id}`
 `message, audience, sentBy, sentAt, channel` — a log of what was sent, so the exec has a record.
@@ -284,7 +301,10 @@ family medical information. If in doubt, leave it out and handle it offline.
    write ... via direct client update" tests.)
 2. `directoryEntries` is readable only when the requester's token has `verified == true`.
 3. `members/{uid}` is readable by `uid` or admin. Never by another member.
-4. `welfareCases` readable only with `role in ["exec","admin"]`.
+4. `welfareCases` readable only with `role in ["exec","admin"]` — including by the member who
+   created it. A verified member may `create` their own (requester forced to self, status forced
+   to `"open"`, amount forced absent) but cannot read, update, or delete any case, their own
+   included.
 5. A member cannot set their own `folioNumber` after verification (prevents identity swap).
 6. Storage: certificate and receipt paths are namespaced by uid and readable only by that uid
    plus admin. Do not rely on unguessable URLs.
