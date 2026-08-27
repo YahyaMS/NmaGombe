@@ -63,8 +63,13 @@ Nothing here is a technical problem — which is exactly why projects like this 
 18. Any existing communiqués, newsletters or press statements to seed the archive.
 
 ## E. Infrastructure ownership
-19. **Domain**, registered to a chapter-owned account, not a personal one. `.org.ng`
-    preferred. Who pays for renewal, from which budget line?
+19. ~~**Domain**, registered to a chapter-owned account, not a personal one. `.org.ng`
+    preferred. Who pays for renewal, from which budget line?~~
+    **Partially cleared.** `nmagombe.org` purchased and connected via Vercel (2026-08-27),
+    live in production — `.org`, not the originally-preferred `.org.ng` (worth confirming
+    that's the deliberate final choice, not a placeholder). Still open: confirm the
+    registering account is chapter-owned, not a developer's personal one, and which budget
+    line covers the $10.99/year renewal — same handover concern as item 4.
 20. A chapter-controlled email address (e.g. `secretariat@…`) to own the Firebase project,
     registrar account, Paystack account and GitHub org. **Never a personal Gmail.**
 21. A password manager the exec can hand over. This is the difference between a site that

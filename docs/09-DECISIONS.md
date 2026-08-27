@@ -506,6 +506,15 @@ address. If and when physical printing becomes a real plan, revisit this ADR bef
 the honest fix then is holding printing until the domain lands, not assuming this decision already
 covers it.
 
+**Update, 2026-08-27 — real domain live.** `nmagombe.org` (not `.org.ng` — see
+`docs/00-INTAKE.md` item 19) purchased and connected via Vercel. `NEXT_PUBLIC_SITE_URL` set to
+`https://nmagombe.org` in Production and a redeploy triggered
+(`npx vercel redeploy <deployment-url>`, not `vercel deploy`, which failed locally on a stray
+`firebase-debug.log` — a Windows file-lock issue unrelated to the domain itself). Confirmed via
+the live `og:image` URL, the same method used to confirm the Vercel-alias value originally — every
+folio card QR now encodes the real domain, no code change required, exactly as this ADR predicted.
+The Vercel-alias-era caveat above still applies to anything printed before this date.
+
 ---
 ## ADR-020 — App Check: client wired, enforcement deliberately deferred to a second, later step
 **Context.** A codebase-honesty audit found `lib/firebase/client.ts` asserting "Access control
