@@ -25,31 +25,41 @@ its own portal; see ADR-003). Removing it changes the answer, so the ranking was
    in another specialty regularly. Today they shout into a WhatsApp group and hope someone who
    knows answers. A structured, searchable, always-current, verified directory beats that
    decisively — and it works offline from cache. **This is the anchor.**
-2. **Dues payment + instant receipt + digital folio card** — annual, but it funds the chapter
-   and is the reason a member completes verification. It is the *business* anchor.
-3. **CPD/CME credit log with exportable summary** — several times a year, and urgent at renewal
+2. **CPD/CME credit log with exportable summary** — several times a year, and urgent at renewal
    season. MDCN requires CPD evidence; nobody currently holds a doctor's own record for them.
    High stickiness, low competition. Ships in Phase 2.
-4. **Jobs and locum board** — weekly for younger members, near-zero for consultants.
-5. **News, communiqués, advocacy** — episodic. Real value only during industrial action, when
+3. **Jobs and locum board** — weekly for younger members, near-zero for consultants.
+4. **News, communiqués, advocacy** — episodic. Real value only during industrial action, when
    WhatsApp already carries it. Treat as archive-of-record, not a traffic driver.
 
-**MVP = 1 + 2.** Directory gives the reason to come; dues gives the reason to verify; the folio
-card is the artefact that makes verification feel worth it.
+**MVP = 1.** Directory gives the reason to come; the folio card is the artefact that makes
+verification feel worth it on its own, with no payment step attached.
+
+**Dues payment was originally item 2 here** — "annual, but it funds the chapter and is the
+reason a member completes verification... the *business* anchor" — **and is now Version 3, not
+part of any near-term phase.** Confirmed 2026-08-27: the chapter has no CAC registration, a legal
+prerequisite for a Nigerian payment gateway merchant account, and no visible path to getting one
+(only the parent national association is CAC-registered). See `docs/09-DECISIONS.md` ADR-021.
+This does remove the stated *business* reason a member was expected to complete verification —
+worth the chapter naming what that reason is now (the directory itself? the folio card as
+credible ID? something else?), since the PRD's own logic here no longer has an answer to that
+question, and this document shouldn't quietly paper over that.
 
 ## In scope, Phase 1
 - Account signup (phone or email), folio-number submission, admin verification queue.
 - Verified member directory: search by specialty, facility, name. Per-field visibility opt-ins.
   One-tap WhatsApp and call. Cached for offline.
-- Digital membership card: name, folio number, grade, dues year, QR code that resolves to a
-  public verification page. Downloadable as an image; visible offline.
-- Dues payment via Paystack; server-computed amount; instant on-screen and emailed receipt;
-  ledger export for the Treasurer.
+- Digital membership card: name, folio number, grade, QR code that resolves to a public
+  verification page. Downloadable as an image; visible offline. No dues year on the card — see
+  "Explicitly out of scope" below.
 - Public pages: home, about, exec, news/communiqués, events, contact, privacy policy.
-- Admin: verification queue, post news/event, payment ledger, member management.
+- Admin: verification queue, post news/event, member management.
 - PWA: installable, offline shell, offline card and directory.
 
 ## Explicitly out of scope
+- **Dues payment of any kind — Version 3, unscheduled.** Not a near-term gap; the chapter has no
+  CAC registration, the legal prerequisite for a Nigerian payment gateway account, and no clear
+  path to one. Revisit only if that changes. `docs/09-DECISIONS.md` ADR-021.
 - **MDCN licence payment or renewal of any kind.** (ADR-003)
 - In-app chat, forum, or message board. WhatsApp exists and has won. (ADR-004)
 - Email newsletter platform. (Use WhatsApp broadcast; email is receipts only.)
@@ -69,6 +79,7 @@ card is the artefact that makes verification feel worth it.
 
 ## How we know it worked (90 days)
 - **Primary:** ≥ 30% of the roster has a verified account. (< 30% = failure.)
-- Secondary: ≥ 40% of dues collected online in the first full dues cycle; median ≥ 2 directory
-  lookups per verified member per month; Secretary publishes ≥ 2 items per month unprompted.
+- Secondary: median ≥ 2 directory lookups per verified member per month; Secretary publishes
+  ≥ 2 items per month unprompted. (Dropped: "≥ 40% of dues collected online in the first full
+  dues cycle" — there is no dues cycle; dues payment is Version 3, ADR-021.)
 - Leading indicator of failure: verification queue untouched for 7 days.

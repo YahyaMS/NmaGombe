@@ -554,3 +554,47 @@ is ready: (a) register the reCAPTCHA v3 site key in Firebase Console, (b) set
 Check metrics that real production traffic is showing verified tokens, (d) only then add
 `enforceAppCheck: true` to the six `onCall` functions above and turn on "Enforce" for Firestore
 and Storage. Skipping straight to (d) is the failure mode this ADR exists to name.
+
+**Open flag, 2026-08-27 — not yet investigated.** `NEXT_PUBLIC_APPCHECK_SITE_KEY` is now set in
+Vercel Production and Preview. Unconfirmed whether it predates this ADR (meaning "unset in every
+environment," above, was already wrong when written) or was added after. If it's a real key,
+`lib/firebase/app.ts`'s dynamic import is no longer a no-op — App Check may already be
+client-initializing in production right now. Deliberately not investigated further yet; do not
+assume either the "still a no-op" framing above or full activation until someone checks.
+
+---
+## ADR-021 — Dues payment deferred to Version 3: no CAC registration, not a near-term blocker
+**Context.** Every prior doc in this project treats dues payment as "blocked on the Paystack
+merchant account" — phrased as a resolvable, near-term intake gap (`docs/00-INTAKE.md` item 5
+originally: "Confirm what the chapter can produce *before* promising online dues"). Confirmed,
+2026-08-27: the Gombe chapter has no CAC (Corporate Affairs Commission) registration, a legal
+prerequisite Nigerian payment gateways require of the registered entity behind a merchant
+account. Only the *parent national* association is CAC-registered, and it already collects
+national dues under that registration, separately from this chapter. This is not a "the chapter
+needs to go get a document" gap with a visible timeline — it's a structural fact about the
+chapter's legal status that this project has no ability to change and no visibility into if or
+when it might change. A codebase audit found no functional dependency on dues existing: every
+active surface (`FolioCard`, `PortalDashboard`, `CardView`, the homepage's real-card section)
+already renders `status: 'dues-not-recorded'` and simply omits the dues line — the graceful-
+degradation design was already correct going in. The only real gap was documentation and
+copy treating "coming soon" as true when it no longer reads as honest at this distance.
+**Decision.** Dues payment (rates, Paystack init, webhook, receipts, ledger export, and every
+route that depends on it — `/portal/dues`, `/portal/dues/receipt/[ref]`, `/admin/payments`,
+`/admin/duesRates`, the dues-cycle reminder) moves out of Phase 1/MVP entirely and into
+**Version 3** — unscheduled, revisited only if the chapter's registration status changes.
+`docs/01-PRD.md`'s "MVP = 1 + 2" (directory + dues) becomes **MVP = 1** (directory alone is the
+anchor); the folio card remains the artefact of verification, just no longer paired with a
+payment step. Every "blocked on the Paystack merchant account" phrasing across the docs — worded
+as if resolving intake item 5 were still plausible on this project's timeline — is corrected to
+name the real, structural reason. User-facing copy that implied dues payment is an active or
+imminent feature ("pay dues online," "on their way," "administer dues") is corrected or removed;
+`docs/01-PRD.md:55` already said "Use WhatsApp broadcast; email is receipts only" for the
+newsletter decision — the same "don't promise a channel you don't have" discipline now applies
+to dues copy too.
+**Consequence.** The already-tested `payments/{ref}` and `duesRates/{year}` Firestore rules,
+`duesPaidThrough`'s trust-field protection, and the `FolioCard`'s `dues-not-recorded` status stay
+exactly as built — inert groundwork that costs nothing to leave in place and will still be
+correct if this is ever revisited. Nothing in the shipped app changes behaviour; this ADR is a
+documentation and copy correction, not a code change, which is itself the finding worth recording:
+the graceful-degradation discipline this project held from the start meant deferring a "Phase 1
+anchor" feature indefinitely broke nothing.

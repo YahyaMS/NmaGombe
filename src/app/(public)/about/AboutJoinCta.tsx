@@ -82,8 +82,7 @@ export function AboutJoinCta() {
         </p>
         <p className="type-h2" style={{ color: 'var(--color-ink)' }}>Join the chapter</p>
         <p className="type-body" style={{ color: 'var(--color-ink-2)', marginTop: 'var(--spacing-sm)' }}>
-          Verified members access the full directory, pay dues online, and carry
-          a digital folio card.
+          Verified members access the full directory and carry a digital folio card.
         </p>
       </div>
       <Link href="/membership" className="type-body font-semibold px-lg py-sm whitespace-nowrap" style={primaryButtonStyle}>

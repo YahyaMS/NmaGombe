@@ -5,8 +5,9 @@ Server-rendered unless marked. `(client)` means the route is interactive and gat
 Status tag on every route, checked against the real file tree by
 `scripts/check-routes-built.mjs` (`npm run check:routes`), not just written and trusted:
 - **[Built]** — a real page file exists and the route works today.
-- **[Planned]** — deliberately deferred (Phase 2, or blocked on an external dependency like the
-  Paystack merchant account). Not a mistake that it's missing.
+- **[Planned]** — deliberately deferred (Phase 2, or blocked on an external dependency this
+  project has no control over — e.g. dues payment, blocked on the chapter having no CAC
+  registration; see `docs/09-DECISIONS.md` ADR-021). Not a mistake that it's missing.
 - **[Not started]** — in scope for the current phase, no code yet. If you're about to build one
   of these, it's fair game; if you're about to describe one as working, it isn't.
 
@@ -25,8 +26,8 @@ route — that's a judgement call for whoever writes the line.
                          own record only) with "Go to your portal →" in place of the demo card
                          and CTA — falls back to the demo card silently on any fetch failure.
                          Pending: no card, a short "under review" note. Same URL, different job.
-                         No dues status shown anywhere here — still blocked on the Paystack
-                         merchant account, same as /portal.
+                         No dues status shown anywhere here — dues payment is Version 3,
+                         unscheduled (no CAC registration, ADR-021), same as /portal.
 /about                   [Built] Chapter, history, constitution/bye-laws.
 /about/executives        [Built] Current exec with portraits and tenure. Past execs as an archive.
 /news                    [Built] Communiqués, news, advocacy, obituaries. Filterable by ?category=,
@@ -70,7 +71,7 @@ route — that's a judgement call for whoever writes the line.
                                  next event with a Register control in the same row (plain setDoc
                                  to `registrations/{eventId}_{uid}` under rules, no Function — the
                                  write itself never needs offline queueing). Dues status omitted —
-                                 still blocked on the Paystack merchant account. Both reminders are
+                                 dues payment is Version 3, unscheduled (ADR-021). Both reminders are
                                  in-app only, computed at read time on every visit — not a push,
                                  email or WhatsApp nudge; nothing reaches a member who doesn't open
                                  the page. The renewal line and a registered member's event line
@@ -81,8 +82,10 @@ route — that's a judgement call for whoever writes the line.
                                  from the member's own record (Authorization: Bearer <ID token>,
                                  re-checked there, not just gated by this page). Requires network
                                  even though the card itself renders from cache.
-/portal/dues                     [Planned] (client) Pay, history, receipts. Blocked on the
-                                 Paystack merchant account — docs/00-INTAKE.md item 5.
+/portal/dues                     [Planned] (client) Pay, history, receipts. Version 3,
+                                 unscheduled — the chapter has no CAC registration, a legal
+                                 prerequisite for a Nigerian payment gateway merchant account;
+                                 see docs/00-INTAKE.md item 5 and docs/09-DECISIONS.md ADR-021.
 /portal/dues/receipt/[ref]       [Planned] Receipt view/download. Same blocker as /portal/dues.
 /portal/directory                [Built] (client) Search colleagues by name/specialty/facility —
                                  one bulk subscription to directoryEntries, filtered locally
@@ -134,8 +137,8 @@ route — that's a judgement call for whoever writes the line.
 ## Admin (`role: admin` or `exec`)
 ```
 /admin                           [Built] Pending verification count, recent signups.
-                                 Dues-collected figure omitted — still blocked on the Paystack
-                                 merchant account.
+                                 Dues-collected figure omitted — dues payment is Version 3,
+                                 unscheduled (ADR-021).
 /admin/verification              [Built] THE most important admin screen. Approve/reject folio
                                  submissions against the roster. Keyboard-driven, fast,
                                  usable on a phone. If this is slow, signups rot.
@@ -144,8 +147,8 @@ route — that's a judgement call for whoever writes the line.
                                  typo'd facility name etc.) isn't built — members self-serve that
                                  at /portal/profile, and this route is scoped to trust-field
                                  changes.
-/admin/payments                  [Not started] Ledger, reconciliation, CSV export for the
-                                 Treasurer.
+/admin/payments                  [Planned] Ledger, reconciliation, CSV export for the Treasurer.
+                                 Version 3, unscheduled — see /portal/dues above, ADR-021.
 /admin/news/new  /admin/news     [Built] Three fields (title, category, body) and a publish
                                  button. Single-step create-and-publish — still no draft or
                                  unpublish step, but /admin/news/[slug]/edit lets an exec correct
@@ -173,7 +176,8 @@ route — that's a judgement call for whoever writes the line.
                                  leaves an audit trail on the registration
                                  (attendanceMarkedBy/At, attendanceUnmarkedBy/At).
 /admin/broadcast                 [Built] Compose a WhatsApp broadcast message; logs what was sent.
-/admin/duesRates                 [Not started] Set the year's rates by grade.
+/admin/duesRates                 [Planned] Set the year's rates by grade. Version 3, unscheduled
+                                 — see /portal/dues above, ADR-021.
 /admin/welfare                   [Built] (exec only) Welfare case queue — requester name (looked
                                  up from members/{uid}, not duplicated into the case document),
                                  status, recorded amount, inline editable. Admin SDK via

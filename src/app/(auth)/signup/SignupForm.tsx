@@ -199,7 +199,7 @@ export function SignupForm() {
       </h1>
       <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
         An admin reviews your folio number against the membership list before you get access to
-        the directory, folio card and dues payment.
+        the directory and folio card.
       </p>
 
       {errorMessage && (

@@ -131,8 +131,8 @@ export default async function HomePage() {
             },
             {
               index: '03',
-              title: 'Membership and dues',
-              detail: 'Join the chapter, pay dues online, and carry your digital folio card.',
+              title: 'Membership',
+              detail: 'Join the chapter and carry your digital folio card.',
               href: '/membership',
             },
           ].map(({ index, title, detail, href }, i, arr) => (

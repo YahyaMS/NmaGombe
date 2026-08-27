@@ -16,10 +16,17 @@ Nothing here is a technical problem — which is exactly why projects like this 
 4. What happens at the next exec handover? Who holds credentials then?
 
 ## B. Money and payments
-5. **BLOCKER — Paystack (or Monnify) merchant account.** Nigerian gateways require a
+5. ~~**BLOCKER — Paystack (or Monnify) merchant account.** Nigerian gateways require a
    registered business/organisation and supporting documents; a state chapter may need a CAC
    registration or an existing registered entity behind the account. Confirm what the chapter
-   can produce *before* promising online dues. This is the most common place this project stalls.
+   can produce *before* promising online dues.~~
+   **Confirmed blocked, 2026-08-27.** The Gombe chapter has no CAC (Corporate Affairs
+   Commission) registration — only the parent national association does, and it collects
+   national dues separately under that registration. This isn't a "resolve before launch"
+   blocker any more; it's an indefinite one with no clear path, not tied to this project's
+   timeline at all. Dues payment is deferred to a much later, unscheduled phase
+   (`docs/06-ROADMAP.md`'s Version 3, `docs/09-DECISIONS.md` ADR-021) rather than treated as
+   pending. Do not build toward it, and do not word anything as "coming soon."
 6. Settlement bank account, and who reconciles it monthly.
 7. Full dues structure: amount by member grade/category, the portion remitted to national,
    and how arrears are treated. Actual figures, not "roughly."

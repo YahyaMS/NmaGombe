@@ -9,8 +9,9 @@ using real content. Ends with the public homepage and `/about` deployed on the r
 
 **Acceptance:** the URL is live, Lighthouse mobile ≥ 95, and the Secretary has seen it.
 
-## Phase 1 — MVP: identity + directory + dues (target: 4–6 weeks)
-The anchor. In build order:
+## Phase 1 — MVP: identity + directory (target: 4–6 weeks)
+The anchor. Dues was originally build-order step 6 here — moved to Version 3, unscheduled; see
+`docs/09-DECISIONS.md` ADR-021. In build order:
 1. Auth + signup + folio submission + `/pending`.
 2. `/admin/verification` — build this *before* the directory. If approvals are slow, nothing
    downstream works.
@@ -21,11 +22,10 @@ The anchor. In build order:
    fills it. Get verification moving early so it isn't empty at announcement.
 4. Directory search + one-tap WhatsApp + offline cache.
 5. Folio card + QR + `/verify/[folio]`.
-6. Dues: rates, Paystack init, webhook, receipt, Treasurer's ledger export.
-7. News + events publishing, three fields, phone-friendly.
+6. News + events publishing, three fields, phone-friendly.
 
-**Acceptance:** the Treasurer collects real dues from a real member and reconciles it unaided;
-a member finds a colleague in another specialty and reaches them in two taps, on aeroplane mode.
+**Acceptance:** a member finds a colleague in another specialty and reaches them in two taps, on
+aeroplane mode.
 
 **Launch plan:** announce in the chapter WhatsApp groups with a screenshot of the folio card.
 Not email. Not a press release. Ask ten trusted members to sign up in the first 48 hours so the
@@ -40,11 +40,10 @@ directory has real entries before the broad announcement.
   `/admin/welfare`. Real eligibility/coverage copy still not supplied (`docs/00-INTAKE.md` item
   24); the info panel ships as a marked placeholder until it is.
 - Clinical guideline repository, offline-cached.
-- Scheduled reminders: dues cycle, MDCN renewal month, upcoming events. MDCN renewal month and
-  a registered member's upcoming event both ship an in-app urgency treatment on `/portal`
-  (`--harmattan` inside the renewal month / last 3 days) — not a push, email, or WhatsApp nudge;
-  nothing "scheduled" runs, it's computed on every visit. Dues cycle still blocked on the
-  Paystack merchant account, same as everything else dues-related.
+- Scheduled reminders: MDCN renewal month, upcoming events. Both ship an in-app urgency
+  treatment on `/portal` (`--harmattan` inside the renewal month / last 3 days) — not a push,
+  email, or WhatsApp nudge; nothing "scheduled" runs, it's computed on every visit. (Dues-cycle
+  reminder dropped along with dues itself — Version 3, ADR-021.)
 
 **Do not start Phase 2 until ≥ 30% of the roster is verified.** Building more features for an
 empty portal is the most expensive way to fail.
@@ -56,13 +55,22 @@ empty portal is the most expensive way to fail.
 - Chapter journal / publications archive.
 - Mentorship matching, equipment classifieds, sponsorship.
 
+## Version 3 — unscheduled, different kind of blocker than Phase 3
+Not gated on a written mandate like Phase 3 above — gated on something outside this project's
+control entirely, with no visible timeline:
+- **Dues payment** (rates, Paystack init, webhook, receipts, ledger export, and every route that
+  depends on it). Blocked on the chapter having no CAC registration, a legal prerequisite for a
+  Nigerian payment gateway merchant account — confirmed 2026-08-27, only the parent national
+  association is CAC-registered. `docs/09-DECISIONS.md` ADR-021. Revisit only if that changes;
+  do not build toward it or word anything as "coming soon" until it does.
+
 ## Risks, ranked by likelihood of killing this
 | Risk | Mitigation |
 |---|---|
 | **Content decay** — nobody posts after month two | Automate everything that can be automated. Manual surface is deliberately three forms. The site must look correct with no new content for six months: no "Latest news" module that renders an empty box, no dated "Upcoming events" widget that says "No event found." (Exactly the failure visible on the parent site.) |
 | **Verification queue neglect** | Two named approvers, WhatsApp alert on new submission, and a visible SLA on `/pending`. Track queue age on `/admin`. |
 | **Empty directory at launch** | Seed from the roster before announcing. Claim-your-entry flow. |
-| **Paystack account can't be opened** | Resolve intake item 5 before designing the dues UI. Fallback: bank-transfer instructions plus manual admin marking, same ledger. |
+| **Dues payment indefinitely blocked** | Confirmed, not hypothetical — no CAC registration, no Paystack merchant account path. Deferred to Version 3 rather than designed around; see ADR-021. No fallback (bank-transfer/manual marking) is being built either, since that's still designing toward a feature that isn't scheduled. |
 | **Volunteer burnout** | The Secretary's whole job is three forms on a phone. Anything that needs a laptop won't happen. |
 | **Exec turnover loses the keys** | Chapter-owned email, shared vault, written handover doc, domain paid from a budget line. |
 | **Directory scraped** | Verified-only access, per-field visibility, rate-limited search, no bulk endpoint. App Check adds a further layer once enforced — client-wired, not yet enforced; see `09-DECISIONS.md` ADR-020. |

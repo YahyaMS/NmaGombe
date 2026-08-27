@@ -1,9 +1,8 @@
 /**
  * /membership — how to join, benefits, grades. The conversion page
- * (docs/05-ROUTES.md). No dues figures: docs/00-INTAKE.md item 7 (full dues
- * structure, actual amounts) is still an open blocker — see docs/09-DECISIONS.md
- * and CLAUDE.md's rule against inventing figures. Dues are mentioned only
- * qualitatively, matching how the homepage and /about already frame it.
+ * (docs/05-ROUTES.md). No dues payment anywhere on this page — Version 3,
+ * unscheduled; the chapter has no CAC registration, a legal prerequisite for
+ * a Nigerian payment gateway account. See docs/09-DECISIONS.md ADR-021.
  */
 
 import type { Metadata } from 'next'
@@ -29,7 +28,7 @@ const STEPS = [
   {
     index: '03',
     title: 'You’re verified',
-    detail: 'Full directory access, your digital folio card, and dues payment unlock.',
+    detail: 'Full directory access and your digital folio card.',
   },
 ]
 
@@ -41,10 +40,6 @@ const BENEFITS = [
   {
     title: 'Digital folio card',
     detail: 'Your membership in your pocket — works offline, scannable for instant verification.',
-  },
-  {
-    title: 'Dues paid to the chapter',
-    detail: 'Annual dues, set by the Treasurer by grade. A receipt and record either way.',
   },
 ]
 
@@ -148,8 +143,8 @@ export default function MembershipPage() {
             ))}
           </div>
           <p className="type-small mt-md" style={{ color: 'var(--color-ink-3)' }}>
-            Your grade sets the dues rate and the title shown on your folio card — set it in
-            your profile after you&rsquo;re verified.
+            Your grade sets the title shown on your folio card — set it in your profile after
+            you&rsquo;re verified.
           </p>
         </div>
       </section>

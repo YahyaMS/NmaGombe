@@ -40,6 +40,11 @@ reasons that are not obvious.
 - **We do NOT handle MDCN licence payment or renewal.** MDCN has its own portal. We store a
   renewal *date* the member enters, remind them, and deep-link out. Never build a payment
   flow, form, or fee table for MDCN. See `docs/09-DECISIONS.md` ADR-003.
+- **Dues payment is Version 3, unscheduled — do not build toward it.** The chapter has no CAC
+  registration, a legal prerequisite for a Nigerian payment gateway merchant account; only the
+  parent national association is CAC-registered. This is not a near-term intake gap to resolve —
+  treat it as indefinitely blocked until told otherwise. Never add copy implying dues payment is
+  active or coming soon. See `docs/09-DECISIONS.md` ADR-021.
 - **WhatsApp is the real channel.** The site never tries to replace it. No in-app chat, no
   forum, no notification system that assumes email works. Outbound = WhatsApp deep links +
   broadcast; email is secondary.
@@ -49,8 +54,10 @@ reasons that are not obvious.
 
 ## Stack
 Next.js (App Router) + TypeScript + Tailwind + shadcn/ui · Firebase (Auth, Firestore,
-Cloud Functions, Storage, App Check) · Paystack for dues · deployed on Vercel or Firebase
-Hosting. Rationale and rejected alternatives: `docs/02-ARCHITECTURE.md`.
+Cloud Functions, Storage, App Check) · deployed on Vercel or Firebase Hosting. Paystack for
+dues was the original plan but is unscheduled (Version 3 — see the constraint above); no
+Paystack integration exists in this codebase. Rationale and rejected alternatives:
+`docs/02-ARCHITECTURE.md`.
 
 ## Rules that will bite you if you ignore them
 

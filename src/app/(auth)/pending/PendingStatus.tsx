@@ -97,15 +97,14 @@ export function PendingStatus() {
           You&rsquo;re verified
         </h1>
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-          Welcome to NMA Gombe. Your member directory, folio card and dues payment are on their
-          way — we&rsquo;ll let you know the moment they&rsquo;re live.
+          Welcome to NMA Gombe. Your member directory and folio card are ready.
         </p>
         <Link
-          href="/"
+          href="/portal"
           className="type-body font-semibold px-lg py-sm mt-lg inline-block"
           style={{ backgroundColor: 'var(--color-green)', color: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
         >
-          Back to home
+          Go to your portal
         </Link>
       </div>
     )

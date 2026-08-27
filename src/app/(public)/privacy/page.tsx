@@ -62,9 +62,9 @@ export default function PrivacyPage() {
         <Section title="Why">
           <p>
             To confirm you&rsquo;re a licensed doctor and chapter member, run the verified
-            directory, issue your digital folio card, and administer dues. We never collect date
-            of birth, home address, marital status, religion, ethnicity, or health information
-            about you or your family.
+            directory, and issue your digital folio card. We never collect date of birth, home
+            address, marital status, religion, ethnicity, or health information about you or
+            your family.
           </p>
         </Section>
 
