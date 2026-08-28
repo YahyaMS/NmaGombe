@@ -601,6 +601,23 @@ origin; `exchangeRecaptchaEnterpriseToken` returns **HTTP 200** with a real sign
 done, and still requires a separate, explicit decision; this update closes the verification gap,
 it does not itself authorise enforcement.
 
+**Update, 2026-08-29 — user explicitly authorised enforcement; Functions half done and deployed.**
+`enforceAppCheck: true` added to all six `onCall` functions (`decideVerification`,
+`markAttendance`, `unmarkAttendance`, `setMemberStatus`, `setMemberRole`, `logBroadcast`) and
+deployed via `firebase deploy --only functions`. Local smoke suite (21/21) still passes against
+the emulator with this change — a weaker signal than it looks: `lib/firebase/app.ts` skips App
+Check entirely under `usingEmulators`, so the emulator-based test client never sent a token
+either before or after this change, and Firebase's Functions emulator does not appear to enforce
+App Check as strictly as production regardless. This confirms the code change didn't break
+anything structurally; it does **not** confirm a real exec session against production still
+works with a valid token attached to an actual callable-Function invocation — only Auth REST
+calls (`sendOobCode`) were directly verified in the update above, not `httpsCallable`. Firestore
+and Storage "Enforce" in Console remain deliberately untouched — the highest-blast-radius half of
+step (d), since it would affect every verified member's `/portal` reads, not just six admin
+actions — and require a Console click only the user can make; see `docs/00-INTAKE.md`-style
+follow-up needed: confirm a real admin action (e.g. `/admin/broadcast`, lowest-stakes of the six)
+still works in production before treating the Functions half as fully validated, not just deployed.
+
 ---
 ## ADR-021 — Dues payment deferred to Version 3: no CAC registration, not a near-term blocker
 **Context.** Every prior doc in this project treats dues payment as "blocked on the Paystack

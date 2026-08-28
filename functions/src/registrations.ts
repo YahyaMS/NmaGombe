@@ -43,7 +43,7 @@ function lagosDateString(ts: Timestamp): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(ts.toDate())
 }
 
-export const markAttendance = onCall({ region: REGION }, async (request) => {
+export const markAttendance = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
   const callerUid = requireExecCaller(request)
 
   const parsed = inputSchema.safeParse(request.data)
@@ -113,7 +113,7 @@ export const markAttendance = onCall({ region: REGION }, async (request) => {
   return { ok: true as const, ...result }
 })
 
-export const unmarkAttendance = onCall({ region: REGION }, async (request) => {
+export const unmarkAttendance = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
   const callerUid = requireExecCaller(request)
 
   const parsed = inputSchema.safeParse(request.data)

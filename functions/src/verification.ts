@@ -26,7 +26,7 @@ const inputSchema = z.object({
   note: z.string().trim().max(500).optional(),
 })
 
-export const decideVerification = onCall({ region: REGION }, async (request) => {
+export const decideVerification = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
   if (!request.auth || request.auth.token.role !== 'admin') {
     throw new HttpsError('permission-denied', 'Only an admin can decide a verification request.')
   }
