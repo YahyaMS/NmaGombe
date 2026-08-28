@@ -618,6 +618,26 @@ actions — and require a Console click only the user can make; see `docs/00-INT
 follow-up needed: confirm a real admin action (e.g. `/admin/broadcast`, lowest-stakes of the six)
 still works in production before treating the Functions half as fully validated, not just deployed.
 
+**Update, 2026-08-29 (same day) — confirmed broken, rolled back immediately.** The requested
+verification found exactly the failure this ADR's whole caution was about: `/admin/broadcast`
+failed with "Couldn't log this broadcast — try again" on one device, then succeeded moments later
+on the user's PC. Same account, same action, inconsistent outcome — consistent with reCAPTCHA
+Enterprise's client-side attestation not reliably completing before the token was needed on every
+device/browser (slower devices, stricter privacy settings, or similar), not a one-off fluke.
+`enforceAppCheck: true` removed from all six functions and redeployed the same session it was
+enabled, per the explicit commitment made before asking the user to test ("if you get an error...
+I'll roll this back immediately"). The rollback's own first deploy attempt failed for an unrelated
+reason (`Error generating the service identity for eventarc.googleapis.com` — transient GCP
+provisioning, tied to `cleanupExpiredJobs` newly existing, not to this change); retried
+immediately and succeeded. **Root cause not yet diagnosed** — this update does not explain *why*
+attestation is unreliable, only that it demonstrably is, on real production traffic, today. Do
+not re-enable `enforceAppCheck` on any of these six functions, and do not proceed to Firestore/
+Storage "Enforce" in Console (a strictly larger version of the same risk), until that root cause
+is understood. Candidates worth checking first, not yet checked: whether `isTokenAutoRefreshEnabled`
+gives the SDK enough lead time to fetch a token before first use on a slow connection; whether the
+reCAPTCHA Enterprise key's authorized domains are complete; whether a stale/cached token from
+before this key was correctly registered was still in play on the device that failed.
+
 ---
 ## ADR-021 — Dues payment deferred to Version 3: no CAC registration, not a near-term blocker
 **Context.** Every prior doc in this project treats dues payment as "blocked on the Paystack

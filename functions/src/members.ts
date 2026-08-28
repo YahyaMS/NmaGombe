@@ -33,7 +33,7 @@ const statusInputSchema = z.object({
   status: z.enum(['verified', 'suspended']),
 })
 
-export const setMemberStatus = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+export const setMemberStatus = onCall({ region: REGION }, async (request) => {
   const callerUid = requireExecCaller(request)
 
   const parsed = statusInputSchema.safeParse(request.data)
@@ -65,7 +65,7 @@ const roleInputSchema = z.object({
   role: z.enum(['member', 'exec', 'admin']),
 })
 
-export const setMemberRole = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+export const setMemberRole = onCall({ region: REGION }, async (request) => {
   const callerUid = requireExecCaller(request)
   const callerRole = request.auth!.token.role
 

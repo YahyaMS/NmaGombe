@@ -24,7 +24,7 @@ const inputSchema = z.object({
   audience: z.string().trim().min(2).max(120),
 })
 
-export const logBroadcast = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+export const logBroadcast = onCall({ region: REGION }, async (request) => {
   const role = request.auth?.token.role
   if (!request.auth || (role !== 'admin' && role !== 'exec')) {
     throw new HttpsError('permission-denied', 'Only an admin or exec can log a broadcast.')
