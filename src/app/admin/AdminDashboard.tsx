@@ -15,6 +15,7 @@ const quickLinks = [
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/broadcast', label: 'Broadcast' },
   { href: '/admin/welfare', label: 'Welfare cases' },
+  { href: '/admin/documents', label: 'Guidelines & documents' },
 ]
 
 function formatDate(iso: DashboardSignup['submittedAt']): string {

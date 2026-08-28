@@ -124,7 +124,15 @@ route — that's a judgement call for whoever writes the line.
                                  NYSC to 45) — extending a listing means reposting, not editing,
                                  since expiresAt is frozen once created. Contact number prefills
                                  from the member's own profile phone, editable.
-/portal/documents                [Not started] Member-only downloads: guidelines, forms, circulars.
+/portal/documents                [Built] Member-only downloads: guidelines, forms, circulars.
+                                 List is Firestore metadata (offline-browsable via Firestore's
+                                 own cache, same as the rest of /portal). The file itself
+                                 downloads via GET /portal/documents/[id]/download (Bearer-token
+                                 authenticated, Admin SDK — never a Storage getDownloadURL(), see
+                                 docs/09-DECISIONS.md ADR-022). Offline file access is explicit
+                                 per document ("Save for offline"), via the Cache Storage API
+                                 directly — not automatic, and not routed through sw.js, which
+                                 excludes /portal from its own fetch handling entirely.
 /portal/welfare                  [Built] Welfare fund info (placeholder — real eligibility/coverage
                                  copy not supplied yet, docs/00-INTAKE.md item 24) + a one-tap
                                  "Request welfare assistance" action. Plain client Firestore
@@ -184,6 +192,11 @@ route — that's a judgement call for whoever writes the line.
                                  PATCH /api/admin/welfare/[id] (session-cookie authenticated, same
                                  pattern as /api/admin/events), not the Firestore client SDK —
                                  same conversion as /admin/news and /admin/events.
+/admin/documents                 [Built] Upload/remove guidelines, forms, circulars — title,
+                                 category, one PDF (max 10MB). POST/DELETE
+                                 /api/admin/documents(/[id]), session-cookie authenticated, Admin
+                                 SDK writes both the Storage object and the Firestore metadata
+                                 doc — no client Firestore or Storage SDK on this route at all.
 ```
 
 ## Route-level rules

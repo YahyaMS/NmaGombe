@@ -70,6 +70,7 @@ const quickLinks = [
   { href: '/portal/directory', label: 'Find a colleague' },
   { href: '/portal/cpd', label: 'Your CPD log' },
   { href: '/portal/jobs', label: 'Jobs & locums' },
+  { href: '/portal/documents', label: 'Guidelines & documents' },
   { href: '/portal/welfare', label: 'Welfare fund' },
   { href: '/portal/profile', label: 'Edit your profile' },
 ]

@@ -50,6 +50,7 @@ const OFFLINE_ROUTES = new Set([
   '/portal/directory/[uid]',
   '/portal/jobs',
   '/portal/jobs/new',
+  '/portal/documents',
   '/portal/welfare',
   '/portal/profile',
   '/pending',

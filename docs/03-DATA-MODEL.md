@@ -228,6 +228,21 @@ re-publish, so it shouldn't reassign authorship or bump the item back to the top
 newest-first list. `excerpt` is re-derived from the new body on every edit, or a body correction
 would leave a stale preview.
 
+### `documents/{id}`
+`title, category ("guideline"|"form"|"circular"), fileName, fileSize, contentType, storagePath, uploadedBy, uploadedAt`
+Doc ID is auto-generated, same reasoning as `jobs/{id}`. Metadata only — the file itself lives in
+Storage at `guidelines/{id}/{fileName}` (`storagePath`), never inline. Written only via the Admin
+SDK (`POST /api/admin/documents`), so `firestore.rules` is `allow write: if false` for this
+collection, not even an `isExec()` carve-out — there is no client write path to leave open.
+Read (`allow get, list: if verified()`) is metadata only: title, category, file size — enough to
+browse and choose what to save for offline, never the file bytes. The file itself downloads
+through `GET /portal/documents/[id]/download` (Bearer-token authenticated, Admin SDK, re-checks
+`verified()` on every single request) rather than a Storage `getDownloadURL()` — see
+`docs/09-DECISIONS.md` ADR-022 for why: a download-URL token bypasses rule evaluation on every
+request after the first, which is the exact "unguessable URLs are not security" failure mode
+`storage.rules`' own opening line already warns against, applied to a collection whose whole
+point is "member-only."
+
 ### `jobs/{id}`
 `title, facility, town, type ("locum"|"permanent"|"nysc"), description, contactVia, postedBy, expiresAt, status ("active"|"filled"), createdAt`
 Doc ID is auto-generated — no natural unique key like a slug. `expiresAt` and `createdAt` stay
@@ -312,6 +327,9 @@ directly (`/admin/welfare`), off-platform after that, matching the "handle it of
    account cannot create, read, or delete another self-supposedly-owned entry. `source` can only
    ever be written as `"self_reported"` by a client, and is immutable once set — an entry cannot
    be created honestly and relabelled `"chapter_event"` afterward.
+8. `documents` metadata requires `verified()` to read; no client, exec or admin included, can
+   write, update or delete via the client SDK at all — Admin SDK only. The Storage object at
+   `guidelines/{id}/{file}` is `allow read, write: if false` unconditionally, both directions.
 8. A `cpdEntries` doc with `source == "chapter_event"` cannot be updated or deleted by a
    client at all, not even by its own owner — only `markAttendance`/`unmarkAttendance` (Admin
    SDK) touch it. Without this, a member could edit an exec-confirmed attendance entry's

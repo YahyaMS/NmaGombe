@@ -149,6 +149,19 @@ service cloud.firestore {
       allow write: if isExec() && eventShapeValid();
     }
 
+    // Clinical guideline/form/circular metadata — member-only, read-only for
+    // every client. Written only via the Admin SDK (Route Handler
+    // /api/admin/documents, same conversion as news/events), so this is
+    // deliberately allow write: if false, not isExec() — no client-rules
+    // backdoor for a collection with no client write path at all. The file
+    // itself lives in Storage under guidelines/{id}/{file}, which is
+    // Admin-SDK-only too (storage.rules) — see docs/09-DECISIONS.md ADR-022
+    // for why a member-only file is never served via getDownloadURL().
+    match /documents/{id} {
+      allow get, list: if verified();
+      allow write: if false;
+    }
+
     // Registration id is deterministic ({eventId}_{uid} — see
     // docs/03-DATA-MODEL.md), so double-registration is a rules-level no-op.
     // A member creates their own registration directly (not privileged, no

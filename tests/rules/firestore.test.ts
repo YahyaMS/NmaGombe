@@ -1059,6 +1059,51 @@ describe('news/{slug}', () => {
   })
 })
 
+// ── Invariant 10a: documents (clinical guidelines/forms/circulars) — member-only read, no client write at all ──
+
+describe('documents/{id}', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'documents/doc-001'), {
+        title: 'Malaria treatment protocol',
+        category: 'guideline',
+      })
+    })
+  })
+
+  test('unauthenticated cannot read', async () => {
+    const db = anon().firestore()
+    await assertFails(getDoc(doc(db, 'documents/doc-001')))
+  })
+
+  test('authenticated-but-unverified cannot read', async () => {
+    const db = authed('someone').firestore()
+    await assertFails(getDoc(doc(db, 'documents/doc-001')))
+  })
+
+  test('verified member can read', async () => {
+    const db = verified('regular-member').firestore()
+    await assertSucceeds(getDoc(doc(db, 'documents/doc-001')))
+  })
+
+  test('no client can write, not even exec — Admin SDK only', async () => {
+    const db = exec('exec-user').firestore()
+    await assertFails(
+      setDoc(doc(db, 'documents/doc-002'), { title: 'New', category: 'form' })
+    )
+  })
+
+  test('no client can update, not even admin', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(updateDoc(doc(db, 'documents/doc-001'), { title: 'Tampered' }))
+  })
+
+  test('no client can delete, not even exec', async () => {
+    const db = exec('exec-user').firestore()
+    await assertFails(deleteDoc(doc(db, 'documents/doc-001')))
+  })
+})
+
 // ── Invariant 10b: jobs — member-posted, compulsory expiry, moderation is delete-only ──
 
 function daysFromNow(days: number): Timestamp {

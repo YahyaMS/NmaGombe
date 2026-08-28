@@ -23,6 +23,7 @@ test("member reaches every /portal quick-link route by clicking, starting from /
     { label: "Find a colleague →", path: "/portal/directory" },
     { label: "Your CPD log →", path: "/portal/cpd" },
     { label: "Jobs & locums →", path: "/portal/jobs" },
+    { label: "Guidelines & documents →", path: "/portal/documents" },
     { label: "Welfare fund →", path: "/portal/welfare" },
     { label: "Edit your profile →", path: "/portal/profile" },
   ];
@@ -51,6 +52,7 @@ test("exec reaches every /admin quick-link route by clicking, starting from /adm
     { label: "Events →", path: "/admin/events" },
     { label: "Broadcast →", path: "/admin/broadcast" },
     { label: "Welfare cases →", path: "/admin/welfare" },
+    { label: "Guidelines & documents →", path: "/admin/documents" },
   ];
 
   for (const { label, path } of quickLinks) {

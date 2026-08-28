@@ -598,3 +598,40 @@ correct if this is ever revisited. Nothing in the shipped app changes behaviour;
 documentation and copy correction, not a code change, which is itself the finding worth recording:
 the graceful-degradation discipline this project held from the start meant deferring a "Phase 1
 anchor" feature indefinitely broke nothing.
+
+---
+## ADR-022 — Clinical guideline files never served via Storage getDownloadURL()
+**Context.** `/portal/documents` (`docs/06-ROADMAP.md`'s "clinical guideline repository") needed
+a way for a verified member to fetch a PDF the chapter has published — guidelines, forms,
+circulars. The obvious Firebase-native approach, already used elsewhere in this codebase for CPD
+certificates (`lib/data/cpd.ts`), is `getDownloadURL()`: call it once under a rules-gated read,
+get back a stable HTTPS URL, fetch it directly. That pattern is correct for `cpd/{uid}/{file}`,
+which is genuinely uid-scoped — only the owner or an exec can even generate the URL in the first
+place, and leaking one exposes at most that one member's own certificate to themselves. It is
+**not** correct here: `documents/{id}` is a shared, member-only library, not uid-scoped, and a
+`getDownloadURL()` token — once issued — is not re-checked against `storage.rules` on later
+requests. The token in the URL is the only thing the public HTTP download endpoint checks; the
+`allow read` rule that gated the *first* fetch plays no further part. `storage.rules`' own
+opening line already states the relevant principle: "Unguessable URLs are not security."
+Applying `getDownloadURL()` to a "member-only" resource would violate that principle the file
+already commits to — a copied or logged link would keep working for anyone, forever, regardless
+of whether the holder is still a verified member, or a member at all.
+**Decision.** `storage.rules`' `guidelines/{id}/{file}` path is `allow read, write: if false`
+unconditionally — no client, member or exec, can reach it directly, rules or no rules. Both
+directions go through the Admin SDK instead, which bypasses `storage.rules` entirely but
+re-checks authorisation itself in code (CLAUDE.md rule 2): exec upload via
+`POST /api/admin/documents` (session-cookie, `isExec`), member download via
+`GET /portal/documents/[id]/download` (Bearer `<ID token>`, `verified === true`), the exact same
+authorisation shape `/portal/card/download` already established for a different reason (serving
+computed, not-yet-existing content). Every single download request re-verifies `verified` —
+there is no standing link that keeps working after a member is unverified or removed, which a
+`getDownloadURL()` token would.
+**Consequence.** A member can never share a guideline's raw link — every "open" or "save for
+offline" action re-authenticates. The cost is real: no CDN caching of the file bytes at Firebase's
+edge, and every fetch is a Cloud Function-adjacent Route Handler round trip rather than a direct
+Storage hit. Acceptable here — a member-only clinical-document library is exactly the kind of
+content this project's own stated threat model (`docs/03-DATA-MODEL.md`: "assume someone will try
+to scrape it") should treat as sensitive by default, not the kind of content worth optimising a
+CDN path for. If this collection ever becomes genuinely public (no reason to today), revisit this
+ADR before switching back to `getDownloadURL()` — don't let the convenience quietly re-open the
+gap this ADR closed.

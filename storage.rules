@@ -28,6 +28,18 @@ service firebase.storage {
       allow write: if isExec();
     }
 
+    // Clinical guidelines/forms/circulars — member-only, never served via a
+    // Storage download URL (docs/09-DECISIONS.md ADR-022: a getDownloadURL()
+    // token bypasses these rules on every request after the first, which
+    // this file's own opening line calls out as not security). Admin SDK
+    // only, both directions — exec upload goes through
+    // /api/admin/documents, member download through
+    // /portal/documents/[id]/download, neither ever touches this path via
+    // the client SDK.
+    match /guidelines/{id}/{file} {
+      allow read, write: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

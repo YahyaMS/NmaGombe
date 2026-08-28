@@ -388,6 +388,36 @@ export const jobPostInputSchema = z
   )
 export type JobPostInput = z.infer<typeof jobPostInputSchema>
 
+export const documentCategorySchema = z.enum(['guideline', 'form', 'circular'])
+export type DocumentCategory = z.infer<typeof documentCategorySchema>
+
+export const documentCategoryLabels: Record<DocumentCategory, string> = {
+  guideline: 'Guideline',
+  form: 'Form',
+  circular: 'Circular',
+}
+
+export const DOCUMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+export const DOCUMENT_ALLOWED_CONTENT_TYPE = 'application/pdf'
+
+/**
+ * documents/{id} — metadata only, doc ID auto-generated. The file itself
+ * lives in Storage at `storagePath` (guidelines/{id}/{fileName}), never
+ * inline — see docs/03-DATA-MODEL.md. Written only via the Admin SDK
+ * (POST /api/admin/documents); firestore.rules has no client write path for
+ * this collection at all, not even isExec().
+ */
+export const documentSchema = z.object({
+  title: z.string(),
+  category: documentCategorySchema,
+  fileName: z.string(),
+  fileSize: z.number().int().positive(),
+  contentType: z.string(),
+  storagePath: z.string(),
+  uploadedBy: z.string(),
+})
+export type DocumentItem = z.infer<typeof documentSchema>
+
 export const welfareCaseStatusSchema = z.enum(['open', 'in_review', 'resolved', 'declined'])
 export type WelfareCaseStatus = z.infer<typeof welfareCaseStatusSchema>
 
