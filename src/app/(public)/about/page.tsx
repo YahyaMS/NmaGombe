@@ -139,6 +139,59 @@ export default function AboutPage() {
 
       <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
 
+      {/* ── History ── */}
+      <section aria-label="Chapter history">
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+          <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+            History
+          </p>
+
+          <div className="flex flex-col gap-md" style={{ maxWidth: '68ch' }}>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              The Gombe State Branch of the Nigerian Medical Association (NMA) is the primary
+              professional body for physicians practising in Gombe State. Its origins trace back
+              to the wider Nigerian Medical Association, which began in 1951 as a branch of the
+              British Medical Association in Nigeria, was rebranded the Nigerian Medical
+              Association in 1960, and received official recognition in 1962.
+            </p>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              Following the creation of Gombe State in 1996, the state&rsquo;s medical sector
+              expanded significantly, mirroring the growth of institutions such as the State
+              Specialist Hospital, the Federal Teaching Hospital Gombe (formerly the Federal
+              Medical Centre), and Gombe State University&rsquo;s College of Medical Sciences —
+              and, more recently, Federal Medical Centre Kumo and the National Orthopaedic
+              Hospital, Biliri, among others. NMA Gombe became a crucial platform for the
+              state&rsquo;s physicians, dedicated to their professional welfare, advocating for
+              better healthcare services, upholding ethical practice, and building unity among
+              practitioners.
+            </p>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              The branch has advanced healthcare in Gombe State through medical outreach
+              programmes, public health awareness campaigns, scientific conferences, and joint
+              ventures with government agencies and other bodies. It has also developed numerous
+              prominent medical leaders who have contributed to the association at both state and
+              national level.
+            </p>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              In recent years, NMA Gombe has prioritised strengthening its internal operations —
+              improved welfare initiatives, avenues for professional development, publications
+              such as the Gombe Doctors&rsquo; Bulletin, and projects to improve member identity
+              and wellbeing, including a dedicated association building.
+            </p>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              NMA Gombe remains a respected affiliate of the Nigerian Medical Association,
+              committed to camaraderie among doctors, protecting members&rsquo; interests, and
+              improving health outcomes for the people of Gombe State.
+            </p>
+            <p className="type-small" style={{ color: 'var(--color-ink-3)', marginTop: 'var(--spacing-xs)' }}>
+              Written by Dr. Ishaq Inuwa Gombe, Chairman, NMA Gombe State, 2026–present.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
+
       {/* ── Executive council ── */}
       <section aria-label="Executive council">
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>

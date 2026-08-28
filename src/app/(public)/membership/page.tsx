@@ -1,13 +1,18 @@
 /**
- * /membership — how to join, benefits, grades. The conversion page
- * (docs/05-ROUTES.md). No dues payment anywhere on this page — Version 3,
- * unscheduled; the chapter has no CAC registration, a legal prerequisite for
- * a Nigerian payment gateway account. See docs/09-DECISIONS.md ADR-021.
+ * /membership — how to join, benefits, grades, dues. The conversion page
+ * (docs/05-ROUTES.md). The dues figure below is informational text only —
+ * no payment flow, no "Pay now" button. Online payment itself is Version 3,
+ * unscheduled; the chapter has no CAC registration, a legal prerequisite
+ * for a Nigerian payment gateway account. See docs/09-DECISIONS.md ADR-021.
+ * Real figure supplied 2026-08-28 — docs/00-INTAKE.md item 7 cleared for
+ * the amount; part-payment/waiver policy (same item) is still open.
  */
 
 import type { Metadata } from 'next'
 import { gradeLabels, gradeSchema } from '@/lib/data/schemas'
 import { MembershipCta } from './MembershipCta'
+
+const DUES_AMOUNT_NAIRA = 12000
 
 export const metadata: Metadata = {
   title: 'Membership — NMA Gombe',
@@ -145,6 +150,24 @@ export default function MembershipPage() {
           <p className="type-small mt-md" style={{ color: 'var(--color-ink-3)' }}>
             Your grade sets the title shown on your folio card — set it in your profile after
             you&rsquo;re verified.
+          </p>
+        </div>
+      </section>
+
+      <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
+
+      {/* ── Dues ── */}
+      <section aria-label="Dues">
+        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
+          <p className="type-eyebrow section-rule mb-lg" style={{ color: 'var(--color-ink-3)' }}>
+            Dues
+          </p>
+          <p className="type-h2" style={{ color: 'var(--color-ink)' }}>
+            ₦{DUES_AMOUNT_NAIRA.toLocaleString('en-NG')} per member per month
+          </p>
+          <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)', maxWidth: '48ch' }}>
+            A flat rate across all grades. Online payment isn&rsquo;t available on the site yet —
+            contact the secretariat for how to pay.
           </p>
         </div>
       </section>

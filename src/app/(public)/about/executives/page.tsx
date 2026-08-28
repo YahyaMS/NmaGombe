@@ -99,13 +99,15 @@ const EXECUTIVES: Executive[] = [
   },
 ]
 
+const AVATAR_SIZE = 72
+
 function ExecAvatar({ exec }: { exec: Executive }) {
   if (exec.photo) {
     return (
       <div
         style={{
-          width: '48px',
-          height: '48px',
+          width: `${AVATAR_SIZE}px`,
+          height: `${AVATAR_SIZE}px`,
           borderRadius: '50%',
           overflow: 'hidden',
           flexShrink: 0,
@@ -116,8 +118,8 @@ function ExecAvatar({ exec }: { exec: Executive }) {
         <Image
           src={exec.photo}
           alt={exec.name}
-          width={48}
-          height={48}
+          width={AVATAR_SIZE}
+          height={AVATAR_SIZE}
           style={{ objectFit: 'cover', objectPosition: 'center top', width: '100%', height: '100%' }}
         />
       </div>
@@ -129,8 +131,8 @@ function ExecAvatar({ exec }: { exec: Executive }) {
     <div
       aria-hidden="true"
       style={{
-        width: '48px',
-        height: '48px',
+        width: `${AVATAR_SIZE}px`,
+        height: `${AVATAR_SIZE}px`,
         borderRadius: '50%',
         backgroundColor: 'var(--color-green-deep)',
         color: 'rgba(255,255,255,0.70)',
@@ -139,7 +141,7 @@ function ExecAvatar({ exec }: { exec: Executive }) {
         justifyContent: 'center',
         flexShrink: 0,
         fontFamily: 'var(--font-mono)',
-        fontSize: '11px',
+        fontSize: '15px',
         fontWeight: 500,
         letterSpacing: '0.04em',
       }}
@@ -190,7 +192,7 @@ export default function ExecutivesPage() {
                     i < EXECUTIVES.length - 1
                       ? '1px solid var(--color-rule)'
                       : undefined,
-                  minHeight: '64px',
+                  minHeight: '88px',
                 }}
               >
                 {/* Role index */}

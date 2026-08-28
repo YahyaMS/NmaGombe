@@ -28,8 +28,11 @@ Nothing here is a technical problem — which is exactly why projects like this 
    (`docs/06-ROADMAP.md`'s Version 3, `docs/09-DECISIONS.md` ADR-021) rather than treated as
    pending. Do not build toward it, and do not word anything as "coming soon."
 6. Settlement bank account, and who reconciles it monthly.
-7. Full dues structure: amount by member grade/category, the portion remitted to national,
-   and how arrears are treated. Actual figures, not "roughly."
+7. **Partially cleared, 2026-08-28.** Amount: ₦12,000 per member per month, flat across all
+   grades (shown on `/membership`, informational text only — no payment flow, that's still
+   blocked on item 5). Still open: the portion remitted to national, and how arrears are
+   treated. A flat monthly rate this high is worth double-checking wasn't meant as an annual
+   figure before it's repeated anywhere else — confirm rather than assume either way.
 8. Is part-payment allowed? Are there waivers (retired, students, hardship)?
 
 ## C. Member data — the verification source of truth
@@ -39,7 +42,12 @@ Nothing here is a technical problem — which is exactly why projects like this 
     **Cleared.** In hand at `data/roster-2025-2026.xlsx` (gitignored, never committed — NDPA).
     Per `09-DECISIONS.md` ADR-014 it's a dues-eligibility ledger only (names and payment
     status, no department/facility/folio), so it seeds verification-by-name-match, not an
-    automated folio cross-check — see item 11.
+    automated folio cross-check — see item 11. A second, larger name list (~300 entries, no
+    folio/facility/grade, visibly unstructured — duplicates, inconsistent formatting) was
+    supplied 2026-08-28 and saved the same way, `data/roster-doctors-list-2026.csv`
+    (gitignored). **Not published anywhere on the site** — no consent basis to list these
+    people publicly or in the member directory (see ADR-024); usable only the same way the
+    other roster file is, as an admin name-matching aid during `/admin/verification`.
 10. Who custodies that roster today, and do we have written permission to hold a copy?
 11. ~~Agreed rule for what makes someone "verified": folio number matches roster? Officer
     vouches? Dues current? Pick one and write it down.~~
@@ -66,7 +74,10 @@ Nothing here is a technical problem — which is exactly why projects like this 
     stock. Below the 15–30 target; keep collecting.
 16. ~~Current exec list: names, positions, portraits, tenure dates.~~
     **Cleared** — real names, positions and portraits live in `/about` and `/about/executives`.
-17. Chapter history/about text; constitution or bye-laws if members should access them.
+17. ~~Chapter history/about text; constitution or bye-laws if members should access them.~~
+    **Partially cleared, 2026-08-28.** History text supplied (written by Dr. Ishaq Inuwa
+    Gombe, Chairman) and live on `/about`, lightly copy-edited for grammar. Constitution/
+    bye-laws still not supplied.
 18. Any existing communiqués, newsletters or press statements to seed the archive.
 
 ## E. Infrastructure ownership
@@ -79,6 +90,10 @@ Nothing here is a technical problem — which is exactly why projects like this 
     line covers the $10.99/year renewal — same handover concern as item 4.
 20. A chapter-controlled email address (e.g. `secretariat@…`) to own the Firebase project,
     registrar account, Paystack account and GitHub org. **Never a personal Gmail.**
+    `nmagombestate@gmail.com` is now published on `/contact` as the secretariat's contact
+    address — a shared chapter Gmail, better than a personal one, but still not what this item
+    asks for. Worth moving to `secretariat@nmagombe.org` now that the domain exists, and
+    confirming who actually holds the Gmail account's credentials in the meantime.
 21. A password manager the exec can hand over. This is the difference between a site that
     survives one exec cycle and one that doesn't.
 22. WhatsApp: which groups exist, roughly how many members in each, who admins them. That is

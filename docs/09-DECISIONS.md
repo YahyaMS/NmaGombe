@@ -669,3 +669,36 @@ time. `firestore.indexes.json` matching the code is necessary but not sufficient
 actually be deployed; a stale-index audit (`npx firebase-tools firestore:indexes --project
 nma-gombe-c5a9d`, diffed against the file) is worth running after any query shape change, not
 assumed from the file alone.
+
+---
+## ADR-024 — A ~300-name doctor list was not published; no consent basis to
+**Context.** Supplied 2026-08-28: a plain list of roughly 300 names, described as "the list of
+all the members currently practicing under the association," with a request to show "a register
+of all the numbers at a glance" because "some members will never register on the site so waiting
+for them to do that will not be reliable." The list has no folio numbers, specialties, facilities
+or contact details — names only — and is visibly unstructured: inconsistent name-order formatting
+across entries, at least one exact duplicate, a stray "NAME" header mid-list, and several entries
+carrying unexplained numeric suffixes that look like they belong to some other export's ID or
+dues-status column, not reproduced here. There is no way to confirm these are current, licensed,
+practising members versus a legacy contact list, and — the deciding fact — none of them have gone
+through this project's own consent flow.
+**Decision.** Not published anywhere on the site, public or member-only. This project already
+built the correct mechanism for "who's a real, current member": `/signup` → `/admin/verification`
+→ `directoryEntries`, populated only once a real person has submitted their own folio number, an
+admin has matched it against a roster, and the member has separately opted in per field to
+directory listing (`consentRecordSchema`, `docs/08-NDPA-COMPLIANCE.md`: "a pre-checked box is not
+consent"). Publishing this list would bypass every part of that — no signup, no verification, no
+consent — for real people who may not even know they're listed. It would also directly contradict
+ADR-012's existing reasoning for *why* the directory is never pre-seeded with placeholder entries:
+no specialty/facility/folio to seed usefully, and no claim step for someone to correct a wrong or
+unwanted entry. Saved instead to `data/roster-doctors-list-2026.csv`, gitignored, the same
+treatment as `data/roster-2025-2026.xlsx` (item 9) — usable only as an admin's name-matching aid
+during `/admin/verification`, never surfaced to members or the public.
+**Consequence.** The chapter's actual problem — members who will plausibly never self-register —
+is real and not solved by this ADR; it's deliberately left unsolved rather than solved wrongly.
+If a "register at a glance" is still wanted, the legitimate path is bulk-inviting or bulk-
+verifying these specific people through the real flow (e.g. an admin-initiated pre-verification
+for named individuals, with each one still getting the chance to set their own directory
+visibility once they sign in) — a real feature, not a data dump, and one that needs its own
+plan and consent design before any code gets written. Revisit with the chapter, not by quietly
+widening this ADR later.
