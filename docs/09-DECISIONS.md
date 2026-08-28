@@ -586,6 +586,21 @@ reads "register a reCAPTCHA **Enterprise** key" — still gated on the same conf
 before enforcement, still nothing rejected by any of this until that's deliberately, separately
 done.
 
+**Update, 2026-08-29 — step (c) confirmed, directly, not from Console metrics.** Real reCAPTCHA
+Enterprise site key registered and set as `NEXT_PUBLIC_APPCHECK_SITE_KEY` in Vercel Production
+(`vercel env rm` + `vercel env add`, same working pattern as `NEXT_PUBLIC_SITE_URL`), redeployed.
+Verified end-to-end on the live site the same way the earlier "is this actually working" question
+was answered — not by reading Firebase Console's App Check metrics (the original plan, abandoned
+after the user couldn't confidently interpret what that page was showing), but by submitting a
+real sign-in on `https://nmagombe.org/signin` and inspecting the actual network traffic directly:
+`enterprise.js` loads and executes against the real site key, scoped correctly to the `nmagombe.org`
+origin; `exchangeRecaptchaEnterpriseToken` returns **HTTP 200** with a real signed App Check JWT
+(1-hour TTL); the subsequent Identity Toolkit `sendOobCode` call carries a genuine
+`X-Firebase-AppCheck` header. Step (c) is done. Step (d) — `enforceAppCheck: true` on the six
+`onCall` Functions, and turning on "Enforce" for Firestore/Storage in Console — is still not
+done, and still requires a separate, explicit decision; this update closes the verification gap,
+it does not itself authorise enforcement.
+
 ---
 ## ADR-021 — Dues payment deferred to Version 3: no CAC registration, not a near-term blocker
 **Context.** Every prior doc in this project treats dues payment as "blocked on the Paystack
