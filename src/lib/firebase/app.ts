@@ -34,13 +34,20 @@ export const usingEmulators =
   typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_EMULATORS === 'true'
 
 /**
- * A genuine no-op today: NEXT_PUBLIC_APPCHECK_SITE_KEY isn't set anywhere yet
- * (no reCAPTCHA v3 key has been registered in Firebase Console under App
- * Check — see docs/09-DECISIONS.md ADR-020), so this `if` never runs and
- * `firebase/app-check` is never even fetched. Dynamic import deliberately,
- * not static — a no-op should cost 0KB, not just do nothing at runtime.
- * Skipped under emulators too; App Check's local debug-token flow is a
- * separate setup this project hasn't needed yet.
+ * Currently a no-op: NEXT_PUBLIC_APPCHECK_SITE_KEY is set in Vercel but —
+ * confirmed 2026-08-29 by inspecting the live production bundle and network
+ * traffic directly, not assumed — evaluates empty/falsy at build time, so
+ * this `if` is dead-code-eliminated and never ships. Root cause not yet
+ * pinned down; being re-registered from scratch anyway, since Google has
+ * deprecated classic reCAPTCHA v3 in favour of reCAPTCHA Enterprise —
+ * confirmed directly from Firebase Console's own deprecation notice, not
+ * assumed from training data, which is why this uses
+ * ReCaptchaEnterpriseProvider, not ReCaptchaV3Provider. See
+ * docs/09-DECISIONS.md ADR-020.
+ *
+ * Dynamic import deliberately, not static — a no-op should cost 0KB, not
+ * just do nothing at runtime. Skipped under emulators too; App Check's
+ * local debug-token flow is a separate setup this project hasn't needed.
  *
  * Once a real site key is set, this starts attaching a token to every
  * Firestore/Functions/Storage call — but nothing is *rejected* until
@@ -60,9 +67,9 @@ export const usingEmulators =
 const appCheckSiteKey = process.env.NEXT_PUBLIC_APPCHECK_SITE_KEY
 if (typeof window !== 'undefined' && !usingEmulators && appCheckSiteKey) {
   const siteKey = appCheckSiteKey
-  void import('firebase/app-check').then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+  void import('firebase/app-check').then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
     initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(siteKey),
+      provider: new ReCaptchaEnterpriseProvider(siteKey),
       isTokenAutoRefreshEnabled: true,
     })
   })

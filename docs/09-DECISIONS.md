@@ -562,6 +562,30 @@ environment," above, was already wrong when written) or was added after. If it's
 client-initializing in production right now. Deliberately not investigated further yet; do not
 assume either the "still a no-op" framing above or full activation until someone checks.
 
+**Update, 2026-08-29 — investigated properly; still a genuine no-op, and the provider changed.**
+Vercel's env var predates this ADR (created 8 days before this update, versus the ADR's own
+2026-08-25 client-wiring commit) — the "unset in every environment" claim above was already wrong
+the day it was written. But it does **not** mean App Check has been silently active: verified
+directly, not assumed. Submitted a real sign-in on the live production site and inspected the
+actual outgoing network request — no `X-Firebase-AppCheck` header, zero reCAPTCHA or App Check
+exchange requests. Then found `lib/firebase/app.ts`'s exact compiled code in the live bundle: the
+entire App Check `if` block is absent, meaning the bundler proved it dead code at build time,
+which only happens when the env var evaluates empty/falsy *during the Vercel build*. The Vercel
+dashboard shows a value exists but marks it "Sensitive," which blocks viewing or copying it back —
+so neither the user nor this session could confirm what's actually stored. Root cause not pinned
+down (attempting `vercel env pull` to inspect it was blocked by this session's own permission
+settings) and not worth chasing further, since it's being replaced anyway: **Google has deprecated
+classic reCAPTCHA v3 in favour of reCAPTCHA Enterprise** (confirmed directly from Firebase
+Console's own deprecation notice while the user was there registering it — not assumed from
+training data, which could easily be stale on exactly this kind of platform change). Code updated
+accordingly: `lib/firebase/app.ts` now imports `ReCaptchaEnterpriseProvider`, not
+`ReCaptchaV3Provider` — confirmed a real export in the installed `@firebase/app-check` SDK's
+`.d.ts` (the `firebase` package pins `12.17.1`) before shipping, not assumed. The
+activation sequence in this ADR's Consequence section is otherwise unchanged, except step (a) now
+reads "register a reCAPTCHA **Enterprise** key" — still gated on the same confirmation step (c)
+before enforcement, still nothing rejected by any of this until that's deliberately, separately
+done.
+
 ---
 ## ADR-021 — Dues payment deferred to Version 3: no CAC registration, not a near-term blocker
 **Context.** Every prior doc in this project treats dues payment as "blocked on the Paystack
