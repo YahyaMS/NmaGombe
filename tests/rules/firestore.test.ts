@@ -1104,6 +1104,41 @@ describe('documents/{id}', () => {
   })
 })
 
+// ── Invariant 11: registerEntries — Admin SDK only, no client access at all ──
+
+describe('registerEntries/{id}', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'registerEntries/entry-001'), { name: 'Dr Test Person' })
+    })
+  })
+
+  test('unauthenticated cannot read', async () => {
+    const db = anon().firestore()
+    await assertFails(getDoc(doc(db, 'registerEntries/entry-001')))
+  })
+
+  test('verified member cannot read', async () => {
+    const db = verified('regular-member').firestore()
+    await assertFails(getDoc(doc(db, 'registerEntries/entry-001')))
+  })
+
+  test('exec cannot read', async () => {
+    const db = exec('exec-user').firestore()
+    await assertFails(getDoc(doc(db, 'registerEntries/entry-001')))
+  })
+
+  test('admin cannot read', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(getDoc(doc(db, 'registerEntries/entry-001')))
+  })
+
+  test('no client can write, not even admin', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(setDoc(doc(db, 'registerEntries/entry-002'), { name: 'New Name' }))
+  })
+})
+
 // ── Invariant 10b: jobs — member-posted, compulsory expiry, moderation is delete-only ──
 
 function daysFromNow(days: number): Timestamp {

@@ -31,8 +31,16 @@ route — that's a judgement call for whoever writes the line.
                          short "under review" note. Same URL, different job. No dues status
                          shown anywhere here — dues payment is Version 3, unscheduled (no CAC
                          registration, ADR-021), same as /portal.
-/about                   [Built] Chapter, history, constitution/bye-laws.
-/about/executives        [Built] Current exec with portraits and tenure. Past execs as an archive.
+/about                   [Built] Chapter, history (written by the Chairman), affiliate
+                         organisations. A "Meet the executive council →" pointer to /executives
+                         — no preview grid here, per the user's request to separate them.
+/executives              [Built] Current executive council (bold photo grid, 160px circular
+                         photos — deliberately not register rows, the one other exception to
+                         design.md's "no boxes, no shadow" alongside the folio card, though
+                         still no actual box/shadow, just larger scale) and past leadership
+                         since 1998 (register rows), on one page. Was two nested pages under
+                         /about (/about/executives, /about/past-leadership); both now redirect
+                         here permanently (next.config.ts).
 /news                    [Built] Communiqués, news, advocacy, obituaries. Filterable by ?category=,
                          plain links — no client JS. Reads via Admin SDK (lib/data/news.ts),
                          same pattern as /verify — public page, no reason to ship the client SDK.

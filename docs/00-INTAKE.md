@@ -46,8 +46,10 @@ Nothing here is a technical problem — which is exactly why projects like this 
     folio/facility/grade, visibly unstructured — duplicates, inconsistent formatting) was
     supplied 2026-08-28 and saved the same way, `data/roster-doctors-list-2026.csv`
     (gitignored). **Not published anywhere on the site** — no consent basis to list these
-    people publicly or in the member directory (see ADR-024); usable only the same way the
-    other roster file is, as an admin name-matching aid during `/admin/verification`.
+    people publicly or in the member directory (see ADR-024). Confirmed 2026-08-29 as the
+    association's own register; built into `/admin/verification` as a fuzzy name-matching hint
+    (`registerEntries/{id}`, Admin-SDK-only, `scripts/import-register.ts`) — still never
+    surfaced to members or the public, per ADR-024's update.
 10. Who custodies that roster today, and do we have written permission to hold a copy?
 11. ~~Agreed rule for what makes someone "verified": folio number matches roster? Officer
     vouches? Dues current? Pick one and write it down.~~
@@ -73,7 +75,8 @@ Nothing here is a technical problem — which is exactly why projects like this 
     **In progress** — 11 real photos in `public/photos/` (exec portraits, group photos), no
     stock. Below the 15–30 target; keep collecting.
 16. ~~Current exec list: names, positions, portraits, tenure dates.~~
-    **Cleared** — real names, positions and portraits live in `/about` and `/about/executives`.
+    **Cleared** — real names, positions and portraits live in `/executives` (split out from
+    `/about` 2026-08-29, its own page with past leadership, per the user's request).
 17. ~~Chapter history/about text; constitution or bye-laws if members should access them.~~
     **Partially cleared, 2026-08-28.** History text supplied (written by Dr. Ishaq Inuwa
     Gombe, Chairman) and live on `/about`, lightly copy-edited for grammar. Constitution/

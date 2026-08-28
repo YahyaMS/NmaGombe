@@ -15,7 +15,7 @@ import { SMOKE_EVENT_SLUG, SMOKE_NEWS_SLUG } from "./global-setup";
 const publicRoutes = [
   "/",
   "/about",
-  "/about/executives",
+  "/executives",
   "/news",
   "/membership",
   "/contact",

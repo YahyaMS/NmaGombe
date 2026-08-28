@@ -162,6 +162,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Association-supplied name register — an admin's fuzzy name-matching
+    // aid during /admin/verification (docs/09-DECISIONS.md ADR-024), never
+    // read by any client, exec or admin included: no consent basis to
+    // expose ~300 real names to a browser, even an admin's. Written only by
+    // scripts/import-register.ts (Admin SDK, run by hand), read only by
+    // lib/data/registerMatch.ts (also Admin SDK, server-only).
+    match /registerEntries/{id} {
+      allow read, write: if false;
+    }
+
     // Registration id is deterministic ({eventId}_{uid} — see
     // docs/03-DATA-MODEL.md), so double-registration is a rules-level no-op.
     // A member creates their own registration directly (not privileged, no

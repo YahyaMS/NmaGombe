@@ -702,3 +702,19 @@ for named individuals, with each one still getting the chance to set their own d
 visibility once they sign in) — a real feature, not a data dump, and one that needs its own
 plan and consent design before any code gets written. Revisit with the chapter, not by quietly
 widening this ADR later.
+
+**Update, 2026-08-29 — confirmed the association's own register; built the matching aid.** The
+chapter confirmed this list came from the association's own register, and asked specifically for
+what this ADR's Consequence section already named as the legitimate use: an admin-facing check
+during verification, not a public listing. Built as `registerEntries/{id}` (Admin SDK only,
+`allow read, write: if false` unconditionally — no client, exec or admin included, can ever read
+it) and `lib/data/registerMatch.ts`, a fuzzy token-overlap match (not exact string matching — the
+source list's formatting is too inconsistent for that to work) surfaced as an "In register" /
+"Not found in register" hint next to each pending signup on `/admin/verification`. It is
+deliberately still a hint, not a gate: it doesn't block or auto-approve anything, and the admin's
+own judgement remains the actual check, same as before this existed. `scripts/import-register.ts`
+(same `FIREBASE_SERVICE_ACCOUNT_B64`-gated, run-by-hand pattern as `grant-admin.ts`) loads
+`data/roster-doctors-list-2026.csv` into Firestore. This still doesn't solve "members who will
+never self-register" — the bulk pre-verification idea above remains unbuilt and would need its
+own plan — but it does make the verification step this ADR already relied on meaningfully faster
+and more reliable than a side-by-side spreadsheet.

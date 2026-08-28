@@ -17,7 +17,8 @@
     "test:rules": "jest --testPathPattern=tests/rules --runInBand",
     "test:auth": "jest --testPathPattern=tests/auth",
     "test:smoke": "playwright test tests/smoke",
-    "grant-admin": "ts-node scripts/grant-admin.ts"
+    "grant-admin": "ts-node scripts/grant-admin.ts",
+    "import-register": "ts-node scripts/import-register.ts"
   },
   "dependencies": {
     "firebase": "^12.17.1",

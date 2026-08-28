@@ -12,6 +12,7 @@
 
 import 'server-only'
 import { adminDb } from '@/lib/firebase/admin'
+import { loadRegisterTokenSets, matchAgainstRegister } from './registerMatch'
 
 export interface DashboardSignup {
   id: string
@@ -68,6 +69,9 @@ export interface VerificationQueueRow {
   department: string
   facility: string
   email: string
+  /** Fuzzy name-token match against registerEntries — a hint, not a
+   *  verdict. null when registerEntries is empty (nothing to check yet). */
+  registerMatch: boolean | null
 }
 
 /**
@@ -78,7 +82,10 @@ export interface VerificationQueueRow {
  * than an onSnapshot listener — see VerificationQueue.tsx.
  */
 export async function listVerificationQueueAdmin(): Promise<VerificationQueueRow[]> {
-  const snap = await adminDb.collection('verificationRequests').orderBy('submittedAt', 'desc').get()
+  const [snap, registerTokenSets] = await Promise.all([
+    adminDb.collection('verificationRequests').orderBy('submittedAt', 'desc').get(),
+    loadRegisterTokenSets(),
+  ])
 
   return Promise.all(
     snap.docs.map(async (doc): Promise<VerificationQueueRow> => {
@@ -86,16 +93,19 @@ export async function listVerificationQueueAdmin(): Promise<VerificationQueueRow
       const submittedAt = data.submittedAt as FirebaseFirestore.Timestamp | undefined
       const memberSnap = await adminDb.collection('members').doc(data.uid as string).get()
       const member = memberSnap.data()
+      const displayName = (member?.displayName as string | undefined) ?? ''
+      const { matched, registerLoaded } = matchAgainstRegister(displayName, registerTokenSets)
       return {
         id: doc.id,
         uid: data.uid as string,
         folioNumber: (data.folioNumber as string) ?? '',
         submittedAt: submittedAt ? submittedAt.toDate().toISOString() : null,
         decision: data.decision === 'approve' || data.decision === 'reject' ? data.decision : null,
-        displayName: (member?.displayName as string | undefined) ?? '',
+        displayName,
         department: (member?.department as string | undefined) ?? '',
         facility: (member?.facility as string | undefined) ?? '',
         email: (member?.email as string | undefined) ?? '',
+        registerMatch: registerLoaded ? matched : null,
       }
     })
   )

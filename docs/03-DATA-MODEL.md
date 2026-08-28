@@ -243,6 +243,14 @@ request after the first, which is the exact "unguessable URLs are not security" 
 `storage.rules`' own opening line already warns against, applied to a collection whose whole
 point is "member-only."
 
+### `registerEntries/{id}`
+`name` — that's the whole shape. The association's own supplied name register, imported by
+`scripts/import-register.ts` from `data/roster-doctors-list-2026.csv` (gitignored, never
+committed). `allow read, write: if false` for every client, exec and admin included — see
+docs/09-DECISIONS.md ADR-024. Read only by `lib/data/registerMatch.ts` (Admin SDK, server-only)
+to give `/admin/verification` a fuzzy "is this name in the association's register" hint per
+pending signup — never surfaced to members, never exposed as a directory or a public list.
+
 ### `jobs/{id}`
 `title, facility, town, type ("locum"|"permanent"|"nysc"), description, contactVia, postedBy, expiresAt, status ("active"|"filled"), createdAt`
 Doc ID is auto-generated — no natural unique key like a slug. `expiresAt` and `createdAt` stay
@@ -348,6 +356,10 @@ directly (`/admin/welfare`), off-platform after that, matching the "handle it of
     list, or reassign it to someone else. `expiresAt` is bounded both `> request.time` and
     `<= request.time + 60 days` at create, regardless of type. Moderation (`isExec()`) is
     delete-only — there is no exec update path on this collection at all.
+12. `registerEntries` is `allow read, write: if false` unconditionally — no exception for exec
+    or admin, unlike every other exec-restricted collection in this file. There is no rules-level
+    role that should ever see this collection from a browser; only `lib/data/registerMatch.ts`
+    (Admin SDK) reads it, server-side, on `/admin/verification`.
 
 ## Indexes
 Composite indexes needed for: news by `status + publishedAt desc`, events by

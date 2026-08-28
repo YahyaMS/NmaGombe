@@ -48,6 +48,16 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return []
   },
+
+  // /about/executives and /about/past-leadership merged into one standalone
+  // page at /executives (docs/09-DECISIONS.md) — permanent redirects so any
+  // link or bookmark to the old paths still lands somewhere real.
+  async redirects() {
+    return [
+      { source: '/about/executives', destination: '/executives', permanent: true },
+      { source: '/about/past-leadership', destination: '/executives', permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

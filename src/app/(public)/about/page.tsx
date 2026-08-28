@@ -192,50 +192,34 @@ export default function AboutPage() {
 
       <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
 
-      {/* ── Executive council ── */}
-      <section aria-label="Executive council">
-        <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
-            <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>
-              Executive council · 2026–present
+      {/* ── Executive council pointer ──
+          The full council + past leadership moved to their own page,
+          /executives — see docs/09-DECISIONS.md. Just a clear pointer here,
+          not a preview; the header nav and footer also link there. */}
+      <section aria-label="Executive council" style={{ backgroundColor: 'var(--color-green-wash)' }}>
+        <div
+          className="mx-auto px-md py-xl flex items-center justify-between gap-md flex-wrap"
+          style={{ maxWidth: 'var(--width-shell)' }}
+        >
+          <div>
+            <p className="type-eyebrow section-rule mb-sm" style={{ color: 'var(--color-ink-3)' }}>
+              Leadership
             </p>
-            <Link href="/about/executives" className="type-small" style={{ color: 'var(--color-green)', whiteSpace: 'nowrap' }}>
-              Full list →
-            </Link>
+            <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
+              The current executive council and past leadership since 1998.
+            </p>
           </div>
-
-          {/* Preview — first four officers only */}
-          {[
-            { role: 'Chairman',        name: 'Dr. Ishaq Inuwa Gombe' },
-            { role: 'Deputy Chairman', name: 'Dr. Daniel Apollos' },
-            { role: 'Secretary',       name: 'Dr. Joel Iliya Alphayo' },
-            { role: 'Treasurer',       name: 'Dr. Anuwa Hassan Dankano' },
-          ].map(({ role, name }, i, arr) => (
-            <div
-              key={role}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '14ch 1fr',
-                gap: 'var(--spacing-md)',
-                padding: 'var(--spacing-md) 0',
-                borderBottom: i < arr.length - 1 ? '1px solid var(--color-rule)' : undefined,
-                minHeight: '48px',
-              }}
-            >
-              <span className="type-eyebrow" style={{ color: 'var(--color-ink-3)' }}>{role}</span>
-              <span className="type-h3" style={{ color: 'var(--color-ink)' }}>{name}</span>
-            </div>
-          ))}
-
-          <div style={{ marginTop: 'var(--spacing-lg)' }}>
-            <Link
-              href="/about/executives"
-              className="type-small"
-              style={{ color: 'var(--color-green)' }}
-            >
-              View all 12 officers and past leadership →
-            </Link>
-          </div>
+          <Link
+            href="/executives"
+            className="type-small font-semibold whitespace-nowrap px-md py-sm"
+            style={{
+              backgroundColor: 'var(--color-green)',
+              color: 'var(--color-surface)',
+              borderRadius: 'var(--radius)',
+            }}
+          >
+            Meet the executive council →
+          </Link>
         </div>
       </section>
 

@@ -101,7 +101,9 @@ export function VerificationQueue({ initialRequests }: { initialRequests: Verifi
       <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Admin</p>
       <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>Verification queue</h1>
       <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-        Check the name against the eligibility list before approving.
+        Check the name against the eligibility list before approving. &ldquo;In register&rdquo; /
+        &ldquo;Not found in register&rdquo; is a fuzzy name match against the association&rsquo;s
+        own list — a hint, not a verdict; use your own judgement either way.
       </p>
 
       <div className="mt-lg">
@@ -117,7 +119,21 @@ export function VerificationQueue({ initialRequests }: { initialRequests: Verifi
               <div key={request.id}>
                 <RegisterRow
                   index={formatDate(request.submittedAt)}
-                  primary={request.displayName || 'Unnamed'}
+                  primary={
+                    <>
+                      {request.displayName || 'Unnamed'}
+                      {request.registerMatch === true && (
+                        <span className="type-small font-semibold" style={{ color: 'var(--color-green)', marginLeft: 'var(--spacing-sm)' }}>
+                          In register
+                        </span>
+                      )}
+                      {request.registerMatch === false && (
+                        <span className="type-small font-semibold" style={{ color: 'var(--color-harmattan)', marginLeft: 'var(--spacing-sm)' }}>
+                          Not found in register
+                        </span>
+                      )}
+                    </>
+                  }
                   secondary={[request.department, request.facility, `Folio ${request.folioNumber}`, request.email]
                     .filter(Boolean)
                     .join(' · ')}

@@ -90,6 +90,18 @@ export function SiteHeader() {
                 About
               </Link>
             </li>
+            <li className="hidden sm:block">
+              <Link
+                href="/executives"
+                className="type-small transition-colors"
+                style={{
+                  color: 'rgba(255,255,255,0.75)',
+                  transitionDuration: 'var(--motion-fast)',
+                }}
+              >
+                Executives
+              </Link>
+            </li>
             <HeaderAccountLink />
           </ul>
         </nav>
