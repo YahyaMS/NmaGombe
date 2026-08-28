@@ -2,16 +2,22 @@
  * Homepage — /
  *
  * display-scale statement, one photograph (Members of NMA Gombe), two
- * primary actions, register-row "what we do" section. Two session-aware
+ * primary actions, register-row "what we do" section. Three session-aware
  * client islands read nma_display — same pattern as HeaderAccountLink:
- * HeroAccountLink (the second hero action) and HomeFolioCard (the folio-card
+ * HeroAccountLink (the second hero action), HomeFolioCard (the folio-card
  * section, which additionally fetches /api/portal/own-card for a verified
  * member's own card — an authenticated Route Handler call, not the Firestore
  * client SDK, so this stays a static Server Component with no move to
- * dynamic rendering). The communiqué section below is plain server data —
- * Admin SDK via lib/data/news.ts, the same pattern /news already uses.
+ * dynamic rendering), and HomeQuickLinks (renders nothing for a signed-out
+ * or pending visitor; a register-row list of every /portal feature for a
+ * signed-in member/admin, so landing on `/` instead of `/portal` isn't a
+ * dead end). The communiqué section below is plain server data — Admin SDK
+ * via lib/data/news.ts, the same pattern /news already uses.
  *
- * design.md §10. No feature grid, ever.
+ * design.md §10. No feature grid, ever — for the signed-out/public side.
+ * HomeQuickLinks is deliberately not that: it's the same register-row
+ * navigation PortalDashboard.tsx already uses, renders for a signed-in
+ * member only, and adds no promotional framing.
  */
 
 import type { Metadata } from 'next'
@@ -19,6 +25,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { HeroAccountLink } from './HeroAccountLink'
 import { HomeFolioCard } from './HomeFolioCard'
+import { HomeQuickLinks } from './HomeQuickLinks'
 import { listPublishedNews } from '@/lib/data/news'
 import { newsCategoryLabels } from '@/lib/data/schemas'
 import { RegisterRow } from '@/components/ui/RegisterRow'
@@ -194,6 +201,8 @@ export default async function HomePage() {
           />
         </div>
       </section>
+
+      <HomeQuickLinks />
 
       {/* ── Latest communiqué ──
           Server data, Admin SDK (lib/data/news.ts) — same pattern as /news.

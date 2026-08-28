@@ -304,16 +304,24 @@ feel considered, the layout is wrong.
 **Homepage.** Logged out: a display-scale statement of what the chapter is, one photograph, and
 two actions — *Find a doctor* (primary) and *Member sign in*. Below it, the single latest
 communiqué as a register row — absent entirely, not empty, when nothing is published — and
-nothing else. Logged in as a verified member: the folio card section shows the visitor's own
-real card in place of the demo card, "Go to your portal →" in place of "Get verified →"; falls
-back to the demo card silently if the card fetch fails. Same URL, different job. No feature grid,
-ever.
+nothing else. **No feature grid, ever, on this side of the page.**
+
+Logged in as a verified member: the folio card section shows the visitor's own real card in
+place of the demo card, "Go to your portal →" in place of "Get verified →"; falls back to the
+demo card silently if the card fetch fails. Below that, a "Your shortcuts" register-row list to
+every `/portal` feature (directory, CPD, jobs, guidelines, welfare, profile) — added because a
+member landing on `/` instead of `/portal` had no way to reach anything from here except that one
+"Go to your portal" link. This is not the feature grid the rule above forbids: it's the same
+register-row navigation `PortalDashboard.tsx` already uses, renders only for a signed-in member,
+and carries no promotional framing — a functional shortcut list, not marketing. Same URL,
+different job either way.
 
 Scoped down from an earlier version of this spec, which additionally described a plural list of
 communiqués, dues status beneath the logged-in card, and the directory search field as the first
 interactive element for a logged-in visitor. None of those three shipped — dues status has no
-data source yet (no Paystack merchant account), and the other two were simply out of scope for
-this slice. Revisit deliberately, not by drifting back toward this paragraph's old wording.
+data source at all now (Version 3, no CAC registration — ADR-021), and the other two were simply
+out of scope for that slice. Revisit deliberately, not by drifting back toward this paragraph's
+old wording.
 
 **Directory (the anchor).** Search field is the first thing on the page and is focused on desktop
 load. Results are register rows. Filters are a bottom sheet on mobile, an inline row on desktop —

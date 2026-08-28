@@ -24,10 +24,13 @@ route — that's a judgement call for whoever writes the line.
                          verified member/admin: the folio-card section shows the visitor's
                          own real card (GET /api/portal/own-card, session-cookie authenticated,
                          own record only) with "Go to your portal →" in place of the demo card
-                         and CTA — falls back to the demo card silently on any fetch failure.
-                         Pending: no card, a short "under review" note. Same URL, different job.
-                         No dues status shown anywhere here — dues payment is Version 3,
-                         unscheduled (no CAC registration, ADR-021), same as /portal.
+                         and CTA — falls back to the demo card silently on any fetch failure —
+                         plus a "Your shortcuts" register-row list to every /portal feature
+                         (directory, CPD, jobs, guidelines, welfare, profile), so landing on /
+                         instead of /portal isn't a dead end. Pending: no card, no shortcuts, a
+                         short "under review" note. Same URL, different job. No dues status
+                         shown anywhere here — dues payment is Version 3, unscheduled (no CAC
+                         registration, ADR-021), same as /portal.
 /about                   [Built] Chapter, history, constitution/bye-laws.
 /about/executives        [Built] Current exec with portraits and tenure. Past execs as an archive.
 /news                    [Built] Communiqués, news, advocacy, obituaries. Filterable by ?category=,
