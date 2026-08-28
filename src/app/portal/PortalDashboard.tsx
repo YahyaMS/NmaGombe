@@ -6,10 +6,11 @@ import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { subscribeToOwnMemberProfile } from '@/lib/data/members'
 import { getNextUpcomingEvent, type UpcomingEvent } from '@/lib/data/portalEvents'
 import { getOwnRegistration, registerForEvent } from '@/lib/data/registrations'
+import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
 
-type Stage = 'loading' | 'ready' | 'offline' | 'no-profile'
+type Stage = 'loading' | 'ready' | 'offline' | 'no-profile' | 'error'
 
 const monthLabels = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -91,7 +92,7 @@ export function PortalDashboard() {
         setProfile(p)
         setStage(p ? 'ready' : 'no-profile')
       },
-      () => setStage('offline')
+      () => setStage(classifyDisconnection())
     )
     return unsub
   }, [guardState, uid])
@@ -140,6 +141,18 @@ export function PortalDashboard() {
             your card
           </Link>{' '}
           directly.
+        </p>
+      </div>
+    )
+  }
+
+  if (stage === 'error') {
+    return (
+      <div className="mx-auto px-md py-2xl" style={shellStyle}>
+        <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Error</p>
+        <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>Couldn&rsquo;t load your dashboard</h1>
+        <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
+          Something went wrong loading this page. Reload to try again.
         </p>
       </div>
     )

@@ -14,11 +14,12 @@ import Link from 'next/link'
 import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { getOwnMemberProfile } from '@/lib/data/members'
 import { deleteJob, markJobFilled, subscribeToActiveJobs, type JobRow } from '@/lib/data/jobs'
+import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { jobTypeLabels } from '@/lib/data/schemas'
 import { whatsAppLink, telLink } from '@/lib/whatsapp'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 
-type Stage = 'loading' | 'ready' | 'offline'
+type Stage = 'loading' | 'ready' | 'offline' | 'error'
 type RowAction = 'idle' | 'busy'
 
 const EXPIRING_SOON_DAYS = 3
@@ -61,7 +62,7 @@ export function JobsBoard() {
         setJobs(rows)
         setStage('ready')
       },
-      () => setStage('offline')
+      () => setStage(classifyDisconnection())
     )
   }, [guardState, uid])
 
@@ -102,6 +103,18 @@ export function JobsBoard() {
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
           The job board hasn&rsquo;t synced to this device yet, so there&rsquo;s nothing cached to
           show. Connect once and it&rsquo;ll be available offline after that.
+        </p>
+      </div>
+    )
+  }
+
+  if (stage === 'error') {
+    return (
+      <div className="mx-auto px-md py-2xl" style={shellStyle}>
+        <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Error</p>
+        <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>Couldn&rsquo;t load the job board</h1>
+        <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
+          Something went wrong loading this page. Reload to try again.
         </p>
       </div>
     )

@@ -635,3 +635,37 @@ to scrape it") should treat as sensitive by default, not the kind of content wor
 CDN path for. If this collection ever becomes genuinely public (no reason to today), revisit this
 ADR before switching back to `getDownloadURL()` — don't let the convenience quietly re-open the
 gap this ADR closed.
+
+---
+## ADR-023 — Firestore subscription errors were misreported as "offline"; jobs' index was also stale
+**Context.** A member reported `/portal/jobs` showing "You're offline... connect once and it'll
+be available offline after that" while actively using the site — not actually offline. Two
+separate bugs, found together. First: `firestore.indexes.json` correctly defines a
+`status + createdAt` composite index for `jobs` (matching `lib/data/jobs.ts`'s real query and
+`docs/03-DATA-MODEL.md`'s "newest-first, not soonest-expiring" decision), but production had
+never had that index deployed — it still only had a stale `status + expiresAt` index from an
+earlier design, left over and unused. `subscribeToActiveJobs`'s query failed with
+`failed-precondition` on every load. Second, and the more durable problem: `JobsBoard.tsx`'s
+`onSnapshot` error callback — like five other `/portal` components' — routed *every* subscription
+error, regardless of cause, to the same "you're offline" UI. A missing index, a permissions gap,
+any real backend problem: all rendered identically to a dead connection, telling the member to do
+the one thing (reconnect) that could never fix it, and hiding the real error from whoever tried to
+debug the report next. `DirectoryView.tsx` already had this right — its `onError` goes straight to
+a genuine `'error'` stage, with `navigator.onLine` used only for a separate, narrower
+"never-synced-and-currently-offline" timeout case — but that pattern was never carried to the
+other five components built after it.
+**Decision.** Deployed the missing `jobs` index (`firebase deploy --only firestore:indexes`);
+the stale `status + expiresAt` one was left in place rather than force-deleted, since an unused
+index is harmless and deleting requires `--force` (a destructive flag not worth reaching for
+here). Extracted `lib/data/classifyDisconnection()` — `navigator.onLine ? 'error' : 'offline'` —
+and wired it into every `/portal` component's subscription `onError` that was previously
+collapsing both cases together: `PortalDashboard`, `CardView`, `CpdLog`, `JobsBoard`,
+`DocumentsPage`. Each gained a genuine `'error'` stage and an honest "Something went wrong.
+Reload to try again" message, distinct from the offline one.
+**Consequence.** A future missing index, permissions gap, or any other real backend failure on
+one of these five pages now says so, rather than blaming the member's connection — and is
+therefore debuggable from the report itself, the way this incident should have been the first
+time. `firestore.indexes.json` matching the code is necessary but not sufficient — it has to
+actually be deployed; a stale-index audit (`npx firebase-tools firestore:indexes --project
+nma-gombe-c5a9d`, diffed against the file) is worth running after any query shape change, not
+assumed from the file alone.

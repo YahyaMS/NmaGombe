@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { subscribeToOwnMemberProfile } from '@/lib/data/members'
+import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
 import { auth } from '@/lib/firebase/client'
 
-type Stage = 'loading' | 'ready' | 'offline' | 'no-profile'
+type Stage = 'loading' | 'ready' | 'offline' | 'no-profile' | 'error'
 type DownloadState = 'idle' | 'working' | 'error'
 
 function titleLine(profile: MemberProfile): string {
@@ -60,7 +61,7 @@ export function CardView() {
         setProfile(p)
         setStage(p ? 'ready' : 'no-profile')
       },
-      () => setStage('offline')
+      () => setStage(classifyDisconnection())
     )
     return unsub
   }, [guardState, uid])
@@ -78,6 +79,18 @@ export function CardView() {
         <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>You&rsquo;re offline</h1>
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
           Reconnect and reload to see your folio card.
+        </p>
+      </div>
+    )
+  }
+
+  if (stage === 'error') {
+    return (
+      <div className="mx-auto px-md py-2xl" style={shellStyle}>
+        <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Error</p>
+        <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>Couldn&rsquo;t load your card</h1>
+        <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
+          Something went wrong loading this page. Reload to try again.
         </p>
       </div>
     )

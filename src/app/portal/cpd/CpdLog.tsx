@@ -23,9 +23,10 @@ import {
   type CpdEntryRecord,
 } from '@/lib/data/cpd'
 import { cpdEntryInputSchema, type CpdEntryInput } from '@/lib/data/schemas'
+import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { Field, inputStyle, labelStyle } from '@/components/ui/Field'
 
-type Stage = 'loading' | 'ready' | 'offline'
+type Stage = 'loading' | 'ready' | 'offline' | 'error'
 type SaveStage = 'idle' | 'saving'
 
 const primaryButtonStyle = {
@@ -82,7 +83,7 @@ export function CpdLog() {
         setEntries(ownEntries)
         setStage('ready')
       },
-      () => setStage('offline')
+      () => setStage(classifyDisconnection())
     )
   }, [guardState, uid])
 
@@ -144,6 +145,18 @@ export function CpdLog() {
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
           Your CPD log hasn&rsquo;t synced to this device yet, so there&rsquo;s nothing cached to
           show. Connect once and it&rsquo;ll be available offline after that.
+        </p>
+      </div>
+    )
+  }
+
+  if (stage === 'error') {
+    return (
+      <div className="mx-auto px-md py-2xl" style={{ maxWidth: '640px' }}>
+        <p className="type-eyebrow section-rule" style={{ color: 'var(--color-ink-3)' }}>Error</p>
+        <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>Couldn&rsquo;t load your CPD log</h1>
+        <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
+          Something went wrong loading this page. Reload to try again.
         </p>
       </div>
     )

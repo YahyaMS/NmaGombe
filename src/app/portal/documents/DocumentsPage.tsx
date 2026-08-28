@@ -16,11 +16,12 @@
 import { useEffect, useState } from 'react'
 import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { subscribeToDocuments, type DocumentRow } from '@/lib/data/documents'
+import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { documentCategoryLabels } from '@/lib/data/schemas'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 import { auth } from '@/lib/firebase/client'
 
-type Stage = 'loading' | 'ready' | 'offline'
+type Stage = 'loading' | 'ready' | 'offline' | 'error'
 type RowState = 'idle' | 'busy'
 
 const GUIDELINE_CACHE = 'nma-guideline-files'
@@ -70,7 +71,7 @@ export function DocumentsPage() {
         setDocuments(rows)
         setStage('ready')
       },
-      () => setStage('offline')
+      () => setStage(classifyDisconnection())
     )
   }, [guardState])
 
@@ -137,6 +138,12 @@ export function DocumentsPage() {
         <p className="type-body mt-lg" style={{ color: 'var(--color-ink-2)' }}>
           The document list hasn&rsquo;t synced to this device yet, so there&rsquo;s nothing
           cached to browse. Connect once and it&rsquo;ll be available offline after that.
+        </p>
+      )}
+
+      {stage === 'error' && documents.length === 0 && (
+        <p className="type-body mt-lg" style={{ color: 'var(--color-ink-2)' }}>
+          Something went wrong loading the document list. Reload to try again.
         </p>
       )}
 
