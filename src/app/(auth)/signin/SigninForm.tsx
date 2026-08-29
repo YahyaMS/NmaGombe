@@ -40,7 +40,7 @@ export function SigninForm() {
   // to call directly from the mount effect below without triggering cascading renders.
   async function completeSignIn(signinEmail: string) {
     try {
-      const destination = await completeReturningSignIn(window.location.href, signinEmail)
+      const { destination } = await completeReturningSignIn(window.location.href, signinEmail)
       router.replace(
         destination === 'admin' ? '/admin/verification' : destination === 'member' ? '/portal' : '/pending'
       )

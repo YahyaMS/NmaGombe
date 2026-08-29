@@ -62,6 +62,14 @@ service cloud.firestore {
     // Rate-limits sendSignInLinkToEmail. Pre-auth (signing in is the point), write-only,
     // never read — the cap is enforced by the rule itself, not by a client-trusted count.
     // One document per email per day; a new day is a new document, so no reset logic needed.
+    //
+    // The cap counts ATTEMPTS, not delivered emails: a member whose link lands in
+    // spam spends attempts re-requesting it, and hitting the cap locks them out of
+    // signing in until midnight Lagos time. 5 was too tight for that — a real member
+    // reached it during the first week of live signups. 10 still stops abuse (Firebase
+    // enforces its own per-address quota underneath this) while leaving room for a
+    // member to retry a link that never arrived. scripts/reset-email-attempts.ts
+    // clears a locked-out address without waiting for the day to roll over.
     match /emailLinkAttempts/{email}/days/{date} {
       allow get, list: if false;
       allow create: if request.resource.data.keys().hasOnly(['count', 'lastAttemptAt'])
@@ -69,7 +77,7 @@ service cloud.firestore {
                     && request.resource.data.lastAttemptAt == request.time;
       allow update: if request.resource.data.keys().hasOnly(['count', 'lastAttemptAt'])
                     && request.resource.data.count == resource.data.count + 1
-                    && request.resource.data.count <= 5
+                    && request.resource.data.count <= 10
                     && request.resource.data.lastAttemptAt == request.time;
       allow delete: if false;
     }

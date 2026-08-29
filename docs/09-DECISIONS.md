@@ -794,3 +794,58 @@ own judgement remains the actual check, same as before this existed. `scripts/im
 never self-register" — the bulk pre-verification idea above remains unbuilt and would need its
 own plan — but it does make the verification step this ADR already relied on meaningfully faster
 and more reliable than a side-by-side spreadsheet.
+
+---
+## ADR-025 — Signup's two writes are one batch; the sign-in cap is 10/day and no longer swallows unrelated errors
+**Context.** The first real signups went out to chapter officials on 2026-08-29 and two of the
+three failed, in two different ways.
+
+One official was told *"Too many sign-in emails requested for this address today"* — our own
+message, from `emailLinkAttempts` (ADR-010), not Firebase's quota. Two things made that cap worse
+than intended. It counts **attempts, not delivered emails**, so a member whose link lands in spam
+spends the budget re-requesting it; and `recordEmailLinkAttempt()` caught *every* error from that
+Firestore write and reported all of them as the cap, so an offline member — or one denied for any
+unrelated reason — was also told to come back tomorrow. Hitting it is a dead end by design: the
+counter is unreadable and undeletable from the client, so nobody, including an admin, could clear
+it without the console.
+
+The second official reached `/pending` and saw "we're reviewing your application", while the
+admin queue stayed empty. Signup did two sequential client writes — `members/{uid}` then
+`verificationRequests/{id}` — and the two halves are read by *different people*: `/pending` reads
+the first, `/admin/verification` reads the second. Anything interrupting the gap (a closed tab, a
+dropped connection) strands the member in a state neither view can detect. The wider version of
+the same gap: the signup draft (name, department, folio) lives in `localStorage` on the browser
+the form was filled in, but the link arrives by email — tap it in Gmail, re-open it in Chrome,
+and `readSignupDraft()` returns null. That fell through to the returning-member path, which signs
+the account in, writes **nothing**, and lands them on `/pending`. Their folio number was simply
+discarded, silently, and no admin ever saw a request.
+
+**Decision.** Four changes, none of which move the trust boundary.
+1. `registerNewMember()` (`lib/data/members.ts`) commits the profile and the verification request
+   in **one `writeBatch`** — both or neither. It replaces `createMemberProfile()` +
+   `submitVerificationRequest()`, which no longer exist separately. Rules still evaluate each
+   document independently, so nothing is weakened by batching.
+2. A signed-in account with **no member profile** is now a recognised state, not a fall-through.
+   `SignupForm.tsx` gains a `complete-profile` stage that asks for the details again against the
+   already-signed-in address — no second email link. `completeReturningSignIn()` returns the uid
+   alongside the destination so the form can tell "waiting on a decision" from "never applied".
+   `/pending`'s no-profile screen points there instead of only at WhatsApp.
+3. The daily cap goes 5 → 10, and `recordEmailLinkAttempt()` reports the cap **only** on
+   `permission-denied`; everything else is rethrown for `describeSignInError()` to classify.
+   Firebase's own per-address quota (`auth/too-many-requests`) now maps to the same copy, since
+   it's the same situation for the member.
+4. `scripts/reset-email-attempts.ts` clears a locked-out address without waiting for midnight
+   Lagos time, and `scripts/repair-verification-requests.ts` files the missing request for any
+   member already stranded by (1). Both follow `grant-admin.ts`'s run-by-hand,
+   `FIREBASE_SERVICE_ACCOUNT_B64`-gated pattern; the repair script is dry-run unless `--apply`
+   and prints uids only, never names, emails or folio numbers.
+
+**Consequence.** 10/day is still a guess, not a measurement — it's chosen to survive a spam-folder
+round trip, and Firebase's own quota sits underneath it either way. The cross-device recovery asks
+the member to retype three fields; the alternative, carrying the draft through the link URL, would
+put personal data in an email and a browser history for no real gain (NDPA 2023, `docs/08-NDPA-
+COMPLIANCE.md`). Note what is *not* claimed here: the admin queue still reads only
+`verificationRequests`, so it remains possible in principle for a pending member to be invisible
+to an admin — the batch closes the way that used to happen, it doesn't make the two collections
+one. If it recurs, the honest fix is to derive the queue from `members.status == "pending"` and
+keep `verificationRequests` purely as the decision audit trail.

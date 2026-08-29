@@ -63,27 +63,40 @@ export function PendingStatus() {
     )
   }
 
+  // Signed in, but no member profile — the signup details never reached
+  // Firestore. This is recoverable without the secretariat: /signup detects the
+  // same state and asks for the details again (see SignupForm.tsx), so send
+  // them there first and keep WhatsApp as the fallback.
   if (view === 'no-profile') {
     return (
       <div className="mx-auto px-md py-2xl" style={shellStyle}>
-        {eyebrow('Something went wrong')}
+        {eyebrow('Application incomplete')}
         <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>
           We couldn&rsquo;t find your application
         </h1>
         <p className="type-body mt-sm" style={{ color: 'var(--color-ink-2)' }}>
-          Your sign-in worked, but your signup details didn&rsquo;t save. Reach the secretariat on
-          WhatsApp and we&rsquo;ll sort it out.
+          Your sign-in worked, but your signup details didn&rsquo;t save. Enter them again and your
+          application goes straight to an admin — you won&rsquo;t need another email link.
         </p>
+        <Link
+          href="/signup"
+          className="type-body font-semibold px-lg py-sm mt-lg inline-block"
+          style={{ backgroundColor: 'var(--color-green)', color: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
+        >
+          Finish your application
+        </Link>
         {whatsappHref && (
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="type-body font-semibold px-lg py-sm mt-lg inline-block"
-            style={{ backgroundColor: 'var(--color-green)', color: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
-          >
-            Message the secretariat
-          </a>
+          <p className="type-small mt-lg" style={{ color: 'var(--color-ink-3)' }}>
+            Still stuck?{' '}
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--color-green)', textDecoration: 'underline' }}
+            >
+              Message the secretariat
+            </a>
+          </p>
         )}
       </div>
     )

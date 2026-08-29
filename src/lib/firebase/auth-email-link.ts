@@ -34,14 +34,25 @@ function lagosDateString(d: Date = new Date()): string {
 
 /**
  * Rate-limits sendSignInLinkToEmail — the cap is enforced by firestore.rules itself
- * (max 5/day), this just performs the write and translates the resulting denial.
+ * (max 10/day), this just performs the write and translates the resulting denial.
+ *
+ * ONLY a rules denial means the cap: this used to catch every error and report all
+ * of them as "try again tomorrow", so an offline member, or one whose write was
+ * rejected for any other reason, was told to give up for the day. A member locked
+ * out that way has no way back in — the counter is unreadable and undeletable from
+ * the client — so mislabelling a transient failure as the cap is the expensive
+ * direction to be wrong in. Anything that isn't permission-denied is rethrown
+ * unchanged for describeSignInError() to classify.
  */
 async function recordEmailLinkAttempt(email: string): Promise<void> {
   const ref = doc(db, 'emailLinkAttempts', email, 'days', lagosDateString())
   try {
     await setDoc(ref, { count: increment(1), lastAttemptAt: serverTimestamp() }, { merge: true })
-  } catch {
-    throw new Error(DAILY_CAP_MESSAGE)
+  } catch (err) {
+    if ((err as { code?: string } | undefined)?.code === 'permission-denied') {
+      throw new Error(DAILY_CAP_MESSAGE)
+    }
+    throw err
   }
 }
 
@@ -49,9 +60,12 @@ async function recordEmailLinkAttempt(email: string): Promise<void> {
 export function describeSignInError(err: unknown): string {
   if (err instanceof Error && err.message === DAILY_CAP_MESSAGE) return err.message
   const code = (err as { code?: string } | undefined)?.code
-  if (code === 'auth/network-request-failed') {
+  if (code === 'auth/network-request-failed' || code === 'unavailable') {
     return "You're offline. Reconnect and try again."
   }
+  // Firebase's own per-address quota sits underneath our daily cap and can fire
+  // first. Same situation for the member, so say the same thing.
+  if (code === 'auth/too-many-requests') return DAILY_CAP_MESSAGE
   return 'Something went wrong sending the sign-in email. Try again.'
 }
 
@@ -99,22 +113,31 @@ export async function completeEmailLinkSignIn(url: string, email: string): Promi
 
 export type ReturningSignInDestination = 'admin' | 'member' | 'pending'
 
+export interface ReturningSignIn {
+  destination: ReturningSignInDestination
+  uid: string
+}
+
 /**
  * Completes a returning member's email-link sign-in and reports which
  * post-sign-in bucket they fall into, by custom claim rather than any
  * client-writable field. Establishes the server session with the same
  * freshly-refreshed token used to decide the bucket, rather than forcing
  * two separate token refreshes.
+ *
+ * The uid comes back with the destination because 'pending' isn't a single
+ * situation — the signup form needs it to check whether a member profile
+ * exists at all before sending someone to /pending. See SignupForm.tsx.
  */
 export async function completeReturningSignIn(
   url: string,
   email: string
-): Promise<ReturningSignInDestination> {
+): Promise<ReturningSignIn> {
   const user = await completeEmailLinkSignIn(url, email)
   const idToken = await user.getIdToken(true)
   await establishServerSession(idToken)
   const token = await user.getIdTokenResult()
-  if (token.claims.role === 'admin') return 'admin'
-  if (token.claims.verified === true) return 'member'
-  return 'pending'
+  const destination: ReturningSignInDestination =
+    token.claims.role === 'admin' ? 'admin' : token.claims.verified === true ? 'member' : 'pending'
+  return { destination, uid: user.uid }
 }

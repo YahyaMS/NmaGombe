@@ -18,7 +18,9 @@
     "test:auth": "jest --testPathPattern=tests/auth",
     "test:smoke": "playwright test tests/smoke",
     "grant-admin": "ts-node scripts/grant-admin.ts",
-    "import-register": "ts-node scripts/import-register.ts"
+    "import-register": "ts-node scripts/import-register.ts",
+    "reset-email-attempts": "ts-node scripts/reset-email-attempts.ts",
+    "repair-verification-requests": "ts-node scripts/repair-verification-requests.ts"
   },
   "dependencies": {
     "firebase": "^12.17.1",

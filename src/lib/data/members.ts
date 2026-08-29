@@ -5,14 +5,13 @@
 
 import {
   doc,
-  setDoc,
   updateDoc,
   onSnapshot,
   getDoc,
   serverTimestamp,
   deleteField,
   collection,
-  addDoc,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
@@ -27,12 +26,26 @@ import {
 } from './schemas'
 
 /**
- * Creates the member's own profile on signup. Rules enforce status:"pending",
- * role:"member", and that email matches the signed-in identity — see firestore.rules.
+ * Registers a new member: their own profile AND the verification request an
+ * admin reviews, in ONE atomic batch.
+ *
+ * These used to be two sequential awaits from the signup form, and the two
+ * halves are read by different people — /pending reads members/{uid}, the admin
+ * queue reads verificationRequests. A failure between them (a closed tab, a
+ * dropped connection on the second write) left the member looking at "we're
+ * reviewing your application" while the admin's queue stayed empty, with
+ * nothing in either view to reveal the mismatch. A batch commits both or
+ * neither, so that state is no longer reachable.
+ *
+ * Rules enforce status:"pending", role:"member", and that email matches the
+ * signed-in identity; batched writes are evaluated per document, so both halves
+ * are still checked independently — see firestore.rules.
  */
-export async function createMemberProfile(uid: string, input: MemberSignupInput): Promise<void> {
+export async function registerNewMember(uid: string, input: MemberSignupInput): Promise<void> {
   const parsed = memberSignupSchema.parse(input)
-  await setDoc(doc(db, 'members', uid), {
+  const batch = writeBatch(db)
+
+  batch.set(doc(db, 'members', uid), {
     displayName: parsed.displayName,
     department: parsed.department,
     ...(parsed.facility ? { facility: parsed.facility } : {}),
@@ -43,6 +56,17 @@ export async function createMemberProfile(uid: string, input: MemberSignupInput)
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+
+  // Kept a separate document from members/{uid} for the audit trail
+  // (docs/03-DATA-MODEL.md). addDoc can't join a batch, so the id is generated
+  // client-side by doc() instead — same random id, just minted locally.
+  batch.set(doc(collection(db, 'verificationRequests')), {
+    uid,
+    folioNumber: parsed.folioNumber,
+    submittedAt: serverTimestamp(),
+  })
+
+  await batch.commit()
 }
 
 /**
@@ -82,18 +106,6 @@ export async function getOwnMemberProfile(uid: string): Promise<MemberProfile | 
   if (!snap.exists()) return null
   const parsed = memberProfileSchema.safeParse(snap.data())
   return parsed.success ? parsed.data : null
-}
-
-/**
- * Files the verification request an admin reviews against the eligibility list.
- * Kept separate from members/{uid} for the audit trail (docs/03-DATA-MODEL.md).
- */
-export async function submitVerificationRequest(uid: string, folioNumber: string): Promise<void> {
-  await addDoc(collection(db, 'verificationRequests'), {
-    uid,
-    folioNumber,
-    submittedAt: serverTimestamp(),
-  })
 }
 
 /** Live updates to the signed-in member's own profile — used by /pending to reflect approval. */
