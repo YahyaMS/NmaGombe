@@ -1,0 +1,12 @@
+# The Firebase emulators hold these log files open on Windows, and the Vercel
+# CLI fails the whole deploy with EPERM when it tries to stat one mid-upload.
+# They are already gitignored; this stops the CLI from walking them at all.
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
+# Local-only, never part of a build
+.firebase/
+test-results/
+playwright-report/
