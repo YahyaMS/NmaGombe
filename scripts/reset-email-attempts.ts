@@ -8,8 +8,9 @@
  * a hand-run script and not something the app can call.
  *
  * Deletes today's counter by default; --all clears every day this address has.
+ * Runs against the emulator unless --prod is passed (see admin-app.ts).
  *
- * Usage: npm run reset-email-attempts -- someone@example.com [--all]
+ * Usage: npm run reset-email-attempts -- someone@example.com --prod [--all]
  */
 
 import { config } from 'dotenv'
@@ -32,7 +33,7 @@ function lagosDateString(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date())
 }
 
-initAdminApp()
+const { label } = initAdminApp()
 
 async function main() {
   const db = getFirestore()
@@ -41,13 +42,13 @@ async function main() {
   if (clearAll) {
     const snap = await days.get()
     if (snap.empty) {
-      console.log('No attempt counters found for that address — nothing to clear.')
+      console.log(`No attempt counters found for that address in ${label} — nothing to clear.`)
       return
     }
     const batch = db.batch()
     snap.docs.forEach((d) => batch.delete(d.ref))
     await batch.commit()
-    console.log(`Cleared ${snap.size} day(s) of attempts. They can request a link now.`)
+    console.log(`Cleared ${snap.size} day(s) of attempts in ${label}. They can request a link now.`)
     return
   }
 
@@ -55,12 +56,14 @@ async function main() {
   const ref = days.doc(today)
   const snap = await ref.get()
   if (!snap.exists) {
-    console.log(`No attempts recorded for ${today} — they are not rate-limited by us.`)
+    console.log(`No attempts recorded for ${today} in ${label} — they are not rate-limited by us.`)
     console.log("If they're still blocked, it's Firebase's own per-address quota; that one only clears with time.")
     return
   }
   await ref.delete()
-  console.log(`Cleared ${snap.data()?.count ?? 0} attempt(s) for ${today}. They can request a link now.`)
+  console.log(
+    `Cleared ${snap.data()?.count ?? 0} attempt(s) for ${today} in ${label}. They can request a link now.`
+  )
 }
 
 main().catch((err) => {

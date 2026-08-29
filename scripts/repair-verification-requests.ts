@@ -10,12 +10,13 @@
  * is for accounts stranded before that fix.
  *
  * Safe to re-run: a member who already has a request is skipped.
- * Dry run by default. Pass --apply to write.
+ * Dry run by default, and on the emulator by default. Pass --apply to write,
+ * --prod to target the real project (see admin-app.ts).
  *
  * Prints uids only, never names, emails or folio numbers — NDPA 2023, see
  * docs/08-NDPA-COMPLIANCE.md.
  *
- * Usage: npm run repair-verification-requests [-- --apply]
+ * Usage: npm run repair-verification-requests -- --prod [--apply]
  */
 
 import { config } from 'dotenv'
@@ -26,14 +27,14 @@ import { initAdminApp } from './admin-app'
 
 const apply = process.argv.includes('--apply')
 
-initAdminApp()
+const { label } = initAdminApp()
 
 async function main() {
   const db = getFirestore()
 
   const pending = await db.collection('members').where('status', '==', 'pending').get()
   if (pending.empty) {
-    console.log('No members are pending. Nothing to repair.')
+    console.log(`No members are pending in ${label}. Nothing to repair.`)
     return
   }
 
@@ -45,7 +46,9 @@ async function main() {
 
   const stranded = pending.docs.filter((d) => !withRequest.has(d.id))
 
-  console.log(`${pending.size} pending member(s), ${stranded.length} with no verification request.`)
+  console.log(
+    `In ${label}: ${pending.size} pending member(s), ${stranded.length} with no verification request.`
+  )
   if (stranded.length === 0) return
 
   for (const member of stranded) {
@@ -53,7 +56,7 @@ async function main() {
   }
 
   if (!apply) {
-    console.log('\nDry run — nothing written. Re-run with --apply to file these requests.')
+    console.log(`\nDry run — nothing written to ${label}. Re-run with --apply to file these requests.`)
     return
   }
 
@@ -71,7 +74,9 @@ async function main() {
   }
   await batch.commit()
 
-  console.log(`\nFiled ${stranded.length} verification request(s). They're in the admin queue now.`)
+  console.log(
+    `\nFiled ${stranded.length} verification request(s) in ${label}. They're in the admin queue now.`
+  )
 }
 
 main().catch((err) => {
