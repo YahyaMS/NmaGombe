@@ -19,7 +19,18 @@ export function SiteHeader() {
 
   return (
     <header
-      style={{ backgroundColor: 'var(--color-green-deep)', color: 'var(--color-surface)' }}
+      style={{
+        backgroundColor: 'var(--color-green-deep)',
+        color: 'var(--color-surface)',
+        // Stays put while the page scrolls. Safe as plain `sticky` with no
+        // scroll listener and no layout shift: the background is fully opaque,
+        // so nothing shows through and no backdrop blur is needed — blur is
+        // expensive on the cheap Android hardware this site is built for.
+        // Below BottomSheet's z-index 50, so a sheet still covers it.
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+      }}
     >
       <div
         className="mx-auto flex items-center justify-between gap-md px-md py-md"

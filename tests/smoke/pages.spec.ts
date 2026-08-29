@@ -150,3 +150,19 @@ test("no route leaks a server-only value into the HTML", async ({ page }) => {
     expect(html).not.toMatch(/sk_(test|live)_/);
   }
 });
+
+test("the header stays put while the page scrolls", async ({ page }) => {
+  // A narrow viewport, because this is a mobile-first site and a sticky header
+  // costs the most vertical space exactly here.
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto("/executives");
+
+  // role=banner is the site header specifically: the inner <header> elements on
+  // this page sit inside <main>, so they don't take that role.
+  const header = page.getByRole("banner");
+  await expect(header).toBeInViewport();
+
+  await page.evaluate(() => window.scrollTo(0, 2000));
+  await expect(page.evaluate(() => window.scrollY)).resolves.toBeGreaterThan(0);
+  await expect(header).toBeInViewport();
+});

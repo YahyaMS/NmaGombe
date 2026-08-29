@@ -50,6 +50,13 @@
   --spacing-xl:  3rem;     /* 48px */
   --spacing-2xl: 6rem;     /* 96px */
 
+  /* ── Layout ──
+     Approximate rendered height of SiteHeader (py-md twice + a 32px crest).
+     Only used for scroll-padding-top, so it does not need to track the header
+     exactly — it needs to be no smaller than it, or a linked-to heading lands
+     underneath a sticky header. */
+  --header-height: 4rem;
+
   /* ── Radius — one value ── */
   --radius:      3px;  /* every surface except the folio card */
   --radius-card: 8px;  /* folio card only — a physical argument */
@@ -79,6 +86,9 @@ html {
   -webkit-text-size-adjust: 100%;
   font-size: 16px;
   scroll-behavior: smooth;
+  /* The header is sticky, so anything scrolled to — an in-page anchor, or an
+     element receiving keyboard focus — must stop below it rather than under it. */
+  scroll-padding-top: var(--header-height);
 }
 
 body {
