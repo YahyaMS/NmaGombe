@@ -2,10 +2,12 @@
 
 import dynamic from 'next/dynamic'
 
-// The form reads window.location and localStorage to decide its initial stage
-// (fresh request vs. returning from an email-sign-in link) — server rendering it
-// would either mismatch on hydration or need to guess, so it's client-only.
-// `ssr: false` requires a Client Component boundary, hence this thin wrapper.
+// Loaded client-side only, and this is a budget decision rather than a
+// rendering one: a static import would put firebase/auth in this route's
+// first-load JS, and /signin is in the ≤200KB public tier (CLAUDE.md,
+// docs/09-DECISIONS.md ADR-016). Behind dynamic(), the SDK arrives as its own
+// chunk after hydration and the route's first load stays at the framework
+// floor. `ssr: false` requires a Client Component boundary, hence this wrapper.
 const SigninForm = dynamic(() => import('./SigninForm').then((m) => m.SigninForm), {
   ssr: false,
 })

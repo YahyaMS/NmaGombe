@@ -22,6 +22,7 @@ const publicRoutes = [
   "/privacy",
   "/signin",
   "/signup",
+  "/reset-password",
 ];
 
 // Any console error during load is a failure. Hydration mismatches surface here and

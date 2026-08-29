@@ -28,7 +28,6 @@ import {
   deleteDoc,
   collection,
   serverTimestamp,
-  increment,
   Timestamp,
 } from 'firebase/firestore'
 
@@ -651,96 +650,36 @@ describe('verificationRequests/{id} — create', () => {
   })
 })
 
-// ── Signup slice: emailLinkAttempts — pre-auth rate limit ─────────────────────
+// ── emailLinkAttempts — removed with email-link sign-in (ADR-026) ────────────
 
-describe('emailLinkAttempts/{email}/days/{date}', () => {
-  const path = 'emailLinkAttempts/doc-example.com/days/2026-08-19'
+/**
+ * The collection and its rules block are gone. A deleted rule is still a
+ * behaviour change, and an untested one is just a hole nobody has looked in —
+ * these assert the catch-all now denies what the old block used to allow,
+ * including the unauthenticated create that was its whole purpose.
+ */
+describe('emailLinkAttempts/{email}/days/{date} — no longer a special case', () => {
+  const path = 'emailLinkAttempts/doc-example.com/days/2026-08-29'
 
-  test('unauthenticated can create the first attempt of the day', async () => {
-    const db = anon().firestore()
-    await assertSucceeds(
-      setDoc(doc(db, path), { count: 1, lastAttemptAt: serverTimestamp() })
-    )
-  })
-
-  test('cannot create with a count other than 1', async () => {
-    const db = anon().firestore()
+  test('unauthenticated can no longer create an attempt counter', async () => {
     await assertFails(
-      setDoc(doc(db, path), { count: 2, lastAttemptAt: serverTimestamp() })
+      setDoc(doc(anon().firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
     )
   })
 
-  test('can increment while under the daily cap', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
-    })
-    const db = anon().firestore()
-    await assertSucceeds(
-      setDoc(doc(db, path), { count: 2, lastAttemptAt: serverTimestamp() })
-    )
-  })
-
-  test('can still increment on the last attempt under the cap', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 9, lastAttemptAt: serverTimestamp() })
-    })
-    const db = anon().firestore()
-    await assertSucceeds(
-      setDoc(doc(db, path), { count: 10, lastAttemptAt: serverTimestamp() })
-    )
-  })
-
-  test('cannot exceed the daily cap', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 10, lastAttemptAt: serverTimestamp() })
-    })
-    const db = anon().firestore()
+  test('a signed-in member cannot create one either', async () => {
     await assertFails(
-      setDoc(doc(db, path), { count: 11, lastAttemptAt: serverTimestamp() })
+      setDoc(doc(verified('member-user').firestore(), path), {
+        count: 1,
+        lastAttemptAt: serverTimestamp(),
+      })
     )
   })
 
-  // The cap has to bind on the value Firestore actually commits, not on a
-  // number the client hands us — increment() is how the app writes this, and
-  // rules see the resolved result of the transform, not the sentinel.
-  test('cannot exceed the cap via increment() either', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 10, lastAttemptAt: serverTimestamp() })
-    })
-    const db = anon().firestore()
-    await assertFails(
-      setDoc(
-        doc(db, path),
-        { count: increment(1), lastAttemptAt: serverTimestamp() },
-        { merge: true }
-      )
-    )
-  })
-
-  test('a jump past the cap in one write is denied', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
-    })
-    const db = anon().firestore()
-    await assertFails(
-      setDoc(doc(db, path), { count: 11, lastAttemptAt: serverTimestamp() })
-    )
-  })
-
-  test('nobody can delete a counter to buy more attempts', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 10, lastAttemptAt: serverTimestamp() })
-    })
-    await assertFails(deleteDoc(doc(anon().firestore(), path)))
-    await assertFails(deleteDoc(doc(admin('admin-user').firestore(), path)))
-  })
-
-  test('nobody can read attempt counters, not even an admin', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { count: 1, lastAttemptAt: serverTimestamp() })
-    })
+  test('an admin can neither read nor write the old path', async () => {
     const db = admin('admin-user').firestore()
     await assertFails(getDoc(doc(db, path)))
+    await assertFails(setDoc(doc(db, path), { count: 1, lastAttemptAt: serverTimestamp() }))
   })
 })
 

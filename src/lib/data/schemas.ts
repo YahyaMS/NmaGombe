@@ -14,6 +14,36 @@ export const memberSignupSchema = z.object({
 })
 export type MemberSignupInput = z.infer<typeof memberSignupSchema>
 
+/**
+ * Credentials are deliberately NOT part of memberSignupSchema. That schema's
+ * parsed output is written straight to members/{uid} by registerNewMember(),
+ * so a password added to it would land in Firestore. Keeping the two schemas
+ * separate makes that structural rather than something to remember.
+ */
+export const PASSWORD_MIN_LENGTH = 8
+
+/**
+ * Length only — no forced symbols or character classes, and no low maximum.
+ * That's current NIST guidance, and it's what someone can actually type on a
+ * phone keyboard. See docs/09-DECISIONS.md ADR-026.
+ */
+export const newPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(1024)
+
+/**
+ * Signing in validates only that a password was typed. Applying the new-password
+ * minimum here would tell an existing member with a shorter password to "use at
+ * least 8 characters" when the real answer is that their password is wrong — or
+ * right, and shorter than today's rule.
+ */
+export const signInSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address'),
+  password: z.string().min(1, 'Enter your password'),
+})
+export type SignInInput = z.infer<typeof signInSchema>
+
 export const memberStatusSchema = z.enum(['pending', 'verified', 'rejected', 'suspended'])
 export type MemberStatus = z.infer<typeof memberStatusSchema>
 

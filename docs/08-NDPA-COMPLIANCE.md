@@ -62,7 +62,8 @@ purpose, its lawful basis, its retention period, and who can read it. No row, no
 | `payments.*` | dues administration and financial records | contract / legal obligation | statutory financial retention period | self, admin |
 | `mdcnRenewalMonth` | send the member a reminder they asked for | consent | while a member | self only |
 | `displayName` | identify the member on their profile, folio card, and (once verified) the directory | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
-| `email` | sign-in identity (email-link auth) and dues-receipt delivery | contract (membership administration) | while a member | self, admin |
+| `email` | sign-in identity (email + password auth, ADR-026) and password-reset delivery | contract (membership administration) | while a member | self, admin |
+| password | authenticates the member at sign-in | contract (membership administration) | while the account exists | nobody — held and hashed by Firebase Auth, never stored in Firestore, never sent to this application's servers, and deliberately excluded from `memberSignupSchema` so it cannot reach a member document (see `lib/data/schemas.ts`) |
 | `department` | clinical specialty shown in the directory once verified, and used by an admin to sanity-check a folio submission | contract (membership administration) | while a member | self, admin; verified members if directory-listed |
 | `facility` | practice location shown on the folio card, `/verify/[folio]`, and the directory once verified; also an admin cross-check | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` |
 | `grade` | title shown on the folio card and directory (e.g. "Consultant") | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` |

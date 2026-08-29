@@ -1,10 +1,10 @@
 /**
- * No Firebase import at all, deliberately. Split out of auth-email-link.ts
- * (which needs `db` for email-link rate-limiting) so that
- * useVerifiedMemberGuard/useExecGuard — which call this for the 14-day
- * session-cookie refresh on every authenticated page load — don't
- * transitively bundle Firestore just by importing it. See
- * docs/09-DECISIONS.md.
+ * No Firebase import at all, deliberately. useVerifiedMemberGuard/useExecGuard
+ * call this for the 14-day session-cookie refresh on every authenticated page
+ * load, and keeping it free of Firebase imports is what stops them pulling
+ * Firestore into their bundles just by importing it. Originally split out of
+ * the email-link module (deleted in ADR-026) for that reason; the reason
+ * outlived it. See docs/09-DECISIONS.md.
  */
 
 /**

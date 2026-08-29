@@ -67,11 +67,18 @@ route — that's a judgement call for whoever writes the line.
 
 ## Auth
 ```
-/signin                  [Built] Email-link (passwordless) sign-in — see ADR-010. Phone OTP is
-                         deferred, not built.
-/signup                  [Built] Account creation → folio submission → "pending review" state.
+/signin                  [Built] Email + password sign-in — see ADR-026, which replaced the
+                         email-link flow of ADR-010. Phone OTP is deferred, not built.
+/signup                  [Built] Account creation → folio submission → "pending review" state, in
+                         one submit with no inbox round trip. A signed-in account with no member
+                         profile is treated as an unfinished signup and asked for the details
+                         again, rather than silently landing on /pending.
+/reset-password          [Built] Requests a Firebase password-reset link. The page that actually
+                         sets the new password is Firebase-hosted, so it isn't a route here. Never
+                         reveals whether an address has an account.
 /pending                 [Built] Honest waiting-room. Says who reviews it and roughly how long.
-                         A vague pending screen is where signups die.
+                         A vague pending screen is where signups die. Its no-profile state links
+                         to /signup to finish an unfinished application.
 ```
 
 ## Member (requires `verified: true`)

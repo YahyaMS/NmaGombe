@@ -849,3 +849,68 @@ COMPLIANCE.md`). Note what is *not* claimed here: the admin queue still reads on
 to an admin — the batch closes the way that used to happen, it doesn't make the two collections
 one. If it recurs, the honest fix is to derive the queue from `members.status == "pending"` and
 keep `verificationRequests` purely as the decision audit trail.
+
+---
+## ADR-026 — Email + password replaces email-link sign-in; the inbox leaves the critical path
+**Context.** ADR-010 chose email-link (passwordless) sign-in, largely because ADR-007's phone OTP
+needed Blaze billing before a single member could sign up. It noted the cost honestly: "email
+deliverability in Nigeria is less reliable than SMS for some providers... Revisit if signup
+completion rates suffer for it." The first real signups, sent to three chapter officials on
+2026-08-29, gave us the measurement: **two of the three failed, and both failures were the
+email round trip, not the code around it.**
+
+One official requested five links and never signed in once — five sends, zero clicks, almost
+certainly a spam folder. The other clicked his link in a different browser from the one he filled
+the form in, which meant the `localStorage` signup draft wasn't there when the link opened; the
+account was created, nothing was written, and he sat on `/pending` while the admin queue stayed
+empty (see ADR-025, which closed the silent-failure half of that but could not remove the round
+trip itself).
+
+That round trip is the defect. Email-link auth requires the member to leave the browser, find a
+message, and come back to *the same browser* — three steps we don't control, on a phone, on
+expensive data. The chapter's own approval step, meanwhile, does not depend on the email at all:
+an admin checks a folio number against the register (`CLAUDE.md` rule 5 — authenticated ≠
+verified member). The email was never the thing establishing that someone is a Gombe doctor.
+
+Also worth recording: **ADR-010's premise is stale.** This project has been on Blaze since Cloud
+Functions were deployed. Billing no longer rules anything out, phone OTP included.
+
+**Decision.** Email + password becomes the only sign-in method. Email-link is deleted, not kept
+as a second path — two ways into one account is where ADR-025's bug lived, in a handler that
+served both "new signup" and "returning sign-in" and told them apart by a `localStorage` key.
+- Signup is one submit: `createUserWithEmailAndPassword`, then `registerNewMember()`'s batch,
+  then the session. One browser, one session, no inbox.
+- `lib/firebase/auth-password.ts` replaces `auth-email-link.ts`. `emailLinkAttempts` — its rules
+  block, its tests, its reset script, and its production documents — is gone. Those document ids
+  were email addresses, so once the feature went, so did any basis for keeping them.
+- New `/reset-password` asks for the link only; Firebase hosts the page that sets the password,
+  so there is no second screen to build. It never reveals whether an address has an account.
+- Password rule is **length only, minimum 8**. No forced character classes, no low maximum —
+  current NIST guidance, and what someone can actually type on an Android keyboard. Credentials
+  are deliberately kept out of `memberSignupSchema`, whose parsed output goes straight into a
+  member document.
+- Console-side: email-link disabled on the Email/Password provider, email enumeration protection
+  on. The error copy assumes the latter — wrong-password and no-such-account collapse into one
+  message, because distinguishing them turns the sign-in form into a membership oracle.
+
+**Consequence.** Email is now needed for exactly one flow: a forgotten password. That's rare and
+the member is motivated to go digging in spam, unlike a sign-in they do every time. Deliverability
+is still worth fixing (custom sender domain) but it is no longer load-bearing.
+
+What we give up: **email addresses are no longer proven.** Anyone can register with a typo or with
+someone else's address. We accept that deliberately rather than adding a verification email, which
+would put the inbox straight back on the critical path we just removed — and the folio review is
+the check that actually matters. The cost lands on one person at a time: a member with a typo'd
+address can't self-serve a password reset and has to reach the secretariat. The address is visible
+in the verification queue, so an admin can catch an obvious mistake before approving.
+
+The `complete-profile` recovery stage from ADR-025 survives, with a different job. Account creation
+and the profile write are still two operations against two services, so an account can exist with
+no profile if the second fails. That state is recognised and recoverable rather than silent — but
+note it is now the *only* way a member can be invisible to the admin queue, and it is a genuine
+failure, not a routine one.
+
+Two accounts predated this (the admin's and one official's) and had no password; both were given
+one directly via the Admin SDK rather than through a reset email, because how Firebase treats a
+password reset on an email-link-only account is exactly the kind of thing `CLAUDE.md` says not to
+guess at during a migration people are depending on.
