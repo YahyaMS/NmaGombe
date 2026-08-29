@@ -166,3 +166,13 @@ test("the header stays put while the page scrolls", async ({ page }) => {
   await expect(page.evaluate(() => window.scrollY)).resolves.toBeGreaterThan(0);
   await expect(header).toBeInViewport();
 });
+
+test("the footer's portal link points at the portal for a signed-in member", async ({ page }) => {
+  await signInAs(page, "member", "/portal");
+  await page.goto("/about");
+
+  const footerLink = page
+    .getByRole("contentinfo")
+    .getByRole("link", { name: /member portal/i });
+  await expect(footerLink).toHaveAttribute("href", "/portal");
+});

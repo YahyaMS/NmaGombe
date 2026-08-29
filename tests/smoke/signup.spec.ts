@@ -112,3 +112,36 @@ test('signing in with the wrong password says so without confirming the account 
   // whether a given doctor is a member here.
   await expect(alert).not.toContainText(/no account|not found|doesn't exist/i)
 })
+
+test('an approved member can actually reach the portal from /pending', async ({ page }) => {
+  const email = uniqueEmail()
+  try {
+    await fillSignupForm(page, email)
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await page.waitForURL((url) => url.pathname === '/pending')
+
+    const user = await adminAuth.getUserByEmail(email)
+
+    // Exactly what decideVerification does: the claim server-side, the status
+    // in Firestore. The member's session cookie still says verified:false at
+    // this point, which is the whole problem — /portal's layout reads that
+    // cookie, not the claim, and used to bounce them back here forever.
+    await adminAuth.setCustomUserClaims(user.uid, { role: 'member', verified: true })
+    await adminDb.collection('members').doc(user.uid).update({ status: 'verified' })
+
+    await expect(page.getByRole('heading', { name: /you.re verified/i })).toBeVisible({
+      timeout: 15000,
+    })
+
+    const portalLink = page.getByRole('link', { name: 'Go to your portal' })
+    await expect(portalLink).toBeVisible({ timeout: 15000 })
+    await portalLink.click()
+
+    // The assertion that matters: it stays on /portal instead of bouncing.
+    await page.waitForURL((url) => url.pathname === '/portal', { timeout: 15000 })
+    await page.waitForTimeout(1500)
+    expect(new URL(page.url()).pathname).toBe('/portal')
+  } finally {
+    await deleteAccount(email)
+  }
+})

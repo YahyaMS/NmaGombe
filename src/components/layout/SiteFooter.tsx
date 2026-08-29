@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { FooterAccountLink } from './FooterAccountLink'
 
 export function SiteFooter() {
   const year = new Date().getFullYear()
@@ -69,17 +70,18 @@ export function SiteFooter() {
           >
             © {year} NMA Gombe State Chapter
           </p>
-          <Link
-            href="/signin"
-            className="type-small transition-colors"
-            style={{
-              color: 'rgba(255,255,255,0.55)',
-              transitionDuration: 'var(--motion-fast)',
-            }}
-          >
-            Member portal →
-          </Link>
+          <FooterAccountLink />
         </div>
+
+        {/* Attribution. The site was built for the chapter as volunteer work by
+            a member of it, which is worth saying plainly and once. */}
+        <p
+          className="type-small mt-md"
+          style={{ color: 'rgba(255,255,255,0.45)' }}
+        >
+          Designed and built for the chapter by Dr Yahya MS — Obstetrics &amp; Gynaecology,
+          Federal Teaching Hospital Gombe.
+        </p>
       </div>
     </footer>
   )
