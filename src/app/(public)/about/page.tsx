@@ -46,7 +46,7 @@ export default function AboutPage() {
 
       {/* ── Page header ── */}
       <header style={{ backgroundColor: 'var(--color-green-deep)', position: 'relative', overflow: 'hidden' }}>
-        {/* Group photo — duotoned */}
+        {/* Real photo of the chapter's State Officers' Committee — duotoned */}
         <div
           aria-hidden="true"
           style={{
@@ -58,10 +58,10 @@ export default function AboutPage() {
           }}
         >
           <Image
-            src="/photos/Members of NMA Gombe.jpg"
+            src="/photos/Executives.jpg"
             alt=""
             fill
-            style={{ objectFit: 'cover', objectPosition: 'center 40%' }}
+            style={{ objectFit: 'cover', objectPosition: 'center 35%' }}
             priority
             sizes="100vw"
           />
