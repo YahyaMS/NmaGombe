@@ -110,7 +110,7 @@ export function SiteHeader() {
                   transitionDuration: 'var(--motion-fast)',
                 }}
               >
-                Executives
+                Officers&rsquo; Committee
               </Link>
             </li>
             <HeaderAccountLink />

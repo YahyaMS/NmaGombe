@@ -37,7 +37,7 @@ export function SiteFooter() {
             <ul className="list-none m-0 p-0 flex flex-col gap-sm">
               {[
                 { href: '/about', label: 'About the chapter' },
-                { href: '/executives', label: 'Executive council' },
+                { href: '/executives', label: "State Officers' Committee" },
                 { href: '/membership', label: 'Membership' },
                 { href: '/contact', label: 'Contact' },
                 { href: '/privacy', label: 'Privacy policy' },

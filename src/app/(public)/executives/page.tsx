@@ -1,10 +1,10 @@
 /**
- * /executives — current executive council and past leadership, on one page.
- * Split out from /about (which previously nested this at /about/executives
- * and /about/past-leadership) at the user's request, 2026-08-29: a
- * standalone page, more prominent photos, linked from the footer and header
- * nav rather than buried under About. Affiliate organisations stayed on
- * /about — only leadership moved.
+ * /executives — current State Officers' Committee and past leadership, on
+ * one page. Split out from /about (which previously nested this at
+ * /about/executives and /about/past-leadership) at the user's request,
+ * 2026-08-29: a standalone page, more prominent photos, linked from the
+ * footer and header nav rather than buried under About. Affiliate
+ * organisations stayed on /about — only leadership moved.
  *
  * Photos are deliberately larger and bolder than the old register-row
  * treatment (48px avatars) — still no boxes or shadows (design.md: "no
@@ -17,9 +17,9 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 
 export const metadata: Metadata = {
-  title: 'Executive Council',
+  title: "State Officers' Committee",
   description:
-    'Current executive council and past leadership of the Nigerian Medical Association, Gombe State Chapter.',
+    "Current State Officers' Committee and past leadership of the Nigerian Medical Association, Gombe State Chapter.",
 }
 
 interface Executive {
@@ -122,7 +122,7 @@ export default function ExecutivesPage() {
       <header style={{ backgroundColor: 'var(--color-green-deep)' }}>
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
           <p className="type-eyebrow section-rule mb-lg" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            Executive council
+            State Officers&rsquo; Committee
           </p>
           <h1 className="type-h1" style={{ color: 'var(--color-surface)', maxWidth: '22ch' }}>
             The people leading the chapter
@@ -133,8 +133,8 @@ export default function ExecutivesPage() {
         </div>
       </header>
 
-      {/* ── Current executives — bold photo grid, no boxes ── */}
-      <section aria-label="Current executive council">
+      {/* ── Current officers — bold photo grid, no boxes ── */}
+      <section aria-label="Current State Officers&rsquo; Committee">
         <div className="mx-auto px-md py-xl" style={{ maxWidth: 'var(--width-shell)' }}>
           <div
             style={{

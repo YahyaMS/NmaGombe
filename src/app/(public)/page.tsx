@@ -51,7 +51,7 @@ export default async function HomePage() {
         aria-label="Chapter introduction"
         style={{ backgroundColor: 'var(--color-green-deep)', position: 'relative', overflow: 'hidden' }}
       >
-        {/* Real group photo — duotone in --green-deep */}
+        {/* Real photo of the chapter's State Officers' Committee — duotone in --green-deep */}
         <div
           aria-hidden="true"
           style={{
@@ -63,7 +63,7 @@ export default async function HomePage() {
           }}
         >
           <Image
-            src="/photos/Members of NMA Gombe.jpg"
+            src="/photos/Executives.jpg"
             alt=""
             fill
             style={{ objectFit: 'cover', objectPosition: 'center 35%' }}

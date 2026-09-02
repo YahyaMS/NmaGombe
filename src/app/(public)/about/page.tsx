@@ -192,11 +192,11 @@ export default function AboutPage() {
 
       <div style={{ height: '1px', backgroundColor: 'var(--color-rule)', margin: '0 var(--spacing-md)' }} />
 
-      {/* ── Executive council pointer ──
-          The full council + past leadership moved to their own page,
+      {/* ── State Officers' Committee pointer ──
+          The full committee + past leadership moved to their own page,
           /executives — see docs/09-DECISIONS.md. Just a clear pointer here,
           not a preview; the header nav and footer also link there. */}
-      <section aria-label="Executive council" style={{ backgroundColor: 'var(--color-green-wash)' }}>
+      <section aria-label="State Officers&rsquo; Committee" style={{ backgroundColor: 'var(--color-green-wash)' }}>
         <div
           className="mx-auto px-md py-xl flex items-center justify-between gap-md flex-wrap"
           style={{ maxWidth: 'var(--width-shell)' }}
@@ -206,7 +206,7 @@ export default function AboutPage() {
               Leadership
             </p>
             <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
-              The current executive council and past leadership since 1998.
+              The State Officers&rsquo; Committee and past leadership since 1998.
             </p>
           </div>
           <Link
@@ -218,7 +218,7 @@ export default function AboutPage() {
               borderRadius: 'var(--radius)',
             }}
           >
-            Meet the executive council →
+            Meet the State Officers&rsquo; Committee →
           </Link>
         </div>
       </section>
