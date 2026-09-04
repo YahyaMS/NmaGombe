@@ -37,8 +37,12 @@ Manual, on a real mid-range Android device, throttled:
   keystroke is a cost bug, not just a performance bug.)
 
 ## 4. Accessibility
-Automated axe pass in CI on every public route. Manual keyboard traversal of signup, dues
-payment, and directory search. Contrast verified against tokens, not eyeballed.
+**Not yet built: no automated axe pass exists, in CI or anywhere else** — no `axe-core`
+dependency, no CI step. An audit (2026-09-03) found this section claiming one ran on every
+public route; it doesn't. Today this is manual only: keyboard traversal of signup and
+directory search, contrast verified against tokens (not eyeballed) by computing actual ratios
+from `globals.css`'s token values. Automating this (`@axe-core/playwright`, wired into
+`tests/smoke`) is real, unscheduled follow-up work, not a description of what runs today.
 
 ## 5. What we deliberately do not test
 Exhaustive component snapshots, and full end-to-end suites for content pages. They break on

@@ -3,11 +3,28 @@
 ## Threat model, stated plainly
 The valuable asset is a verified list of doctors with phone numbers. That is worth money to
 recruiters, drug reps, and scammers, and its exposure is an NDPA incident. Assume someone will
-try to scrape it. Design accordingly: App Check enforced, per-field visibility, no bulk endpoint,
-rate-limited search, and never a client-readable collection containing every member's phone number.
-App Check is client-wired but **not yet enforced** — see `09-DECISIONS.md` ADR-020. Until
-enforcement is on, the load-bearing control against scraping is Firestore rules
-(`verified()` gating on `directoryEntries`) plus the absence of a bulk-read endpoint, not App Check.
+try to scrape it.
+
+**Every row below is tagged by what's actually true today, not what was planned.** An audit
+(2026-09-03) found this exact section asserting controls — App Check enforcement, rate-limited
+search — that were never built, cited as active mitigations for years after the assertion stopped
+being true, and named it the project's single most reliable source of error: things written here
+as requirements got read forever after as descriptions. `scripts/check-threat-model.mjs`
+(`npm run check:threat-model`, wired into CI) enforces the `Implemented` tag honestly — every row
+tagged exactly `Implemented` must name a real test file in Proof, or the build fails. It does not,
+and cannot, judge whether `Intended` is still the honest tag for a row someone should have finished
+by now — that's still a human call. See ADR-031.
+
+| Control | Status | Proof |
+|---|---|---|
+| Directory reads (`directoryEntries`) require the `verified()` custom claim | Implemented | `tests/rules/firestore.test.ts` |
+| Per-field contact visibility (phone/whatsapp opt-in) enforced at write time, not just read time | Implemented | `functions/test/directory-projection.test.ts` |
+| Public listing (`/doctors`, `publicDirectory`) requires explicit, versioned consent | Implemented | `functions/test/directory-projection.test.ts` |
+| `/verify` looks a member up by an opaque token, not the enumerable `folioNumber` | Implemented | `tests/rules/firestore.test.ts` |
+| No trust field (`status`, `role`, `duesPaidThrough`, `verificationToken`) has a client write path | Implemented | `tests/rules/firestore.test.ts` |
+| No bulk-read endpoint returning every member's data in one call | Implemented (architectural — no single dedicated test; the absence of an `allow list: if true` anywhere in `firestore.rules` is what this rests on, and F-08 tracks adding explicit `list`-query denial tests, which the rules suite doesn't yet have for any collection) | — |
+| App Check enforcement | Intended | — (client-wired since ADR-019/020; enforced once, rolled back the same day after a real production failure — root cause still undiagnosed. See ADR-020.) |
+| Rate limiting on search, lookup, and write endpoints | Intended | — (F-05, tracked; the load-bearing controls against scraping today are `verified()` gating plus the absence of a bulk-read endpoint, not rate limiting or App Check) |
 
 ## Identity tiers
 | Tier | How it is granted | Can see |

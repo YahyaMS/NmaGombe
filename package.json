@@ -12,6 +12,7 @@
     "analyze": "next experimental-analyze",
     "check:budget": "node scripts/check-bundle-budget.mjs",
     "check:routes": "node scripts/check-routes-built.mjs",
+    "check:threat-model": "node scripts/check-threat-model.mjs",
     "emulators": "npm --prefix functions run build && firebase emulators:start",
     "test": "jest --testPathIgnorePatterns=tests/rules",
     "test:rules": "jest --testPathPattern=tests/rules --runInBand",

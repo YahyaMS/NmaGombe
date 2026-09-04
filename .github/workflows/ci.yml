@@ -36,6 +36,14 @@ jobs:
       - name: Routes doc matches reality
         run: npm run check:routes
 
+      # docs/03-DATA-MODEL.md's threat-model table tags each control Implemented/
+      # Intended. This catches a control claimed Implemented with no real test
+      # file behind it — the exact class of drift an audit found in this section
+      # specifically (App Check enforcement, rate-limited search, both cited as
+      # active for years after they stopped being true). See ADR-031.
+      - name: Threat model doc matches reality
+        run: npm run check:threat-model
+
       # THE important one. `next build` catches an entire class of errors that tsc and
       # eslint do not: server/client boundary violations, non-serializable props crossing
       # that boundary, static-rendering bailouts, bad metadata, route conflicts.

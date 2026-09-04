@@ -1,8 +1,9 @@
 # NMA Gombe State Chapter — website & member portal
 
 A member portal that a Gombe doctor has an actual reason to open: a verified colleague
-directory with one-tap WhatsApp, online dues with an instant receipt and digital folio card,
-and a CPD credit log they can export at licence-renewal time.
+directory with one-tap WhatsApp, a digital folio card, and a CPD credit log they can export
+at licence-renewal time. Online dues payment is designed but deliberately unscheduled — see
+`docs/09-DECISIONS.md` ADR-021 — and no payment code exists in this repo yet.
 
 ## Start here
 | Doc | What it answers |
@@ -21,19 +22,24 @@ and a CPD credit log they can export at licence-renewal time.
 
 ## Local setup
 ```bash
-cp .env.example .env.local   # fill in Firebase + Paystack test keys
+cp .env.example .env.local   # fill in Firebase config — see .env.example for the full list
 npm install
 npm run dev                  # http://localhost:3000
 npm run emulators            # Firebase emulators (auth, firestore, functions)
 npm run test:rules           # Firestore security rules unit tests
 npm run check:budget         # bundle budget check (after `npm run build`) — see ADR-016
 npm run check:routes         # docs/05-ROUTES.md's [Built] tags match real page files
+npm run check:threat-model   # docs/03-DATA-MODEL.md's threat-model table matches reality
 ```
 
 ## Environments
-- `dev` — Firebase project `nma-gombe-dev`, Paystack **test** keys.
-- `prod` — Firebase project `nma-gombe-prod`, Paystack live keys. Live keys never leave
-  the hosting provider's secret store.
+**One Firebase project, `nma-gombe-c5a9d` — not a dev/prod split.** This was the original plan
+(see `docs/00-INTAKE.md`) but was deliberately rejected; see `docs/09-DECISIONS.md` ADR-009 for
+why. Local development points at the same project's **emulators** (`npm run emulators` — auth,
+firestore, functions, storage, all local, no real data touched) via `NEXT_PUBLIC_USE_EMULATORS=true`
+in `.env.local`. **Never point local development at the live project directly** — real member
+data is regulated under the NDPA, and there is no separate project to safely experiment against.
 
-Never point local development at the production Firebase project. Real member data is
-regulated under the NDPA.
+There is no Paystack integration in this codebase — dues payment is designed but unscheduled
+(Version 3, `docs/09-DECISIONS.md` ADR-021). `.env.example` has two reserved, optional Paystack
+placeholders for that future work; leave them blank.

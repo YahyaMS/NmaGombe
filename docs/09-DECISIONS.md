@@ -1118,3 +1118,66 @@ data can persist after a deletion request, and is disclosed in `08-NDPA-COMPLIAN
 **Deliberately not done here:** the deletion Function itself (F-04b) — recorded as a known gap, with
 the manual per-collection erasure checklist added to `08-NDPA-COMPLIANCE.md` instead, so a request
 is at least repeatable in the meantime.
+
+---
+
+## ADR-031 — Documentation drift correction pass, and a CI check that stops it recurring
+
+**Context.** An independent audit (2026-09-03) found several documents asserting controls that
+never existed, or that existed once and stopped being true without the doc catching up:
+`docs/03-DATA-MODEL.md`'s threat model claiming "App Check enforced... rate-limited search" as
+active mitigations (App Check was enforced for one day — ADR-020 — and rolled back; rate limiting
+has never existed); `docs/06-ROADMAP.md` repeating the same "rate-limited search" claim as a
+scraping mitigation; `docs/10-TEST-PLAN.md` claiming an automated axe accessibility pass runs in
+CI (no `axe-core` dependency exists anywhere in the repo, no CI step); the README instructing a new
+developer to provision two Firebase projects and Paystack test keys — both directly contradicting
+settled decisions (ADR-009: one project, not two; ADR-021: dues indefinitely deferred, no Paystack
+code exists); and the matching claims in `docs/02-ARCHITECTURE.md` and `docs/00-INTAKE.md`'s
+developer-prerequisites section, neither of which had received the strikethrough-and-annotate
+treatment the rest of `00-INTAKE.md` already uses for resolved/superseded items.
+
+The person who commissioned that audit put it plainly: things written into these docs as
+*requirements* — "App Check enforced," "rate-limited search" — got read forever after as
+*descriptions* of what the system does. That's the actual failure mode, not carelessness in any
+one edit: a requirements doc and a systems-truth doc were never distinguished from each other, so
+drift between "what we said we'd build" and "what got built" had nowhere to surface.
+
+**Decision, in two parts.**
+
+**Part one — the corrections themselves**, each checked against the actual code before being
+rewritten, not against another doc: `docs/03-DATA-MODEL.md`'s threat model became a table (see
+below); `docs/06-ROADMAP.md`'s "Directory scraped" row now states which of its four named controls
+are actually live and which aren't; `docs/10-TEST-PLAN.md`'s accessibility section now says plainly
+that axe automation doesn't exist; the README's setup instructions describe the real one-project,
+no-Paystack-keys setup; `docs/02-ARCHITECTURE.md`'s payments section and environments section are
+now explicitly marked as deferred design and corrected fact, respectively, rather than left to read
+as current behaviour; `docs/00-INTAKE.md`'s developer-prerequisites section got the same
+strikethrough-and-supersession treatment its own earlier items already model.
+
+**Part two — the structural fix**, so this stops being something that has to be caught by hand.
+`docs/03-DATA-MODEL.md`'s threat-model prose became a table: **Control | Status | Proof**, where
+Status is one of `Implemented` (exact string), `Implemented (architectural)` for a true-but-not-
+test-provable claim like "no bulk-read endpoint exists," or `Intended`. `scripts/check-threat-model.mjs`
+— same shape as `check-routes-built.mjs`, which already does this for `05-ROUTES.md`'s `[Built]`
+tags — parses the table and fails the build if any row tagged exactly `Implemented` doesn't name a
+real, existing test file in Proof. Verified both directions before trusting it: a deliberately
+broken Proof path (pointed at a file that doesn't exist) failed the check with a clear message;
+reverted, it passes. Wired into `npm run check:threat-model` and a new CI step, right after the
+existing routes-doc check.
+
+**What this check does not do**, stated plainly so it isn't mistaken for more than it is: it
+doesn't verify a named test file actually tests the claimed control correctly, doesn't catch a
+control that's quietly become false while its test still passes against stale assumptions, and
+doesn't judge whether `Intended` is still the honest tag for something that should have shipped by
+now. Same limitation `check-routes-built.mjs` already has for `[Built]` tags — a filesystem-existence
+check, not a semantic one. It closes exactly one failure mode: a row hand-typed as `Implemented`
+with no test ever written to back it, silently trusted because it read like every other row.
+
+**Consequence.** Five threat-model controls are honestly `Implemented` today, with real tests
+behind each: `verified()` gating (`tests/rules/firestore.test.ts`), per-field visibility and
+consent (`functions/test/directory-projection.test.ts`, new as of ADR-029), the opaque `/verify`
+token (`tests/rules/firestore.test.ts`, ADR-027), and the trust-field write guard (same file). Two
+are honestly `Intended`: App Check enforcement and rate limiting. Neither of those two is closer to
+built because of this ADR — this pass corrects what the documents claim, it doesn't implement what
+they were claiming. That work is tracked separately (F-05, and ADR-020's own still-open root-cause
+question).

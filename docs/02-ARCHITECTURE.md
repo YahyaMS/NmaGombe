@@ -10,11 +10,13 @@
 | Server logic | **Cloud Functions** | Payment webhooks, receipt generation, custom claims, scheduled reminders. |
 | Files | **Firebase Storage** | Certificates, photos, exec portraits. |
 | Abuse control | **App Check** | Meant to stop scripted scraping of the directory — non-optional given the data is personal. Client-side wiring exists (`lib/firebase/app.ts`); enforcement is not yet on. See ADR-020. |
-| Payments | **Paystack** | Local cards + bank transfer, subscriptions available, straightforward webhooks. |
+| Payments | **Paystack** (unscheduled — see ADR-021 below; no Paystack code exists in this repo) | Local cards + bank transfer, subscriptions available, straightforward webhooks. |
 | Hosting | **Vercel** or Firebase Hosting | Either is free at this scale. Vercel handles Next.js server rendering with less configuration. |
 | CMS | **Custom Firestore-backed admin** | See ADR-005. A headless CMS is a second system to maintain and pay for; the Secretary needs three forms, not an editorial platform. |
 
 ## Data flow that matters: paying dues
+**Not built. Deferred to Version 3, unscheduled — see `09-DECISIONS.md` ADR-021.** Kept here as
+the intended design for when that work starts, not a description of anything that exists today.
 ```
 member taps "Pay dues"
   → Function initializes a Paystack transaction (amount computed server-side from grade)
@@ -48,16 +50,23 @@ The client is never in the trust path. It never reports success; it observes it.
 - **Phone OTP is the real cost risk.** SMS verification is billed per message and is the most
   likely line item to surprise you. Cap OTP attempts per number per day; consider email as the
   default and phone OTP as an upgrade for verified members only.
-- Paystack: percentage per transaction, capped; borne against dues, not the IT budget.
+- Paystack (once built — see the deferred payments note above): percentage per transaction,
+  capped; borne against dues, not the IT budget.
 - WhatsApp: free via click-to-chat links and broadcast lists. Only the Business API costs money,
   and we don't need it in Phase 1.
 
 Prices move. Confirm on the official Paystack, Firebase and registrar pages before budgeting.
 
 ## Environments and secrets
-- `nma-gombe-dev` / `nma-gombe-prod`, fully separate Firebase projects.
-- Paystack live keys exist only in the hosting provider's secret store. Never in `.env.local`,
-  never in the repo, never in a WhatsApp message.
+- **One Firebase project, `nma-gombe-c5a9d` — not the dev/prod split this section originally
+  specified.** That was the original plan; it was deliberately rejected. See
+  `09-DECISIONS.md` ADR-009 for why, and don't re-propose it without reading that ADR first.
+  Local development runs against the same project's **emulators**, never the live project
+  directly.
+- Whenever Paystack work actually starts (see the payments note above — unscheduled, ADR-021):
+  live keys must exist only in the hosting provider's secret store, never in `.env.local`, never
+  in the repo, never in a WhatsApp message. This is forward guidance, not a description of a
+  control that exists today — there are no live keys to protect yet.
 - Root ownership of every account sits on a chapter-controlled email in a shared vault.
 
 ## Future: the React Native app

@@ -116,7 +116,12 @@ Nothing here is a technical problem — which is exactly why projects like this 
 
 ## H. Developer prerequisites (fast, do these last)
 - Node LTS installed; a GitHub repo under a chapter-owned org.
-- Two Firebase projects: `nma-gombe-dev`, `nma-gombe-prod`.
-- Paystack **test** keys (live keys only after item 5 clears).
+- ~~Two Firebase projects: `nma-gombe-dev`, `nma-gombe-prod`.~~
+  **Superseded.** One project, `nma-gombe-c5a9d` — the two-project split was deliberately
+  rejected; see `docs/09-DECISIONS.md` ADR-009. Local development uses that project's
+  emulators, not a second live project.
+- ~~Paystack **test** keys (live keys only after item 5 clears).~~
+  **Moot.** Item 5 is confirmed indefinitely blocked, not "not yet cleared" — there are no
+  Paystack keys to provision, test or live, until that changes. See ADR-021.
 - Vercel or Firebase Hosting account under the chapter email.
 - The roster, de-identified, as a CSV fixture for local development.
