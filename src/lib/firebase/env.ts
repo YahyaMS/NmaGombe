@@ -4,7 +4,15 @@
  * Why: a missing or misspelled env var is currently a runtime crash on some page, some
  * day, in front of a member. Here it is a build failure with the variable named.
  *
- * Rule: no file in this project reads process.env directly except this one.
+ * Rule: no file in this project reads process.env directly except this one — with two
+ * narrow, deliberate exceptions, `lib/firebase/app.ts` and `lib/firebase/admin.ts`, each
+ * with its own comment explaining why (bundle-size and Admin-SDK-init reasons respectively).
+ * An audit (2026-09-03) found this comment claiming an absolute rule while seven files
+ * broke it, one of them (`portal/PortalDashboard.tsx`) reading a variable this schema
+ * didn't even declare — fixed (`NEXT_PUBLIC_MDCN_PORTAL_URL` added below, that call site
+ * now imports `env`). The remaining stragglers weren't brought in line in the same pass;
+ * treat any file reading `process.env` directly, outside the two named exceptions, as a
+ * bug to fix when you're next in that file, not a pattern to copy.
  */
 import { z } from "zod";
 
@@ -19,6 +27,7 @@ const clientSchema = z.object({
   NEXT_PUBLIC_USE_EMULATORS: z.enum(["true", "false"]).default("false"),
   NEXT_PUBLIC_APPCHECK_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_WHATSAPP_SECRETARIAT: z.string().optional(),
+  NEXT_PUBLIC_MDCN_PORTAL_URL: z.string().url().optional(),
 });
 
 const serverSchema = z.object({
@@ -42,6 +51,7 @@ const rawClient = {
   NEXT_PUBLIC_USE_EMULATORS: process.env.NEXT_PUBLIC_USE_EMULATORS,
   NEXT_PUBLIC_APPCHECK_SITE_KEY: process.env.NEXT_PUBLIC_APPCHECK_SITE_KEY,
   NEXT_PUBLIC_WHATSAPP_SECRETARIAT: process.env.NEXT_PUBLIC_WHATSAPP_SECRETARIAT,
+  NEXT_PUBLIC_MDCN_PORTAL_URL: process.env.NEXT_PUBLIC_MDCN_PORTAL_URL,
 };
 
 const parsedClient = clientSchema.safeParse(rawClient);

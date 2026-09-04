@@ -9,6 +9,7 @@ import { getOwnRegistration, registerForEvent } from '@/lib/data/registrations'
 import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
+import { env } from '@/lib/firebase/env'
 
 type Stage = 'loading' | 'ready' | 'offline' | 'no-profile' | 'error'
 
@@ -17,7 +18,7 @@ const monthLabels = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-const mdcnPortalUrl = process.env.NEXT_PUBLIC_MDCN_PORTAL_URL
+const mdcnPortalUrl = env.NEXT_PUBLIC_MDCN_PORTAL_URL
 
 // Same threshold JobsBoard.tsx uses for its "expiring soon" badge — one
 // consistent meaning of "soon" across the app, not a value invented here.

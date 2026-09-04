@@ -23,6 +23,14 @@ jobs:
           java-version: "17"
       - run: npm ci
 
+      # High/critical in a production dependency, not dev tooling — an audit
+      # found one high advisory (fast-uri, via firebase-tools, a devDependency,
+      # unreachable in production) that this scope correctly excludes. Without
+      # this step, a new advisory accumulates silently until someone happens
+      # to run `npm audit` by hand.
+      - name: Dependency audit (production, high+)
+        run: npm audit --audit-level=high --omit=dev
+
       - name: Typecheck
         run: npm run typecheck
 

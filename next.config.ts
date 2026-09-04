@@ -21,6 +21,17 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          // Members are on mobile networks in north-eastern Nigeria, where
+          // transparent HTTP interception isn't hypothetical. Vercel serves
+          // HTTPS and redirects HTTP, but without this header the first
+          // request of a session is still downgradeable before that redirect
+          // takes effect. max-age is two years, includeSubDomains and preload
+          // so a browser that's ever visited enforces HTTPS for the whole
+          // domain from the very first request, not just this one.
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
         ],
       },
       // Cache PWA assets aggressively
