@@ -36,13 +36,29 @@ export const metadata: Metadata = {
     'Find a verified doctor in Gombe State, access member resources, and connect with the NMA Gombe chapter.',
 }
 
+// Regenerate at most every 5 minutes rather than only at build time — this
+// page used to be frozen at whatever was published when the site was last
+// deployed, so a new communiqué never reached visitors until the next
+// unrelated deploy. See docs/09-DECISIONS.md ADR-028.
+export const revalidate = 300
+
 function formatCommuniqueDate(ts: { toDate: () => Date } | null): string {
   if (!ts) return '—'
   return ts.toDate().toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })
 }
 
 export default async function HomePage() {
-  const [latestCommunique] = await listPublishedNews()
+  // A transient Firestore error here must degrade to the empty state (no
+  // communiqué section, per the "every module renders correctly when its
+  // data is empty" rule), not fail the whole build/request — this page
+  // prerenders at build time (see `revalidate` above) and a hiccup during
+  // `next build` used to take the entire deploy down with it. See ADR-028.
+  let latestCommunique: Awaited<ReturnType<typeof listPublishedNews>>[number] | undefined
+  try {
+    ;[latestCommunique] = await listPublishedNews()
+  } catch {
+    latestCommunique = undefined
+  }
 
   return (
     <>

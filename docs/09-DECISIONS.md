@@ -910,6 +910,11 @@ no profile if the second fails. That state is recognised and recoverable rather 
 note it is now the *only* way a member can be invisible to the admin queue, and it is a genuine
 failure, not a routine one.
 
+Two accounts predated this (the admin's and one official's) and had no password; both were given
+one directly via the Admin SDK rather than through a reset email, because how Firebase treats a
+password reset on an email-link-only account is exactly the kind of thing `CLAUDE.md` says not to
+guess at during a migration people are depending on.
+
 ---
 
 ## ADR-027 — `/verify` looks members up by an opaque token, not folioNumber
@@ -978,7 +983,32 @@ handles "no longer a member," but not "this specific link leaked and the member 
 An admin-triggered `rotateVerificationToken` callable, mirroring `setMemberStatus`'s authorisation
 pattern, is the obvious shape for this. Recorded here as a known gap rather than built now.
 
-Two accounts predated this (the admin's and one official's) and had no password; both were given
-one directly via the Admin SDK rather than through a reset email, because how Firebase treats a
-password reset on an email-link-only account is exactly the kind of thing `CLAUDE.md` says not to
-guess at during a migration people are depending on.
+---
+
+## ADR-028 — `/` and `/events` regenerate every 5 minutes; a build-time Firestore error degrades to empty rather than failing the deploy
+**Context.** The same audit found `/` and `/events` prerendering with no `revalidate` and no
+`dynamic` export — confirmed against the actual build's `prerender-manifest.json`, not assumed
+from the code. Neither page reads `cookies()`, `headers()`, or `searchParams`, so both are static
+snapshots frozen at whatever was in Firestore at the last `next build`. An exec publishing a
+communiqué or an event changes Firestore and nothing else; the public page doesn't move until the
+next unrelated deploy. `/news` (which takes `?category=`) was already dynamic and unaffected — this
+was specific to the two pages with no query-string escape hatch. This also explains a debugging
+detour from earlier in the project: pages that appeared to render fine were, in fact, rendering
+stale, which looks identical to "working" until you know to check the timestamp.
+
+**Decision.** `export const revalidate = 300` on both — ISR, not `dynamic = 'force-dynamic'`. Five
+minutes is a deliberate choice, not a default: chapter content publishes rarely enough that
+sub-minute freshness has no real value, and `force-dynamic` would move both pages onto every-request
+Firestore reads with no `.limit()` on either query (see the audit's F-13, unbounded list reads,
+tracked separately) — `revalidate` gets freshness without turning two of the highest-traffic public
+pages into a query-per-visit cost.
+
+Wrapped the same two `await` calls in `try/catch`, falling back to an empty result (no communiqué
+section on `/`, "No upcoming events" on `/events` — both are existing, already-designed empty
+states, not new UI) rather than letting the error propagate. With `revalidate` enabled these pages
+still prerender once at `next build` before ISR takes over, so a transient Firestore hiccup during
+that build step would otherwise fail the entire deploy over data that would have revalidated itself
+within five minutes anyway. Scoped to these two call sites, not pushed into `lib/data/news.ts` or
+`events.ts` themselves — other callers (`/news`, the admin list views) should keep failing loudly;
+degrading silently is specifically the right trade-off for a build-time prerender path, not a
+general property either repository function should have.
