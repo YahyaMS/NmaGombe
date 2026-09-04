@@ -1062,3 +1062,59 @@ The other five (`decideVerification`, `logBroadcast`, `setMemberStatus`/`setMemb
 prioritised because it is the one enforcing a privacy invariant with no other backstop, not because
 the others don't need coverage. Extending this same pattern (extract the logic, test it directly
 against the emulator) to the rest is future work, not done here.
+
+---
+
+## ADR-030 — Scheduled Firestore backups: daily, 7-day retention, no restore rehearsed yet
+
+**Context.** This project holds regulated personal data (NDPA 2023) — names, phone numbers, MDCN
+folio numbers, CPD records — for every member, with no backup and no documented recovery path.
+`firebase.json` had no export configuration, no script under `scripts/` performed one, and the only
+mention of export/import in `docs/09-DECISIONS.md` (ADR-008) was in the context of changing region,
+not disaster recovery. The concrete recovery path for a bad write — an `onMemberWrite` regression
+emptying `directoryEntries`, an accidental re-import overwriting `registerEntries` — was "re-derive
+from whatever still exists, or ask members to re-enter it." An audit named this as a High-severity
+absent control.
+
+**Decision.** Firestore's native managed backup feature (not a manual `gcloud firestore export` to a
+GCS bucket — a fully-managed, Google-operated schedule against the database itself), confirmed real
+and current directly from the installed `firebase-tools` CLI's own `--help` output before running
+anything, per `CLAUDE.md`'s rule against guessing Firebase API details:
+
+```
+npx firebase firestore:backups:schedules:create --recurrence DAILY --retention 7d
+```
+
+Verified live afterwards with `firestore:backups:schedules:list` — `DAILY` recurrence, `604800s`
+(7 days) retention, against `projects/nma-gombe-c5a9d/databases/(default)`. One schedule, no
+Cloud Scheduler, no Cloud Function, no GCS bucket to manage or pay for separately — Google retains
+the backups and bills for their storage against the project directly.
+
+**Retention is 7 days, not longer, and this is a starting point, not a considered final value.**
+Chosen as the conservative, low-cost default for a first backup where none existed at all — matches
+this project's general cost-consciousness (small chapter, Version-3-deferred dues) rather than a
+deliberate analysis of how far back a real recovery might need to reach. Revisit if that's wrong;
+`firestore:backups:schedules:update` changes it without recreating the schedule.
+
+**Recovery procedure — the actual verified command, not a guess:**
+```
+npx firebase firestore:databases:restore --database <target-database-id> --backup <backup-name>
+```
+`<backup-name>` is a specific backup's full resource path, from `firestore:backups:list`.
+**Important, and not yet rehearsed:** per the CLI's own `--help`, this restores a backup *into* the
+database id you specify — it is not demonstrated here whether that can target the live `(default)`
+database in place while the site is operating, or whether recovery in practice means restoring into
+a new database id and then migrating/re-pointing the app at it. Firebase's own docs (not re-derived
+here — check them at the time of an actual incident) are the authority on this, not this ADR. Until
+a restore has actually been rehearsed once against a non-production project, treat "we have backups"
+as true and "we know how to recover from them under pressure" as not yet true.
+
+**Consequence, NDPA-relevant.** A member's data now persists in a daily snapshot for up to 7 days
+after it's changed or deleted in the live database — including after a manual erasure request
+(`docs/08-NDPA-COMPLIANCE.md`'s only deletion path today, since no `deleteMember` Function exists —
+see ADR-027's sibling gap, F-04b, still open). This is a genuine, if small, extension of how long
+data can persist after a deletion request, and is disclosed in `08-NDPA-COMPLIANCE.md`.
+
+**Deliberately not done here:** the deletion Function itself (F-04b) — recorded as a known gap, with
+the manual per-collection erasure checklist added to `08-NDPA-COMPLIANCE.md` instead, so a request
+is at least repeatable in the meantime.

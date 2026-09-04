@@ -51,6 +51,37 @@ choice). If a member asks what the chapter holds on them, the Welfare Committee 
 request directly, off-platform — the same as any other Subject Access Request, just not
 self-service for this one sensitive collection.
 
+## Data subject rights: deletion in practice
+
+There is no `deleteMember` Function. A deletion request is executed by hand in the Firebase
+Console today — this checklist exists so that stays repeatable and complete rather than
+whatever an admin remembers to click. See `09-DECISIONS.md` ADR-027's sibling gap and ADR-030.
+Every one of these needs individual attention for a given `uid` — there is no single cascading
+delete:
+
+1. `members/{uid}` — the profile itself.
+2. `directoryEntries/{uid}` and `publicDirectory/{uid}` — normally cleaned up automatically by
+   `onMemberWrite` the moment `members/{uid}` is deleted (it projects from a doc that no longer
+   exists), but confirm both are actually gone, not just stale.
+3. `cpdEntries/{uid}/entries/*` — a subcollection; delete every entry, not just the parent.
+4. `verificationRequests` — query `where('uid', '==', uid)`; `firestore.rules` sets
+   `allow delete: if false` on this collection for clients, but the Admin SDK doing this by hand
+   is exactly the case that rule doesn't (and shouldn't) block.
+5. `registrations/{eventId}_{uid}` — one per event the member registered for; there is no
+   single query by uid alone (the id is composite), so this means listing the member's own
+   `cpdEntries` `chapter_event` entries first (each names its `eventId`) to know which
+   registration ids to look for, or scanning `registrations` with a `uid` field filter if one is
+   added for this purpose.
+6. `jobs` — query `where('postedBy', '==', uid)` for anything still listed.
+7. `welfareCases` — query `where('requester', '==', uid)`.
+8. The Firebase Auth user itself (`getAuth().deleteUser(uid)`) — done last, since several of the
+   steps above (rules-based reads during cleanup, confirming ownership) assume the account still
+   resolves.
+9. **Backups (ADR-030):** none of the above reaches the daily managed backup already taken. The
+   member's data persists in that snapshot for up to 7 days after this checklist is completed,
+   which is disclosed as a genuine (if bounded) extension of the deletion timeline — not
+   something engineering can shorten without giving up the backup itself.
+
 ## Change control
 **Any pull request that adds a personal-data field must add a row here** stating the field, its
 purpose, its lawful basis, its retention period, and who can read it. No row, no merge.
