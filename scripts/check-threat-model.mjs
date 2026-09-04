@@ -35,10 +35,16 @@ function parseTableRow(line) {
   return cells
 }
 
-/** Every backtick-quoted path in a cell, e.g. "`a.ts`, `b.ts`" -> ['a.ts', 'b.ts']. */
+/**
+ * Every backtick-quoted file path in a cell, e.g. "`a/b.ts`, `c/d.ts` — also
+ * mentions `list` and `get`" -> ['a/b.ts', 'c/d.ts']. Filtered to spans
+ * containing '/', since a Proof cell's prose can legitimately backtick-quote
+ * short inline-code terms (a function name, a rule keyword) that aren't
+ * paths at all — without this filter those get treated as unproven paths.
+ */
 function extractPaths(cell) {
   const matches = [...cell.matchAll(/`([^`]+)`/g)]
-  return matches.map((m) => m[1])
+  return matches.map((m) => m[1]).filter((p) => p.includes('/'))
 }
 
 function main() {

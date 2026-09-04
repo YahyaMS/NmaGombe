@@ -1176,8 +1176,96 @@ with no test ever written to back it, silently trusted because it read like ever
 **Consequence.** Five threat-model controls are honestly `Implemented` today, with real tests
 behind each: `verified()` gating (`tests/rules/firestore.test.ts`), per-field visibility and
 consent (`functions/test/directory-projection.test.ts`, new as of ADR-029), the opaque `/verify`
-token (`tests/rules/firestore.test.ts`, ADR-027), and the trust-field write guard (same file). Two
-are honestly `Intended`: App Check enforcement and rate limiting. Neither of those two is closer to
-built because of this ADR — this pass corrects what the documents claim, it doesn't implement what
-they were claiming. That work is tracked separately (F-05, and ADR-020's own still-open root-cause
-question).
+token (`tests/rules/firestore.test.ts`, ADR-027), and the trust-field write guard (same file). At
+the time this ADR was written, rate limiting was also honestly `Intended`, alongside App Check
+enforcement — neither closer to built because of this pass, which corrects what the documents
+claim rather than implementing what they were claiming. Rate limiting has since moved to
+`Implemented (partial)` (F-05, `src/proxy.ts`) — see ADR-032. App Check enforcement remains
+`Intended`; that work is tracked separately, and ADR-020's root-cause question is still open.
+
+---
+
+## ADR-032 — Crude per-IP rate limiting in `proxy.ts`, and a deliberate scope boundary
+
+**Context.** No rate limiting existed anywhere in this codebase, on any endpoint — confirmed by
+grep, not assumed. `src/proxy.ts`'s matcher covered only `/portal/:path*` and `/admin/:path*`, for
+authorisation gating; the routes an audit named as concretely exposed by that absence —
+`/verify/[token]`, `/doctors`, `POST /api/session`, and the rest of `src/app/api/*` — were outside
+its reach entirely.
+
+**Decision.** Widened the matcher to also intercept `/verify/:path*`, `/doctors`, and `/api/:path*`,
+but did **not** fold them into the existing `/portal`/`/admin` branch — a new, separate branch
+inside `proxy()` handles rate limiting only, leaving the auth-gating branch (and every test that
+already covered it) untouched. Confirmed with a dedicated test: an IP already past the rate limit
+on `/doctors` still gets normal `/portal` auth-gating (a 307 redirect to `/signin`), not a 429 —
+proving the two branches genuinely don't share logic, not just asserting it from reading the code.
+
+The limiter itself: an in-memory `Map`, keyed by `x-forwarded-for`, 60 requests per 60-second
+window, shared across all three route groups per IP (not a separate bucket per route). Deliberately
+**not** extended to `/portal` or `/admin`: the abuse this guards against — scripted token-guessing
+against `/verify`, expensive `/doctors` queries, unauthenticated floods against `/api/session` — is
+a request-volume problem visible at the proxy layer. A member spamming Firestore writes
+(`jobs`/`cpdEntries`/`welfareCases` creates) via the client SDK from an authenticated `/portal`
+session is a different problem this layer cannot see at all — those writes never touch `proxy.ts`.
+Extending the matcher there would have added rate limiting that stops nothing real while risking
+the one thing that must never regress: `/portal`/`/admin` auth gating.
+
+**Consequence, stated as plainly as ADR-030 stated backup's limits.** This is genuinely crude, not
+a considered rate-limiting design: Vercel can spread a burst of requests across multiple serverless
+instances, each with its own empty `Map`, so a distributed script defeats it trivially; every count
+resets on a cold start or redeploy; and it has no reach into the client-SDK write paths named above
+at all. `docs/03-DATA-MODEL.md`'s threat-model table tags this row `Implemented (partial)` —
+deliberately not the exact string `Implemented`, so `check-threat-model.mjs` (ADR-031) doesn't hold
+it to a bar it honestly doesn't clear. It beats the nothing that existed before, for the routes it
+does cover, and no more than that.
+
+---
+
+## ADR-033 — Rules test suite gets `list`/query coverage for every `allow list` clause
+
+**Context.** `tests/rules/firestore.test.ts` had ~150 assertions and none of them issued a `list`
+or a `query` — every one was a single-document `get`/`set`/`update`/`delete`. Firestore evaluates
+`get` and `list` differently: a `list` (a query against a collection) is only permitted if the
+security rule can be **proven** true for every possible result using nothing but the query's own
+filters — it cannot inspect each candidate document's data the way `get` can. A rule written as
+`isSelf(uid)` on a top-level collection has an unbound `{uid}` at list time, so Firestore can never
+prove it and denies the query outright — in practice correct, but by evaluation failure, not by
+anything this suite had ever demonstrated. An audit named this the highest-value addition available
+to an otherwise strong suite: a future edit that widened any `allow list` clause — turning
+per-document access into bulk extraction, the single most damaging class of rules change possible —
+would have passed every existing test in the file untouched.
+
+**Decision.** A new section, ten `describe` blocks, one per collection carrying an `allow list` (or
+an `allow read`, which is shorthand for `get, list`) grant: `members`, `directoryEntries`,
+`payments`, `duesRates`/`events`/`jobs`/`documents` (grouped — all doc-independent grants), `news`
+(status-filtered), `broadcasts`/`welfareCases` (exec-only), `registrations`, `cpdEntries`, and the
+two fully-closed collections (`publicDirectory`, `registerEntries`) confirmed denied at the list
+level too, not just the get level already covered. 34 new assertions, `getDocs`/`query`/`where`/
+`documentId`/`collectionGroup` newly imported — none of it previously exercised in this file.
+
+Every non-obvious claim was verified empirically against the real emulator, not asserted from
+memory of how Firestore rules are supposed to work — several turned out to matter:
+- **`members`**: an unconstrained list fails for a member (`isSelf(uid)` unprovable), but a query
+  constrained by `where(documentId(), '==', uid)` succeeds — the exact provable-query shape the
+  denial depends on, now demonstrated rather than assumed.
+- **`payments`**: same shape — unconstrained list fails even for the payment's own owner, but
+  `where('uid', '==', ownerUid)` succeeds, and `where('uid', '==', someoneElse)` fails even though
+  it's a syntactically valid query the same owner could technically issue.
+- **`registrations` diverges from `payments`** in a way worth its own test: `payments` grants `get,
+  list` under one combined condition, but `registrations` splits them — `list` is `isAdmin()` only,
+  with no self-uid carve-out at all. A member can reach their own registration by its known
+  deterministic id (`get`) but can never query for it, even filtered to their own `uid` field —
+  confirmed, not just read off the rules file.
+- **`cpdEntries`**: the file's own comment claims no collection-group view exists for an aggregate
+  CPD report across members. Tested directly: even admin's `collectionGroup(db, 'entries')` query
+  is denied, because no `match /{path=**}/entries/{id}` rule exists to permit it — the claim held.
+- **`directoryEntries` and `jobs`**: unconstrained list succeeding for any verified member isn't a
+  gap — it's the real app's own usage (`DirectoryView.tsx`'s whole-collection subscription,
+  `JobsBoard.tsx`'s listing), now the suite proves the rule actually permits what the app does,
+  rather than the app's own working state being the only evidence the rule is right.
+
+**Consequence.** 163 tests total, up from 129 before ADR-027/028/029's additions and this one
+combined. No rule was changed to make a test pass — every result matched what `firestore.rules`
+already specified; this closes a coverage gap, not a security gap that turned out to exist. The
+next person who widens an `allow list` clause without meaning to now finds out from `npm run
+test:rules`, not from someone else finding it first.

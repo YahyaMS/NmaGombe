@@ -23,10 +23,15 @@ import { resolve } from 'path'
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
   collection,
+  collectionGroup,
+  query,
+  where,
+  documentId,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore'
@@ -1266,6 +1271,327 @@ describe('jobs/{id}', () => {
       const db = exec('exec-user').firestore()
       await assertSucceeds(deleteDoc(doc(db, `jobs/${jobId}`)))
     })
+  })
+})
+
+// ── Invariant 12: list vs. get — every `allow list` clause gets a query test ─
+//
+// Firestore evaluates `get` (one known doc) and `list` (a query) differently:
+// a `list` is only allowed if the rule can be PROVEN true for every possible
+// result using only the query's own filters — it can't peek at each doc's
+// data the way `get` can. A rule like `isSelf(uid)` on a top-level collection
+// has an unbound `{uid}` at list time, so it can never be proven that way and
+// list is denied — in practice, not by design, and until this section nothing
+// in this suite ever issued a `list`/query to prove it. This section exists
+// because a future edit that widened any `allow list` clause — the single
+// most damaging class of change possible here, since it turns per-document
+// access into bulk extraction — would have passed every `get`-only test in
+// this file untouched.
+
+describe('list/query semantics — members/{uid}', () => {
+  const selfUid = 'list-members-self'
+  const otherUid = 'list-members-other'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `members/${selfUid}`), {
+        displayName: 'Dr. Self', status: 'verified', role: 'member', folioNumber: 'NMA/GM/0001',
+      })
+      await setDoc(doc(ctx.firestore(), `members/${otherUid}`), {
+        displayName: 'Dr. Other', status: 'verified', role: 'member', folioNumber: 'NMA/GM/0002',
+      })
+    })
+  })
+
+  test('a member cannot list the whole members collection unconstrained — isSelf(uid) can\'t be proven for an unbound query', async () => {
+    const db = verified(selfUid).firestore()
+    await assertFails(getDocs(collection(db, 'members')))
+  })
+
+  test('a member CAN query for exactly their own document, constrained by documentId()', async () => {
+    const db = verified(selfUid).firestore()
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, 'members'), where(documentId(), '==', selfUid)))
+    )
+    expect(snap.size).toBe(1)
+  })
+
+  test('admin CAN list the whole members collection unconstrained — isAdmin() doesn\'t depend on which doc', async () => {
+    const db = admin('admin-user').firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, 'members')))
+    expect(snap.size).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('list/query semantics — directoryEntries', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'directoryEntries/entry-1'), { displayName: 'Dr. A' })
+      await setDoc(doc(ctx.firestore(), 'directoryEntries/entry-2'), { displayName: 'Dr. B' })
+    })
+  })
+
+  test('a verified member can list the whole directoryEntries collection unconstrained — this is the real app\'s own usage (portal directory search)', async () => {
+    const db = verified('some-member').firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, 'directoryEntries')))
+    expect(snap.size).toBe(2)
+  })
+
+  test('an unverified member cannot list directoryEntries', async () => {
+    const db = authed('some-user').firestore()
+    await assertFails(getDocs(collection(db, 'directoryEntries')))
+  })
+
+  test('unauthenticated cannot list directoryEntries', async () => {
+    const db = anon().firestore()
+    await assertFails(getDocs(collection(db, 'directoryEntries')))
+  })
+})
+
+describe('list/query semantics — payments', () => {
+  const ownerUid = 'list-payments-owner'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'payments/ref-1'), { uid: ownerUid, amount: 500000 })
+      await setDoc(doc(ctx.firestore(), 'payments/ref-2'), { uid: 'someone-else', amount: 500000 })
+    })
+  })
+
+  test('a member cannot list payments unconstrained, even their own — resource.data.uid can\'t be proven without a matching query filter', async () => {
+    const db = verified(ownerUid).firestore()
+    await assertFails(getDocs(collection(db, 'payments')))
+  })
+
+  test('a member CAN query payments filtered to their own uid field — the filter itself proves every result matches', async () => {
+    const db = verified(ownerUid).firestore()
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, 'payments'), where('uid', '==', ownerUid)))
+    )
+    expect(snap.size).toBe(1)
+  })
+
+  test('a member cannot query payments filtered to someone else\'s uid', async () => {
+    const db = verified(ownerUid).firestore()
+    await assertFails(
+      getDocs(query(collection(db, 'payments'), where('uid', '==', 'someone-else')))
+    )
+  })
+
+  test('admin can list payments unconstrained', async () => {
+    const db = admin('admin-user').firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, 'payments')))
+    expect(snap.size).toBe(2)
+  })
+})
+
+describe('list/query semantics — duesRates, events, jobs, documents — doc-independent list grants', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'duesRates/2026'), { consultant: 500000 })
+      await setDoc(doc(ctx.firestore(), 'events/event-1'), { title: 'CME Session', status: 'published' })
+      await setDoc(doc(ctx.firestore(), 'jobs/job-1'), { title: 'Locum', postedBy: 'someone' })
+      await setDoc(doc(ctx.firestore(), 'documents/doc-1'), { title: 'Guideline' })
+    })
+  })
+
+  test('any signed-in user can list duesRates unconstrained', async () => {
+    const db = authed('some-user').firestore()
+    await assertSucceeds(getDocs(collection(db, 'duesRates')))
+  })
+
+  test('unauthenticated cannot list duesRates', async () => {
+    const db = anon().firestore()
+    await assertFails(getDocs(collection(db, 'duesRates')))
+  })
+
+  test('anyone, even unauthenticated, can list events', async () => {
+    const db = anon().firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, 'events')))
+    expect(snap.size).toBe(1)
+  })
+
+  test('a verified member can list jobs unconstrained', async () => {
+    const db = verified('some-member').firestore()
+    await assertSucceeds(getDocs(collection(db, 'jobs')))
+  })
+
+  test('an unverified member cannot list jobs', async () => {
+    const db = authed('some-user').firestore()
+    await assertFails(getDocs(collection(db, 'jobs')))
+  })
+
+  test('a verified member can list documents (clinical guidelines) unconstrained', async () => {
+    const db = verified('some-member').firestore()
+    await assertSucceeds(getDocs(collection(db, 'documents')))
+  })
+
+  test('an unverified member cannot list documents', async () => {
+    const db = authed('some-user').firestore()
+    await assertFails(getDocs(collection(db, 'documents')))
+  })
+})
+
+describe('list/query semantics — news (status-filtered list)', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'news/published-1'), { title: 'A', status: 'published' })
+      await setDoc(doc(ctx.firestore(), 'news/draft-1'), { title: 'B', status: 'draft' })
+    })
+  })
+
+  test('unauthenticated cannot list news unconstrained — resource.data.status can\'t be proven without a matching filter', async () => {
+    const db = anon().firestore()
+    await assertFails(getDocs(collection(db, 'news')))
+  })
+
+  test('unauthenticated CAN query news filtered to status == published', async () => {
+    const db = anon().firestore()
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, 'news'), where('status', '==', 'published')))
+    )
+    expect(snap.size).toBe(1)
+  })
+
+  test('unauthenticated cannot query news filtered to status == draft', async () => {
+    const db = anon().firestore()
+    await assertFails(
+      getDocs(query(collection(db, 'news'), where('status', '==', 'draft')))
+    )
+  })
+
+  test('exec can list news unconstrained, drafts included', async () => {
+    const db = exec('exec-user').firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, 'news')))
+    expect(snap.size).toBe(2)
+  })
+})
+
+describe('list/query semantics — broadcasts, welfareCases — exec-only', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'broadcasts/b-1'), { message: 'x' })
+      await setDoc(doc(ctx.firestore(), 'welfareCases/case-1'), { requester: 'some-member', status: 'open' })
+    })
+  })
+
+  test('exec can list broadcasts', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(getDocs(collection(db, 'broadcasts')))
+  })
+
+  test('a verified non-exec member cannot list broadcasts', async () => {
+    const db = verified('some-member').firestore()
+    await assertFails(getDocs(collection(db, 'broadcasts')))
+  })
+
+  test('exec can list welfareCases', async () => {
+    const db = exec('exec-user').firestore()
+    await assertSucceeds(getDocs(collection(db, 'welfareCases')))
+  })
+
+  // The rules comment on welfareCases calls this out explicitly: a member's
+  // write surface is create-only, and that includes the member who opened
+  // the case being listed here — this proves the "not even their own" claim
+  // at the list level, not just via the existing single-doc get test.
+  test('a verified member cannot list welfareCases, not even to find their own', async () => {
+    const db = verified('some-member').firestore()
+    await assertFails(getDocs(collection(db, 'welfareCases')))
+  })
+})
+
+describe('list/query semantics — registrations: list is admin-only, narrower than get', () => {
+  const memberUid = 'list-reg-member'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `registrations/event-1_${memberUid}`), {
+        uid: memberUid, eventId: 'event-1', attended: false,
+      })
+    })
+  })
+
+  test('a member can get their own registration by its known deterministic id', async () => {
+    const db = verified(memberUid).firestore()
+    await assertSucceeds(getDoc(doc(db, `registrations/event-1_${memberUid}`)))
+  })
+
+  // This is the interesting divergence: unlike payments (where get and list
+  // share the same self-or-admin condition), registrations splits them —
+  // `allow list: if isAdmin();` alone, with no self-uid carve-out at all. A
+  // member can only ever reach their own registration by already knowing its
+  // id (get), never by querying for it (list) — even constrained to their
+  // own uid field, which would succeed on payments' equivalent rule.
+  test('a member CANNOT list/query their own registrations, even filtered to their own uid field — list has no self carve-out here at all', async () => {
+    const db = verified(memberUid).firestore()
+    await assertFails(
+      getDocs(query(collection(db, 'registrations'), where('uid', '==', memberUid)))
+    )
+  })
+
+  test('admin can list registrations unconstrained', async () => {
+    const db = admin('admin-user').firestore()
+    await assertSucceeds(getDocs(collection(db, 'registrations')))
+  })
+})
+
+describe('list/query semantics — cpdEntries: subcollection list is scoped by path, not a query filter, and no collection-group view exists', () => {
+  const selfUid = 'list-cpd-self'
+  const otherUid = 'list-cpd-other'
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `cpdEntries/${selfUid}/entries/entry-1`), {
+        title: 'Workshop', provider: 'X', creditUnits: 5, dateAttended: '2026-01-01',
+        source: 'self_reported', createdAt: Timestamp.now(),
+      })
+    })
+  })
+
+  test('a verified member can list their own cpdEntries subcollection', async () => {
+    const db = verified(selfUid).firestore()
+    const snap = await assertSucceeds(getDocs(collection(db, `cpdEntries/${selfUid}/entries`)))
+    expect(snap.size).toBe(1)
+  })
+
+  test('a verified member cannot list another member\'s cpdEntries subcollection', async () => {
+    const db = verified(otherUid).firestore()
+    await assertFails(getDocs(collection(db, `cpdEntries/${selfUid}/entries`)))
+  })
+
+  test('admin can list a known member\'s cpdEntries subcollection', async () => {
+    const db = admin('admin-user').firestore()
+    await assertSucceeds(getDocs(collection(db, `cpdEntries/${selfUid}/entries`)))
+  })
+
+  // The rules file's own comment claims this doesn't exist. Proving it: a
+  // collectionGroup query needs its own dedicated rule under a
+  // `match /{path=**}/entries/{id}`-shaped block, which firestore.rules
+  // doesn't define — so even an admin's collectionGroup('entries') query,
+  // which would otherwise be the natural way to build an aggregate CPD
+  // report across every member, is denied outright.
+  test('even admin cannot run a collectionGroup query across every member\'s entries subcollection — no such rule exists', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(getDocs(collectionGroup(db, 'entries')))
+  })
+})
+
+describe('list/query semantics — collections closed to every client, confirmed at the list level too', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'publicDirectory/entry-1'), { displayName: 'Dr. Public' })
+      await setDoc(doc(ctx.firestore(), 'registerEntries/entry-1'), { name: 'Dr. Register' })
+    })
+  })
+
+  test('admin cannot list publicDirectory via the client SDK', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(getDocs(collection(db, 'publicDirectory')))
+  })
+
+  test('admin cannot list registerEntries via the client SDK', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(getDocs(collection(db, 'registerEntries')))
   })
 })
 
