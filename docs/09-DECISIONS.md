@@ -1269,3 +1269,91 @@ combined. No rule was changed to make a test pass — every result matched what 
 already specified; this closes a coverage gap, not a security gap that turned out to exist. The
 next person who widens an `allow list` clause without meaning to now finds out from `npm run
 test:rules`, not from someone else finding it first.
+
+---
+
+## ADR-034 — Five findings, accepted as-is rather than fixed: pagination, CSP, CPD certificate URLs, dependency advisories, the deletion Function
+
+**Context.** An independent audit (2026-09-03) raised 25 findings. Twenty were acted on
+(ADR-027 through ADR-033, plus the accessibility and header fixes that didn't need their own
+ADR). Five were deliberately not — not overlooked, decided against building right now, for
+reasons worth recording so the next person doesn't have to re-derive them or wonder whether
+they were simply missed.
+
+**1. Pagination (F-13) — not built.** Every server-side list read in `lib/data/*` is unbounded:
+confirmed again before writing this ADR, not assumed from the audit — `publicDirectory.ts`,
+`membersAdminServer.ts`, `verificationAdmin.ts`, `documentsAdmin.ts`, `welfareAdmin.ts`, and
+`broadcastAdminServer.ts` all still read their entire collection with no `.limit()`, as does
+`news.ts` (feeding both `/news` and, since ADR-028, the homepage's 5-minute-revalidated read).
+`verificationAdmin.ts` additionally does one extra `members/{uid}` read per historical row, and
+that collection is never pruned (`allow delete: if false`, kept as an audit trail) — the one of
+these seven that gets strictly worse with age, not just linearly more expensive. Accepted because
+at current scale (a few hundred members, ADR-027's backfill touched exactly ten verified ones)
+every one of these reads costs nothing worth optimising for. This is scale-dependent debt, not
+free: revisit before, not after, the chapter's roster or its verification-request history grows
+by an order of magnitude. `directory.ts`'s client-side whole-collection `onSnapshot` is explicitly
+excluded from this concern — it's real, offline-first design (ADR-033 confirmed the rule permits
+exactly this), not an oversight sharing the same shape.
+
+**2. Content-Security-Policy — not added.** `next.config.ts` sets every other header this audit
+recommended (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`,
+and now `Strict-Transport-Security`), deliberately stopping short of CSP. This codebase uses
+inline `style={{...}}` extensively and on purpose — design tokens are threaded through components
+as inline styles throughout `src/`, not a CSS-class convention — which means any CSP would need
+`style-src 'unsafe-inline'`, giving up most of CSP's actual value against injected styles before
+it starts. A `script-src` policy with a nonce would still be worth having on its own (it would
+have closed the class of bug F-15 named — an unvalidated `href` in the markdown renderer,
+separately fixed by allowlisting schemes rather than by CSP), but Next's own inline bootstrap
+scripts need a nonce threaded through `next.config.ts` and the root layout correctly for that to
+work without breaking the app, which is real, measured work, not a header to copy in. Accepted as
+follow-up: a report-only `script-src` policy first, to see what it would actually break before
+enforcing anything.
+
+**3. CPD certificates via `getDownloadURL()` (F-09) — not fixed.** `lib/data/cpd.ts` still calls
+`getDownloadURL()` after upload, storing the resulting token-bearing URL as `certificateUrl` —
+confirmed still true, not assumed. `storage.rules`'s own opening line says "unguessable URLs are
+not security," and ADR-022 rejected exactly this pattern for guideline files for exactly this
+reason: the token authorises the object forever, independent of `storage.rules`, independent of
+whether the member is still verified. The fix is a known, already-proven shape — mirror the
+guidelines Route Handler pattern (`portal/documents/[id]/download/route.ts`), which already does
+this correctly for a different collection. Not done here because the exposure is narrower than
+guidelines (a CPD attendance certificate, not clinical content) and because fixing it doesn't
+just mean shipping new code — every `certificateUrl` already issued needs its token revoked in
+Firebase Console for the fix to actually close the gap, an operational step alongside the code
+change, not a pure refactor. Accepted as a known gap with a known fix, deferred rather than
+designed around.
+
+**4. Dependency advisories (F-23) — not remediated, but no longer silently accumulating.**
+`npm audit` today: 18 advisories, 1 high, 17 moderate (re-run before writing this ADR — same
+counts as the audit found). The one high (`fast-uri`, via `firebase-tools` → `ajv`) is
+confirmed unreachable in production (`npm ls fast-uri --omit=dev` returns empty; `firebase-tools`
+is a devDependency, used only for emulators and deploys). The moderates are transitive under
+`firebase-admin`'s Google Cloud client libraries or `firebase-tools` itself, none reachable with
+attacker-controlled input in this codebase. None of the 18 individually justified an emergency
+`npm audit fix --force` (which would pull a breaking `firebase-admin` downgrade to clear the
+`uuid` chain). What changed instead: `npm audit --audit-level=high --omit=dev` is now a real CI
+gate (see the header/CI fixes alongside ADR-033), confirmed exit-0 against the current lockfile
+before being wired in specifically so it polices *new* high/critical advisories in production
+dependencies going forward, rather than relitigating these 18.
+
+**5. `deleteMember` Function (F-04b) — not built; the manual path is at least repeatable now.**
+`firestore.rules:38` still reads `allow delete: if false; // deletion is a Function` — no such
+Function exists (`functions/src/index.ts` exports eight, none of them this one). A real erasure
+request today means an admin touching eight separate locations by hand: `members/{uid}`, both
+directory projections, the `cpdEntries` subcollection, `verificationRequests`, `registrations`,
+`jobs`, `welfareCases`, and the Auth user itself. Rather than build the Function, the concrete
+per-collection checklist was written into `docs/08-NDPA-COMPLIANCE.md` (alongside ADR-030's
+backup work) so that manual process is at least complete and repeatable rather than whatever an
+admin happens to remember — a real gap, closed for now, not conflated with the different gap of
+not having automated it. Accepted because at current member counts a manual, checklist-driven
+erasure is genuinely tractable and rare enough not to justify the engineering cost of a
+transactional cross-collection delete Function yet; revisit if erasure requests stop being rare.
+
+**Consequence.** None of these five is invisible: each has a named finding id, a real file or
+number backing the claim, and a stated condition for when "accepted" should be revisited (an
+order-of-magnitude growth in members or verification history for pagination; any move to enforce
+a CSP for the markdown-XSS class of risk; an actual CPD-certificate leak report; a new *reachable*
+high/critical advisory, which CI now catches; erasure requests becoming routine rather than rare).
+Accepting a gap without writing down what would make it stop being acceptable is how "rate-limited
+search" and "App Check enforced" ended up asserted as done for years — see ADR-031. This ADR is
+deliberately written to fail that test.
