@@ -15,7 +15,7 @@ jest.mock('@/lib/auth/session', () => ({
   verifySession: (...args: unknown[]) => verifySession(...args),
 }))
 
-import { proxy } from '@/proxy'
+import { proxy, resetRateLimiterForTests } from '@/proxy'
 
 describe('proxy — /portal and /admin gating', () => {
   beforeEach(() => {
@@ -71,5 +71,55 @@ describe('proxy — /portal and /admin gating', () => {
     })
     const res = await proxy(req)
     expect(res.headers.get('location')).toBeNull()
+  })
+})
+
+describe('proxy — rate limiting on /verify, /doctors, /api', () => {
+  beforeEach(() => {
+    resetRateLimiterForTests()
+  })
+
+  function requestFrom(ip: string, path: string) {
+    return new NextRequest(`https://example.com${path}`, {
+      headers: { 'x-forwarded-for': ip },
+    })
+  }
+
+  test('the 61st request in a minute from the same IP is rejected with 429', async () => {
+    for (let i = 0; i < 60; i++) {
+      const res = await proxy(requestFrom('1.2.3.4', '/doctors'))
+      expect(res.status).not.toBe(429)
+    }
+    const res = await proxy(requestFrom('1.2.3.4', '/doctors'))
+    expect(res.status).toBe(429)
+  })
+
+  test('the count is shared across /verify, /doctors and /api for the same IP — not a separate bucket per route', async () => {
+    for (let i = 0; i < 60; i++) {
+      await proxy(requestFrom('5.6.7.8', i % 2 === 0 ? '/doctors' : '/verify/some-token'))
+    }
+    const res = await proxy(requestFrom('5.6.7.8', '/api/session'))
+    expect(res.status).toBe(429)
+  })
+
+  test('a different IP is not affected by another IP already at the limit', async () => {
+    for (let i = 0; i < 61; i++) {
+      await proxy(requestFrom('9.9.9.9', '/doctors'))
+    }
+    const res = await proxy(requestFrom('1.1.1.1', '/doctors'))
+    expect(res.status).not.toBe(429)
+  })
+
+  test('/portal and /admin are not rate-limited by this mechanism — auth gating still runs at request 61', async () => {
+    verifySession.mockResolvedValue(null)
+    for (let i = 0; i < 61; i++) {
+      await proxy(requestFrom('2.2.2.2', '/doctors'))
+    }
+    const res = await proxy(requestFrom('2.2.2.2', '/portal'))
+    // Redirected to /signin (307), not blocked with 429 — proves /portal took
+    // the auth-gating branch, not the rate-limit branch, even though this IP
+    // is already over the limit on the other branch.
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('https://example.com/signin')
   })
 })

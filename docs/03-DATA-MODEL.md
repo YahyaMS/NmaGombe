@@ -24,7 +24,7 @@ by now — that's still a human call. See ADR-031.
 | No trust field (`status`, `role`, `duesPaidThrough`, `verificationToken`) has a client write path | Implemented | `tests/rules/firestore.test.ts` |
 | No bulk-read endpoint returning every member's data in one call | Implemented (architectural — no single dedicated test; the absence of an `allow list: if true` anywhere in `firestore.rules` is what this rests on, and F-08 tracks adding explicit `list`-query denial tests, which the rules suite doesn't yet have for any collection) | — |
 | App Check enforcement | Intended | — (client-wired since ADR-019/020; enforced once, rolled back the same day after a real production failure — root cause still undiagnosed. See ADR-020.) |
-| Rate limiting on search, lookup, and write endpoints | Intended | — (F-05, tracked; the load-bearing controls against scraping today are `verified()` gating plus the absence of a bulk-read endpoint, not rate limiting or App Check) |
+| Rate limiting on `/verify`, `/doctors`, `/api/*` | Implemented (partial — see caveats, not enforced by `check-threat-model.mjs`) | `tests/auth/proxy.test.ts` — but read the caveats before trusting the tag: per-IP, 60 req/min, in a `src/proxy.ts` in-memory `Map` that's per-instance and resets on every cold start or redeploy — a distributed script defeats it trivially. It also has no reach at all into writes made via the Firestore client SDK (`jobs`, `cpdEntries`, `welfareCases` creates) — those never touch `proxy.ts`, so this row does not cover them; see F-05. |
 
 ## Identity tiers
 | Tier | How it is granted | Can see |
