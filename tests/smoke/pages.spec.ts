@@ -8,7 +8,7 @@
  * Rule: every new route gets a line here in the same slice that creates it. One assertion
  * is enough. The value is coverage of routes, not depth per route.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { signInAs } from "./auth";
 import { SMOKE_EVENT_SLUG, SMOKE_NEWS_SLUG } from "./global-setup";
 
@@ -27,13 +27,27 @@ const publicRoutes = [
 
 // Any console error during load is a failure. Hydration mismatches surface here and
 // nowhere else in the toolchain.
+//
+// Collected into an array and asserted in afterEach, not thrown directly from the
+// listener — throwing from inside page.on(...) turns out to work (confirmed with a
+// deliberately-broken page: Playwright does propagate it and fail the test), but
+// that's undocumented event-dispatch behaviour to depend on, not a guarantee. This
+// version doesn't rely on it: it fails the same way, from an ordinary assertion.
+const consoleAndPageErrors = new WeakMap<Page, string[]>();
+
 test.beforeEach(async ({ page }) => {
+  const errors: string[] = [];
+  consoleAndPageErrors.set(page, errors);
   page.on("console", (msg) => {
-    if (msg.type() === "error") throw new Error(`Console error: ${msg.text()}`);
+    if (msg.type() === "error") errors.push(`Console error: ${msg.text()}`);
   });
   page.on("pageerror", (err) => {
-    throw new Error(`Uncaught: ${err.message}`);
+    errors.push(`Uncaught: ${err.message}`);
   });
+});
+
+test.afterEach(async ({ page }) => {
+  expect(consoleAndPageErrors.get(page)).toEqual([]);
 });
 
 for (const route of publicRoutes) {
