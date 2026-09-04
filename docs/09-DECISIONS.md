@@ -1012,3 +1012,53 @@ within five minutes anyway. Scoped to these two call sites, not pushed into `lib
 `events.ts` themselves — other callers (`/news`, the admin list views) should keep failing loudly;
 degrading silently is specifically the right trade-off for a build-time prerender path, not a
 general property either repository function should have.
+
+---
+
+## ADR-029 — `projectMember` gets its own test package, because rules can't cover it
+
+**Context.** `onMemberWrite` (`functions/src/directory-projection.ts`) is the only code deciding
+what a member's profile projects into `directoryEntries` (every verified member) and
+`publicDirectory` (opted-in members only) — including which fields are *absent*, not merely masked.
+It is Admin SDK code, so `firestore.rules` and its ~150-assertion test suite cannot exercise it at
+all; that suite is excellent and gives a strong impression of coverage, but it is testing a
+different boundary. Before this ADR, `onMemberWrite` had zero tests of any kind, and no test
+directory existed under `functions/` — the audit that found this called it the single highest-risk
+untested path in the codebase: a one-character regression (`visibility.phone` → `after.phone`, or
+dropping the `else { publicRef.delete() }`) would ship green through typecheck, lint, build, every
+rules test, and every smoke test, and publish the phone numbers of doctors who explicitly opted out.
+
+**Decision.** Split the trigger in two: `projectMember(db, uid, after)` — a plain async function
+holding all the actual projection logic — and `onMemberWrite`, now a two-line wrapper that reads the
+event and calls it. This means the logic can be tested by calling it directly against a real
+Firestore emulator via the Admin SDK, without needing the Functions emulator's event-dispatch
+machinery to actually fire a trigger — faster, and the emulator setup this project already runs for
+`tests/rules` covers it with no new infrastructure beyond Jest itself.
+
+`functions/` gets its own Jest setup (`jest.config.ts`, `tsconfig.test.json`, `test/`) — a separate
+package with its own `package.json`, so this doesn't touch the root project's Jest config or count
+against its route/bundle-budget tooling. Six cases in
+`functions/test/directory-projection.test.ts`, asserting **exact key sets** on both projected
+documents (not just "contains the right field" — a leaked extra key would pass a subset check and
+fail this one): not-yet-verified members project into neither collection; a verified member with no
+consent gets a `directoryEntries` doc and no `publicDirectory` doc; consent alone produces the
+minimal public field set; contact-field visibility flags populate `directoryEntries` regardless of
+consent; and — the case that matters most — **visibility and consent both on still never puts
+phone, whatsapp, or email into `publicDirectory`**, which is the exact invariant the source comment
+claims and the one a careless edit would silently break. Every case also asserts `verificationToken`
+(ADR-027) is absent from both projections, since the same one-object-literal design that keeps
+contact fields out is what keeps the token out too, and it's worth proving rather than assuming.
+A seventh case confirms suspension removes a member from `directoryEntries`, not only
+`publicDirectory` — the ADR-014 behaviour the source comment describes.
+
+Wired into CI as three new steps in the existing `verify` job: install `functions/`'s own
+dependencies (a separate package, not covered by the root `npm ci`), build it, then run its tests
+inside the same `firebase-tools emulators:exec --only firestore` wrapper the rules-test step already
+uses.
+
+**Consequence.** This is the first and only test coverage any Cloud Function in this project has.
+The other five (`decideVerification`, `logBroadcast`, `setMemberStatus`/`setMemberRole`,
+`markAttendance`/`unmarkAttendance`, `cleanupExpiredJobs`) remain untested — `projectMember` was
+prioritised because it is the one enforcing a privacy invariant with no other backstop, not because
+the others don't need coverage. Extending this same pattern (extract the logic, test it directly
+against the emulator) to the rest is future work, not done here.

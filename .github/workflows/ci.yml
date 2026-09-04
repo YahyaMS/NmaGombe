@@ -65,6 +65,22 @@ jobs:
       - name: Firestore rules tests
         run: npx firebase-tools emulators:exec --only firestore --project nma-gombe-test "npm run test:rules"
 
+      # Cloud Functions are a separate package (functions/), not covered by the
+      # root npm ci above. projectMember (functions/src/directory-projection.ts)
+      # is the only code enforcing per-field visibility and public-listing
+      # consent, and rules can't test it — the Admin SDK bypasses them entirely.
+      # See docs/09-DECISIONS.md ADR-029.
+      - name: functions — install
+        run: npm ci
+        working-directory: functions
+
+      - name: functions — build
+        run: npm run build
+        working-directory: functions
+
+      - name: functions — tests
+        run: npx firebase-tools emulators:exec --only firestore --project nma-gombe-test "npm --prefix functions test"
+
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
