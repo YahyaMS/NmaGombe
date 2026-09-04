@@ -118,19 +118,31 @@ export function FolioCard({
       role="button"
       tabIndex={0}
       aria-describedby={flipHintId}
+      className="folio-card-focus"
       onClick={() => setFlipped((f) => !f)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') setFlipped((f) => !f)
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault() // Space must flip the card, not also scroll the page
+          setFlipped((f) => !f)
+        }
       }}
-      style={{
-        width: '100%',
-        maxWidth: '400px',
-        aspectRatio: '1.586',
-        perspective: '1000px',
-        cursor: 'pointer',
-        userSelect: 'none',
-        outline: 'none',
-      }}
+      style={
+        {
+          width: '100%',
+          maxWidth: '400px',
+          aspectRatio: '1.586',
+          perspective: '1000px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          // Consumed by .folio-card-focus:focus-visible in globals.css — the
+          // card's ground is dark (green-deep) or light (rule-strong, pending
+          // state), so the accessible-contrast focus colour has to switch
+          // with it. An inline outline can't be pseudo-classed to :focus-visible
+          // at all, so the colour is handed to CSS via a custom property
+          // instead of applying the outline directly here.
+          '--focus-outline-color': isPending ? 'var(--color-green)' : 'var(--color-surface)',
+        } as React.CSSProperties
+      }
     >
       {/*
         No aria-label: the card's visible content (name, grade, folio, dues)

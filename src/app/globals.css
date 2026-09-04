@@ -212,6 +212,29 @@ ul, ol {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   SKIP LINK — WCAG 2.2 SC 2.4.1 Bypass Blocks (Level A). Every page opens with
+   the same repeated header nav; without this a keyboard/switch user tabs
+   through all of it, every load.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-150%);
+  z-index: 100;
+  background-color: var(--color-green);
+  color: var(--color-surface);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius);
+  transition: transform var(--motion-fast);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    FOCUS
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -219,6 +242,25 @@ ul, ol {
   outline: 2px solid var(--color-green);
   outline-offset: 3px;
   border-radius: var(--radius);
+}
+
+/* --color-green on --color-green-deep measures 1.56:1 — nowhere near the 3:1
+   WCAG 2.2 SC 1.4.11 requires for a focus indicator, and the header/footer's
+   own ground is --color-green-deep on every page. --color-surface (white) on
+   that ground measures 12.9:1. */
+header :focus-visible,
+footer :focus-visible {
+  outline-color: var(--color-surface);
+}
+
+/* FolioCard.tsx: outline can't be pseudo-classed once it's a plain inline
+   style, so the ring lives here instead, coloured by a custom property the
+   component sets per ground (dark green-deep vs. light rule-strong/pending) —
+   see that file's own comment. */
+.folio-card-focus:focus-visible {
+  outline: 2px solid var(--focus-outline-color, var(--color-green));
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

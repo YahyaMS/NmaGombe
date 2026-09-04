@@ -80,6 +80,9 @@ export default function RootLayout({
       ].join(' ')}
     >
       <body>
+        <a href="#main-content" className="skip-link type-body font-semibold">
+          Skip to content
+        </a>
         {children}
         <Suspense fallback={null}>
           <ServiceWorkerRegistration />
