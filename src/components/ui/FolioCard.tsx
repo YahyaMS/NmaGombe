@@ -34,7 +34,11 @@ export type FolioCardStatus =
 interface FolioCardProps {
   name: string
   grade: string        // e.g. "Consultant Paediatrician" or member grade
-  folioNumber: string  // e.g. "NMA/GM/0417"
+  folioNumber: string  // e.g. "NMA/GM/0417" — printed on the card as a label; no longer a lookup key, see ADR-027
+  /** The member's opaque /verify/[token] id (ADR-027). Absent for a pending member (never
+   *  yet approved, so nothing to scan) and for the homepage's specimen card — in both cases
+   *  the QR position renders the blank placeholder, never a link to a real member. */
+  verificationToken?: string
   /** Omit (or use status "dues-not-recorded") when there's no real dues record — the dues line is then omitted entirely, never shown as blank or zero. */
   duesYear?: string     // e.g. "2026"
   status?: FolioCardStatus
@@ -74,6 +78,7 @@ export function FolioCard({
   name,
   grade,
   folioNumber,
+  verificationToken,
   duesYear,
   status = 'active',
   lastSynced,
@@ -85,9 +90,10 @@ export function FolioCard({
   const isDuesOutstanding = status === 'dues-outstanding'
   const isOffline = status === 'offline'
   const showDues = Boolean(duesYear) && status !== 'dues-not-recorded'
-  const verifyUrl = verifyUrlFor(folioNumber)
+  const verifyUrl = verificationToken ? verifyUrlFor(verificationToken) : null
 
   useEffect(() => {
+    if (!verifyUrl) return
     let cancelled = false
     void verifyQrDataUrl(verifyUrl).then((dataUrl) => {
       if (!cancelled) setQrDataUrl(dataUrl)
@@ -96,6 +102,12 @@ export function FolioCard({
       cancelled = true
     }
   }, [verifyUrl])
+
+  // Gated on verifyUrl here, not just on qrDataUrl being set, so a stale QR
+  // from a previous verificationToken can never render for a beat if the
+  // prop ever changes out from under a mounted card (it doesn't in practice
+  // — see the prop's own doc comment — but this makes it impossible either way).
+  const resolvedQrDataUrl = verifyUrl ? qrDataUrl : null
 
   const groundColor = isPending
     ? 'var(--color-rule-strong)'
@@ -252,7 +264,7 @@ export function FolioCard({
                 flexShrink: 0,
               }}
             >
-              <FolioQr dataUrl={qrDataUrl} size={48} />
+              <FolioQr dataUrl={resolvedQrDataUrl} size={48} />
             </div>
           </div>
 
@@ -347,8 +359,9 @@ export function FolioCard({
             style={{ color: 'rgba(255,255,255,0.60)', fontSize: '9px', textAlign: 'center' }}
           >
             {/* Protocol stripped for display — same convention as
-                folioCardImage.tsx's downloadable card. */}
-            Scan to verify membership · {verifyUrl.replace(/^https?:\/\//, '')}
+                folioCardImage.tsx's downloadable card. No verifyUrl (pending
+                member, or the homepage's specimen card) — no scan line. */}
+            {verifyUrl ? `Scan to verify membership · ${verifyUrl.replace(/^https?:\/\//, '')}` : 'Not yet verified'}
           </p>
         </div>
       </div>

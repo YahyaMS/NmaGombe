@@ -1,16 +1,16 @@
 /**
- * Verify-link preview image. Before this file, every shared /verify/[folio] link
+ * Verify-link preview image. Before this file, every shared /verify/[token] link
  * fell back to the site-wide public/brand/og-default.jpg — every member's link
  * previewed identically. This renders that member's actual folio card instead,
  * so the WhatsApp preview is the credential, not a generic chapter logo.
  *
- * Public data only: the same fields lookupByFolio already exposes on the page
- * itself (see docs/09-DECISIONS.md ADR-013) — nothing new is disclosed here,
- * just reformatted as an image.
+ * Public data only: the same fields lookupByToken already exposes on the page
+ * itself (see docs/09-DECISIONS.md ADR-013, ADR-027) — nothing new is disclosed
+ * here, just reformatted as an image.
  */
 
 import { ImageResponse } from 'next/og'
-import { lookupByFolio, toStoredFolioNumber } from '@/lib/data/verify'
+import { lookupByToken } from '@/lib/data/verify'
 import { gradeLabels, type Grade } from '@/lib/data/schemas'
 import { buildFolioCardElement, loadCardAssets } from '@/lib/render/folioCardImage'
 import { cardFonts, fontFamily } from '@/lib/render/fonts'
@@ -25,13 +25,12 @@ const INK = '#0C1A13'
 const INK_3 = '#5C6862'
 const CARD_WIDTH = 900
 
-export default async function Image({ params }: { params: Promise<{ folio: string }> }) {
-  const { folio } = await params
-  const storedFolio = toStoredFolioNumber(folio)
-  const result = await lookupByFolio(storedFolio)
+export default async function Image({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params
+  const result = await lookupByToken(token)
 
-  // No record at all — not a rejected/suspended member, just a folio nobody
-  // submitted. The page itself renders this as plain "No record found" text,
+  // No record at all — not a rejected/suspended member, just a token nobody
+  // holds. The page itself renders this as plain "No record found" text,
   // not a card (design.md's austerity rule for this page). Rendering it as a
   // fake-looking, QR-bearing card here would claim a credibility the page
   // deliberately withholds — so this branch matches the page, not the card.
@@ -74,7 +73,7 @@ export default async function Image({ params }: { params: Promise<{ folio: strin
             No record found
           </span>
           <span style={{ fontFamily: fontFamily.sans, fontSize: 24, marginTop: 12, color: INK_3 }}>
-            Folio {storedFolio} doesn’t match a member on file.
+            This link doesn’t match a member on file.
           </span>
         </div>
       ),
@@ -83,11 +82,9 @@ export default async function Image({ params }: { params: Promise<{ folio: strin
   }
 
   const isVerified = result.status === 'verified'
-  const gradeLine = [result.grade ? (gradeLabels[result.grade as Grade] ?? result.grade) : null, result.facility]
-    .filter(Boolean)
-    .join(' · ')
+  const gradeLine = result.grade ? (gradeLabels[result.grade as Grade] ?? result.grade) : ''
 
-  const assets = await loadCardAssets(result.folioNumber)
+  const assets = await loadCardAssets(token)
   const card = buildFolioCardElement(
     {
       name: result.displayName,

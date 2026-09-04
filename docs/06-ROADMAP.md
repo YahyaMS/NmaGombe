@@ -21,7 +21,7 @@ The anchor. Dues was originally build-order step 6 here — moved to Version 3, 
    the launch** — this just means real verified members, not pre-seeded placeholders, are what
    fills it. Get verification moving early so it isn't empty at announcement.
 4. Directory search + one-tap WhatsApp + offline cache.
-5. Folio card + QR + `/verify/[folio]`.
+5. Folio card + QR + `/verify/[token]`.
 6. News + events publishing, three fields, phone-friendly.
 
 **Acceptance:** a member finds a colleague in another specialty and reaches them in two taps, on

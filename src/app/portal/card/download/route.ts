@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
 
   const displayName = typeof member.displayName === 'string' ? member.displayName : ''
   const folioNumber = typeof member.folioNumber === 'string' ? member.folioNumber : ''
+  const verificationToken = typeof member.verificationToken === 'string' ? member.verificationToken : null
   const department = typeof member.department === 'string' ? member.department : ''
   const grade: Grade | undefined =
     typeof member.grade === 'string' && member.grade in gradeLabels
@@ -62,7 +63,15 @@ export async function GET(request: NextRequest) {
       : undefined
   const gradeLine = [grade ? gradeLabels[grade] : null, department].filter(Boolean).join(' · ')
 
-  const assets = await loadCardAssets(folioNumber)
+  // Every verified member has had a token since ADR-027 (minted on approval,
+  // backfilled for anyone verified before that). Absence here means the
+  // backfill hasn't run yet — fail loudly rather than print a card whose QR
+  // encodes nothing.
+  if (!verificationToken) {
+    return new Response('Your card isn’t ready yet. Try again shortly.', { status: 503 })
+  }
+
+  const assets = await loadCardAssets(verificationToken)
   const element = buildFolioCardElement(
     {
       name: displayName,

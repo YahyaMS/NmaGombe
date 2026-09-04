@@ -142,6 +142,22 @@ describe('members/{uid} — trust fields', () => {
       updateDoc(doc(db, `members/${uid}`), { role: 'exec' })
     )
   })
+
+  // verificationToken is minted only by decideVerification on first approval (ADR-027) — a
+  // client-set token would be guessable, defeating the reason it replaced folio-number lookup.
+  test('verified member cannot write their own verificationToken', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { verificationToken: 'chosen-by-client' })
+    )
+  })
+
+  test('admin cannot write verificationToken via direct client update', async () => {
+    const db = admin('admin-user').firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { verificationToken: 'chosen-by-admin' })
+    )
+  })
 })
 
 // ── Invariant 2: directoryEntries readable only by verified ──────────────────

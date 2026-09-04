@@ -16,7 +16,7 @@ personal data of every doctor in the chapter.
 4. **Every rules change ships with a rules unit test that asserts denial.** A test that only
    proves the happy path passes is worse than no test — it creates false confidence.
 5. Trust fields are Function-write-only: `members.status`, `members.role`,
-   `members.duesPaidThrough`, all of `payments/*`, all of `duesRates/*`.
+   `members.duesPaidThrough`, `members.verificationToken`, all of `payments/*`, all of `duesRates/*`.
 6. Never widen a rule to fix a client bug. If the client is getting permission-denied, the
    client is asking for the wrong thing.
 7. Storage paths are namespaced by uid and guarded by rules. Unguessable URLs are not security.

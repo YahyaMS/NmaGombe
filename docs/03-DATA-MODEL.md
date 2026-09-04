@@ -30,7 +30,21 @@ displayName, department               // department = clinical specialty, free t
                         // not deferred to a profile form few members will return to complete.
 folioNumber            // self-reported at signup. NOT cross-checked against any digitised
                         // roster — admin approves by matching name against the eligibility
-                        // list and personal knowledge. See ADR-010.
+                        // list and personal knowledge. See ADR-010. Displayed publicly on
+                        // /verify/[token] (as a label the viewer cross-checks against the
+                        // physical card, not a lookup key) but is NOT the /verify lookup
+                        // key — see verificationToken below and ADR-027.
+verificationToken      // FUNCTION-ONLY. Opaque, high-entropy id (crypto.randomBytes(16),
+                        // base64url), minted once by decideVerification on a member's first
+                        // approval — absent for a member never yet verified. This, not
+                        // folioNumber, is what /verify/[token] looks members up by:
+                        // folioNumber is a few hundred sequential values, so a folio-keyed
+                        // lookup let anyone walk the entire roster. Persists through later
+                        // suspension, so an old physical card still resolves and correctly
+                        // shows "not a current member" rather than "no record found". See
+                        // ADR-027. Never appears in directoryEntries or publicDirectory —
+                        // onMemberWrite (directory-projection.ts) projects an explicit field
+                        // list that doesn't include it.
 email                   // also the sign-in identity (email-link auth, ADR-010)
 facility                // optional at signup, editable in /portal/profile. Also shown to the
                         // admin as a cross-check against the eligibility list — ADR-014.

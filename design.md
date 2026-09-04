@@ -329,7 +329,7 @@ never a left sidebar. Instant local filtering against the offline cache; a spinn
 means the query is wrong. Empty state names the cause and offers *Clear filters*. Offline state
 reads as freshness ("Last synced Tuesday, 09:14"), not as failure.
 
-**Verification page (`/verify/[folio]`).** The most austere page on the site, and the one the
+**Verification page (`/verify/[token]`).** The most austere page on the site, and the one the
 public judges the institution by. Centred, `--paper`, a single statement — verified or not —
 name, grade, facility, folio, status year. No navigation, no footer links, no marketing. Nothing
 else exists on this page. Same trap as the folio card: until dues collection exists, "status

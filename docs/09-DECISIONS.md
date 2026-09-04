@@ -910,6 +910,74 @@ no profile if the second fails. That state is recognised and recoverable rather 
 note it is now the *only* way a member can be invisible to the admin queue, and it is a genuine
 failure, not a routine one.
 
+---
+
+## ADR-027 — `/verify` looks members up by an opaque token, not folioNumber
+**Context.** An independent engineering audit (2026-09-03) found that `/verify/[folio]` read
+`members` directly by `folioNumber` and rendered any member's name, grade, facility and status to
+an unauthenticated visitor — while `/privacy` told members nothing appears publicly "and only if
+you explicitly opt in." `folioNumber` is `NMA/GM/nnnn`, a few hundred sequential values, and there
+is no rate limiting anywhere in this codebase (a separate, tracked gap — see the audit's F-05).
+The whole roster, including members who deliberately left the public directory unchecked, was
+walkable in minutes by anyone who tried the URL pattern, no card required. ADR-019's fix (real QR
+generation, replacing the earlier `QrPlaceholder()`) had made this concretely exploitable rather
+than academic — a real, scannable QR was already shipping, encoding the same enumerable key.
+
+Gating the lookup on `publicListingConsent` was considered and rejected: it would have broken the
+legitimate case this page exists for — a doctor hands you their card, you scan it, it verifies —
+for every member who opted out of the *directory* specifically, which is a different decision from
+"can prove membership to someone I've shown my card to." The actual defect was the identifier, not
+the absence of a consent check on top of it.
+
+**Decision.** `members/{uid}` gains `verificationToken` — an opaque, high-entropy id
+(`crypto.randomBytes(16).toString('base64url')`, 128 bits), minted once by `decideVerification`
+(`functions/src/verification.ts`) the first time a member is approved, guarded on the field being
+absent so a later rejection-then-reapproval never mints a second token and orphans a card already
+handed out. It is a trust field — added to `noTrustFieldChanges()`'s diff check alongside `status`/
+`role`/`duesPaidThrough`/`verifiedAt` — so no client write path can ever set or overwrite it,
+including the member's own. `/verify/[folio]` becomes `/verify/[token]`; `lookupByFolio` becomes
+`lookupByToken`, querying `verificationToken` instead. `toStoredFolioNumber` (the hyphen/slash
+round trip folio numbers needed to survive as a URL segment) is deleted entirely — a token has no
+slashes, so the thing it worked around no longer exists. Every card-rendering surface (`FolioCard`,
+the download route, the homepage's own-card fetch, the verify OG image) now encodes the token, not
+the folio number, into the QR/link.
+
+Pre-existing verified members needed a one-time backfill (`scripts/backfill-verification-tokens.ts`)
+before the folio-based route could be removed. Rollout order mattered: rules deployed first (so the
+trust-field guard was live before anything else touched the field — the `affectedKeys().hasAny()`
+diff makes adding a never-yet-written field a no-op for every existing flow, so this cost nothing),
+then the backfill, then the Functions change, then the app. The Admin SDK bypasses rules regardless,
+so the backfill's own access was never gated by this ordering — it closes the window on the client
+side specifically.
+
+The response `/verify/[token]` returns was also reduced. **Facility is dropped** — it isn't needed
+to prove "this is a real, current member," and it was the field most entangled with
+`publicListingConsent`, so showing it here regardless of that flag was the sharpest edge of the
+original problem. **Folio number is kept**, deliberately reversed from the audit's own suggested
+fix: the person scanning is holding the card, which already shows the folio, so echoing it back
+discloses nothing new to the intended audience; MDCN operates a public register of licensed
+practitioners, so folio numbers are not secret information; and it's the identifier Nigerian
+institutions actually recognise — a verification page that omitted it would read as less
+authoritative to the hospital administrator or checkpoint officer who is the actual user of this
+page. The enumeration risk this ADR closes came from folio number being a *lookup key*, not from
+it being *visible* — once it stops being the key, showing it costs nothing and keeps the page
+useful.
+
+**Consequence.** Every card in circulation before this shipped stopped resolving the moment the
+folio-based route was removed. At the time this shipped, the only person known to have downloaded
+a card was the person who built this feature — there is no analytics or download logging anywhere
+in this codebase to confirm that with certainty either way, which is itself a gap the audit named
+(see the "no error monitoring, no logging" finding). The decision was to proceed regardless:
+enumeration of the entire chapter roster outranks a handful of dead cards, and any card that did
+leak invalidates and gets re-issued for free, automatically, the moment its owner reloads
+`/portal/card`.
+
+**Known gap, deliberately not built here.** There is currently no way to rotate a member's token if
+one is ever exposed independent of the member's own status — `setMemberStatus`'s `suspended` state
+handles "no longer a member," but not "this specific link leaked and the member is otherwise fine."
+An admin-triggered `rotateVerificationToken` callable, mirroring `setMemberStatus`'s authorisation
+pattern, is the obvious shape for this. Recorded here as a known gap rather than built now.
+
 Two accounts predated this (the admin's and one official's) and had no password; both were given
 one directly via the Admin SDK rather than through a reset email, because how Firebase treats a
 password reset on an email-link-only account is exactly the kind of thing `CLAUDE.md` says not to

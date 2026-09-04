@@ -19,7 +19,8 @@
     "test:smoke": "playwright test tests/smoke",
     "grant-admin": "ts-node scripts/grant-admin.ts",
     "import-register": "ts-node scripts/import-register.ts",
-    "repair-verification-requests": "ts-node scripts/repair-verification-requests.ts"
+    "repair-verification-requests": "ts-node scripts/repair-verification-requests.ts",
+    "backfill-verification-tokens": "ts-node scripts/backfill-verification-tokens.ts"
   },
   "dependencies": {
     "firebase": "^12.17.1",

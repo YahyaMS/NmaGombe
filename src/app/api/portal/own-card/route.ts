@@ -36,6 +36,7 @@ export async function GET(request: Request) {
 
   const displayName = typeof member.displayName === 'string' ? member.displayName : ''
   const folioNumber = typeof member.folioNumber === 'string' ? member.folioNumber : ''
+  const verificationToken = typeof member.verificationToken === 'string' ? member.verificationToken : null
   const department = typeof member.department === 'string' ? member.department : ''
   const grade: Grade | undefined =
     typeof member.grade === 'string' && member.grade in gradeLabels
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(
-    { displayName, gradeLine, folioNumber },
+    { displayName, gradeLine, folioNumber, verificationToken },
     { headers: { 'Cache-Control': 'no-store' } }
   )
 }

@@ -62,9 +62,9 @@ Paystack integration exists in this codebase. Rationale and rejected alternative
 ## Rules that will bite you if you ignore them
 
 **1. The client never writes trust fields.**
-`members.status`, `members.role`, `members.duesPaidThrough`, and anything in `payments/`
-are written **only** by Cloud Functions. Firestore rules must deny client writes to those
-paths. Assume any client-supplied value is hostile.
+`members.status`, `members.role`, `members.duesPaidThrough`, `members.verificationToken`,
+and anything in `payments/` are written **only** by Cloud Functions. Firestore rules must
+deny client writes to those paths. Assume any client-supplied value is hostile.
 
 **2. Firestore Security Rules do not apply to the Admin SDK.**
 Cloud Functions bypass rules entirely. Every Function that touches member data must

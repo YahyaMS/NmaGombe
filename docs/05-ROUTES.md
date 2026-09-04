@@ -51,10 +51,14 @@ route — that's a judgement call for whoever writes the line.
                          stays Firebase-SDK-free. Registration lives on /portal (the offline-tier
                          route), keyed to the same event by slug.
 /doctors                 [Built] Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
-/verify/[folio]          [Built] QR target from the membership card. Renders: a "Verified
-                         member" or "Not a current member" pill, name, grade, facility, folio
-                         number. No dues year — dues aren't implemented yet, so there is no
-                         "good standing through <year>" to show; this page never invents one.
+/verify/[token]          [Built] QR target from the membership card. `token` is the member's
+                         opaque verificationToken, not their folio number (ADR-027) — a
+                         folio-keyed lookup was a few hundred sequential values, so the
+                         whole roster was walkable without ever holding a card. Renders: a
+                         "Verified member" or "Not a current member" pill, name, grade, folio
+                         number. Deliberately omits facility. No dues year — dues aren't
+                         implemented yet, so there is no "good standing through <year>" to
+                         show; this page never invents one.
                          This page is the chapter's credibility in public. Keep it austere.
                          Its opengraph-image renders that member's actual folio card (or the
                          same "No record found" text as the page, for an unmatched folio) so a
@@ -225,7 +229,9 @@ route — that's a judgement call for whoever writes the line.
   `src/app/portal/layout.tsx` and `src/app/admin/layout.tsx` do the authoritative re-check
   (`checkRevoked: true`) server-side, via `src/lib/auth/session.ts`. Both read only `__session`
   (HttpOnly) — never `nma_display`, the separate display-only cookie the header reads.
-- `/verify/[folio]` is public, indexable, cached at the edge, and deliberately reveals nothing
-  beyond membership standing.
+- `/verify/[token]` is public, indexable, and deliberately reveals nothing beyond membership
+  standing — name, grade, folio number, current status. Not cached (a dynamic route hitting
+  Firestore per request; nothing here sets `revalidate` or a `Cache-Control` header — an
+  earlier version of this doc claimed edge caching that was never actually implemented).
 - `/doctors` is public but contains no contact details. Contact details live behind verification.
   If this line is ever crossed, the directory becomes a scraper's product.

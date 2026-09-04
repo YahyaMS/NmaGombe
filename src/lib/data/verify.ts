@@ -1,7 +1,12 @@
 /**
- * Server-only. Backs /verify/[folio] — the public credibility page.
+ * Server-only. Backs /verify/[token] — the public credibility page.
  * Admin SDK, never the client SDK: there is no Firestore query a browser can
  * issue against members directly. NEVER import this from a Client Component.
+ *
+ * Looks members up by verificationToken, an opaque high-entropy id — never by
+ * folioNumber. folioNumber is a few hundred sequential values (NMA/GM/nnnn),
+ * so a folio-keyed lookup let anyone walk the entire roster without ever
+ * holding a card. See docs/09-DECISIONS.md ADR-027.
  */
 
 import { adminDb } from '@/lib/firebase/admin'
@@ -9,23 +14,15 @@ import { adminDb } from '@/lib/firebase/admin'
 export interface VerifyResult {
   displayName: string
   grade: string | null
-  facility: string | null
   folioNumber: string
   status: 'verified' | 'not-current'
 }
 
-// The folio card's QR encodes hyphens in place of slashes (folioNumber.replace(/\//g, '-'))
-// so the value survives as a single URL segment — reverse that here, once, for every
-// consumer of the /verify/[folio] segment (the page and its opengraph-image).
-export function toStoredFolioNumber(segment: string): string {
-  return segment.replace(/-/g, '/')
-}
-
-export async function lookupByFolio(folioNumber: string): Promise<VerifyResult | null> {
+export async function lookupByToken(token: string): Promise<VerifyResult | null> {
   const snap = await adminDb
     .collection('members')
-    .where('folioNumber', '==', folioNumber)
-    .select('displayName', 'grade', 'facility', 'folioNumber', 'status')
+    .where('verificationToken', '==', token)
+    .select('displayName', 'grade', 'folioNumber', 'status')
     .limit(1)
     .get()
 
@@ -35,8 +32,7 @@ export async function lookupByFolio(folioNumber: string): Promise<VerifyResult |
   return {
     displayName: typeof data.displayName === 'string' ? data.displayName : '',
     grade: typeof data.grade === 'string' ? data.grade : null,
-    facility: typeof data.facility === 'string' ? data.facility : null,
-    folioNumber: typeof data.folioNumber === 'string' ? data.folioNumber : folioNumber,
+    folioNumber: typeof data.folioNumber === 'string' ? data.folioNumber : '',
     status: data.status === 'verified' ? 'verified' : 'not-current',
   }
 }

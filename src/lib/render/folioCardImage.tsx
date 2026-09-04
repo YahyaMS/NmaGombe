@@ -1,6 +1,6 @@
 /**
  * The folio card, rendered as a static image — shared by the /portal/card download
- * route and the /verify/[folio] OG image, so both are the same artefact at
+ * route and the /verify/[token] OG image, so both are the same artefact at
  * different sizes (design.md §6: "Build it at 2x and render it as an image for
  * download").
  *
@@ -34,9 +34,12 @@ export interface CardFaceData {
   bannerTone?: 'neutral' | 'harmattan'
 }
 
-/** Resolves the shared image/QR/font assets once, for either render entry point below. */
-export async function loadCardAssets(folioNumber: string) {
-  const verifyUrl = verifyUrlFor(folioNumber)
+/** Resolves the shared image/QR/font assets once, for either render entry point below.
+ *  `token` is the member's verificationToken (see qr.ts's verifyUrlFor) — required, because
+ *  this renders a static, one-shot PNG with no "not ready yet" state to fall back to. Every
+ *  caller must confirm the member actually has a token before calling this. */
+export async function loadCardAssets(token: string) {
+  const verifyUrl = verifyUrlFor(token)
   const [fonts, crestWhite, crestGreen, qr] = await Promise.all([
     cardFonts(),
     crestWhiteDataUrl(),

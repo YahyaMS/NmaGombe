@@ -24,9 +24,15 @@ export async function verifyQrDataUrl(verifyUrl: string): Promise<string> {
 }
 
 /**
- * Absolute /verify/[folio] URL, built from NEXT_PUBLIC_SITE_URL — never a
+ * Absolute /verify/[token] URL, built from NEXT_PUBLIC_SITE_URL — never a
  * hardcoded host. A QR that's technically real but encodes a domain that
  * doesn't resolve is the same practical failure as no QR at all.
+ *
+ * Takes the member's opaque verificationToken, not their folioNumber —
+ * folioNumber used to be the lookup key here, but it's a few hundred
+ * sequential values, so the whole roster was walkable without ever holding a
+ * card. See docs/09-DECISIONS.md ADR-027. token has no slashes, so unlike the
+ * old folio-based URL this needs no character-substitution round trip.
  *
  * NEXT_PUBLIC_SITE_URL is currently Vercel's own stable alias
  * (nma-gombe-tau.vercel.app), not yet the chapter's real domain (still open
@@ -35,6 +41,6 @@ export async function verifyQrDataUrl(verifyUrl: string): Promise<string> {
  * specifically, and why it would NOT be acceptable for a physically printed
  * one.
  */
-export function verifyUrlFor(folioNumber: string): string {
-  return new URL(`/verify/${folioNumber.replace(/\//g, '-')}`, env.NEXT_PUBLIC_SITE_URL).toString()
+export function verifyUrlFor(token: string): string {
+  return new URL(`/verify/${token}`, env.NEXT_PUBLIC_SITE_URL).toString()
 }

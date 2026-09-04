@@ -31,12 +31,19 @@ interface OwnCard {
   displayName: string
   gradeLine: string
   folioNumber: string
+  verificationToken: string | null
 }
 
+// Obvious specimen data, not a real member's card — a signed-out visitor gets
+// this to see what the feature looks like. Never a real person's details and
+// never a real verificationToken: this card is embedded in statically-served
+// public HTML, so a real token here would be permanently public with no way
+// to un-publish it. No verificationToken prop passed at all → FolioCard
+// renders its existing "nothing to scan" blank QR placeholder. See ADR-027.
 const DEMO_CARD = {
-  name: 'Dr. Yahya Musa Sulaiman',
-  grade: 'Consultant Obstetrician & Gynaecologist',
-  folioNumber: 'NMA/GM/62376',
+  name: 'Dr. Sample Doctor',
+  grade: 'Specimen card — not a real member',
+  folioNumber: 'NMA/GM/0000',
 }
 
 function destinationFor(state: DisplayAccountState): { label: string; href: string } {
@@ -78,8 +85,13 @@ export function HomeFolioCard({ copy }: { copy: ReactNode }) {
   const isPending = state === 'pending'
   const showingOwnCard = (state === 'member' || state === 'admin') && ownCard !== null
   const card = showingOwnCard
-    ? { name: ownCard!.displayName, grade: ownCard!.gradeLine, folioNumber: ownCard!.folioNumber }
-    : DEMO_CARD
+    ? {
+        name: ownCard!.displayName,
+        grade: ownCard!.gradeLine,
+        folioNumber: ownCard!.folioNumber,
+        verificationToken: ownCard!.verificationToken ?? undefined,
+      }
+    : { ...DEMO_CARD, verificationToken: undefined }
 
   return (
     <div
@@ -116,6 +128,7 @@ export function HomeFolioCard({ copy }: { copy: ReactNode }) {
             name={card.name}
             grade={card.grade}
             folioNumber={card.folioNumber}
+            verificationToken={card.verificationToken}
             status="dues-not-recorded"
           />
         )}

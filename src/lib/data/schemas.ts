@@ -99,6 +99,8 @@ export const memberProfileSchema = z.object({
   displayName: z.string(),
   department: z.string(),
   folioNumber: z.string(),
+  /** Function-only, minted by decideVerification on first approval — see ADR-027. Absent for a member never yet verified. */
+  verificationToken: z.string().optional(),
   email: z.string(),
   status: memberStatusSchema,
   role: z.enum(['member', 'exec', 'admin']),

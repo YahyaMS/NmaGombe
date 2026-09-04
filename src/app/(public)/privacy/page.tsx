@@ -78,6 +78,14 @@ export default function PrivacyPage() {
             explicitly opt in there too. We never sell your data or share it with recruiters,
             drug representatives, or anyone outside chapter administration.
           </p>
+          <p>
+            Your digital folio card also carries a QR code and a link — <code>/verify</code> —
+            that anyone who scans it or opens it can use to confirm your name, grade, folio
+            number and current membership standing. This is separate from directory listing and
+            doesn&rsquo;t depend on it: it&rsquo;s what a hospital, employer or checkpoint sees
+            when you show them your card, whether or not you&rsquo;ve opted into the public
+            directory. It never shows your facility, phone, WhatsApp or email.
+          </p>
         </Section>
 
         <Section title="Where it's stored">

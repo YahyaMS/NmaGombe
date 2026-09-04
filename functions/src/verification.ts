@@ -10,11 +10,19 @@
  * already gate the admin's own reads — the Admin SDK bypasses rules
  * entirely, so this Function must authorise itself. See CLAUDE.md rule #2
  * and docs/09-DECISIONS.md ADR-002.
+ *
+ * On first approval only, also mints verificationToken — the opaque,
+ * high-entropy id /verify/[token] looks members up by, replacing the
+ * enumerable folioNumber-based lookup it used to use. Guarded on the field
+ * being absent so re-approval after a later rejection never mints a second
+ * token and silently invalidates a card already in someone's WhatsApp. See
+ * ADR-027.
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
+import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 
 // Matches Firestore's region — see docs/09-DECISIONS.md ADR-008.
@@ -55,6 +63,7 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
   // Set the claim first — if this succeeds but the Firestore writes below
   // fail, a retry is safe (re-setting the same claim is a no-op) and the
   // "already decided" check above still lets it through.
+  let verificationToken: string | undefined
   if (decision === 'approve') {
     const user = await getAuth().getUser(uid)
     await getAuth().setCustomUserClaims(uid, {
@@ -62,12 +71,21 @@ export const decideVerification = onCall({ region: REGION }, async (request) => 
       role: (user.customClaims?.role as string | undefined) ?? 'member',
       verified: true,
     })
+
+    // Only if absent: a member rejected once, resubmitted, and approved later
+    // keeps whatever token they were already issued rather than getting a
+    // second one that would orphan a card already handed out.
+    const memberSnap = await memberRef.get()
+    if (!memberSnap.data()?.verificationToken) {
+      verificationToken = randomBytes(16).toString('base64url')
+    }
   }
 
   const batch = db.batch()
   batch.update(memberRef, {
     status: decision === 'approve' ? 'verified' : 'rejected',
     ...(decision === 'approve' ? { verifiedAt: FieldValue.serverTimestamp() } : {}),
+    ...(verificationToken ? { verificationToken } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   })
   batch.update(requestRef, {

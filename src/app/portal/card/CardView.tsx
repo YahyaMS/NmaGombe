@@ -120,6 +120,7 @@ export function CardView() {
           name={profile.displayName}
           grade={titleLine(profile)}
           folioNumber={profile.folioNumber}
+          verificationToken={profile.verificationToken}
           status={status}
         />
       </div>
