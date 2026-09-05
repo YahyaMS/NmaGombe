@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { existsSync } from 'fs'
 import path from 'path'
 import { HeaderAccountLink } from './HeaderAccountLink'
+import { MobileNavToggle } from './MobileNavToggle'
 
 // Crest is optional at build time; drop public/brand/crest.svg to enable.
 // Check happens server-side so there is no client-side flash.
@@ -125,6 +126,7 @@ export function SiteHeader() {
                 Officers&rsquo; Committee
               </Link>
             </li>
+            <MobileNavToggle />
             <HeaderAccountLink />
           </ul>
         </nav>

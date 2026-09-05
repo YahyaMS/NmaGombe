@@ -146,6 +146,37 @@ export default function AboutPage() {
             History
           </p>
 
+          {/* Large portrait, matching /executives' "bold and bigger" photo scale —
+              this is who is telling you the chapter's history, not a signature line. */}
+          <div className="flex items-center mb-lg" style={{ gap: 'var(--spacing-md)' }}>
+            <div
+              style={{
+                width: '160px',
+                height: '160px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                flexShrink: 0,
+                filter: 'grayscale(15%)',
+              }}
+            >
+              <Image
+                src="/photos/chairman NMA Gombe Dr Ishaq Inuwa Gombe.jpg"
+                alt=""
+                width={160}
+                height={160}
+                style={{ objectFit: 'cover', objectPosition: 'center top', width: '100%', height: '100%' }}
+              />
+            </div>
+            <div>
+              <p className="type-h3" style={{ color: 'var(--color-ink)' }}>
+                Dr. Ishaq Inuwa Gombe
+              </p>
+              <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+                Chairman, NMA Gombe State, 2026–present
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-md" style={{ maxWidth: '68ch' }}>
             <p className="type-body" style={{ color: 'var(--color-ink-2)' }}>
               The Gombe State Branch of the Nigerian Medical Association (NMA) is the primary
@@ -183,31 +214,9 @@ export default function AboutPage() {
               committed to camaraderie among doctors, protecting members&rsquo; interests, and
               improving health outcomes for the people of Gombe State.
             </p>
-            <div
-              className="flex items-center"
-              style={{ gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}
-            >
-              <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                }}
-              >
-                <Image
-                  src="/photos/chairman NMA Gombe Dr Ishaq Inuwa Gombe.jpg"
-                  alt=""
-                  width={48}
-                  height={48}
-                  style={{ objectFit: 'cover', objectPosition: 'center top', width: '100%', height: '100%' }}
-                />
-              </div>
-              <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
-                Written by Dr. Ishaq Inuwa Gombe, Chairman, NMA Gombe State, 2026–present.
-              </p>
-            </div>
+            <p className="type-small" style={{ color: 'var(--color-ink-3)', marginTop: 'var(--spacing-xs)' }}>
+              Written by Dr. Ishaq Inuwa Gombe, Chairman, NMA Gombe State, 2026–present.
+            </p>
           </div>
         </div>
       </section>
