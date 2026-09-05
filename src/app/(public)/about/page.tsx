@@ -183,9 +183,31 @@ export default function AboutPage() {
               committed to camaraderie among doctors, protecting members&rsquo; interests, and
               improving health outcomes for the people of Gombe State.
             </p>
-            <p className="type-small" style={{ color: 'var(--color-ink-3)', marginTop: 'var(--spacing-xs)' }}>
-              Written by Dr. Ishaq Inuwa Gombe, Chairman, NMA Gombe State, 2026–present.
-            </p>
+            <div
+              className="flex items-center"
+              style={{ gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}
+            >
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                <Image
+                  src="/photos/chairman NMA Gombe Dr Ishaq Inuwa Gombe.jpg"
+                  alt=""
+                  width={48}
+                  height={48}
+                  style={{ objectFit: 'cover', objectPosition: 'center top', width: '100%', height: '100%' }}
+                />
+              </div>
+              <p className="type-small" style={{ color: 'var(--color-ink-3)' }}>
+                Written by Dr. Ishaq Inuwa Gombe, Chairman, NMA Gombe State, 2026–present.
+              </p>
+            </div>
           </div>
         </div>
       </section>
