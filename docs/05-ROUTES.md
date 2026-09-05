@@ -51,6 +51,12 @@ route — that's a judgement call for whoever writes the line.
                          stays Firebase-SDK-free. Registration lives on /portal (the offline-tier
                          route), keyed to the same event by slug.
 /doctors                 [Built] Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
+/hospitals               [Built] Government and major private hospitals in Gombe State. Static
+                         reference content, not Firestore-backed. Addresses cross-checked against
+                         the state health-insurance agency's public provider directory
+                         (gmchma.gm.gov.ng) — a facility only carries an address here if it was
+                         named by the chapter AND matched there; nothing from that directory was
+                         added beyond what the chapter named.
 /verify/[token]          [Built] QR target from the membership card. `token` is the member's
                          opaque verificationToken, not their folio number (ADR-027) — a
                          folio-keyed lookup was a few hundred sequential values, so the

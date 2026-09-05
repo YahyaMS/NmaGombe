@@ -79,6 +79,18 @@ export function SiteHeader() {
             </li>
             <li className="hidden sm:block">
               <Link
+                href="/hospitals"
+                className="type-small transition-colors"
+                style={{
+                  color: 'rgba(255,255,255,0.75)',
+                  transitionDuration: 'var(--motion-fast)',
+                }}
+              >
+                Hospitals
+              </Link>
+            </li>
+            <li className="hidden sm:block">
+              <Link
                 href="/news"
                 className="type-small transition-colors"
                 style={{

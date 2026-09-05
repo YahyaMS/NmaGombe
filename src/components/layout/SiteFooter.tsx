@@ -38,6 +38,7 @@ export function SiteFooter() {
               {[
                 { href: '/about', label: 'About the chapter' },
                 { href: '/executives', label: "State Officers' Committee" },
+                { href: '/hospitals', label: 'Hospitals' },
                 { href: '/membership', label: 'Membership' },
                 { href: '/contact', label: 'Contact' },
                 { href: '/privacy', label: 'Privacy policy' },
