@@ -26,7 +26,12 @@ export interface VerificationDashboardSummary {
   recent: DashboardSignup[]
 }
 
-const RECENT_COUNT = 5
+// Deliberately generous, not just "however many fit on screen": the whole
+// verificationRequests collection is already read in full just below (to
+// count pendingCount), so raising this costs no extra Firestore reads — it
+// only changes how many of the already-fetched docs the dashboard hands to
+// the client for its "see more" reveal (RecentSignupsList.tsx).
+const RECENT_COUNT = 30
 
 export async function getVerificationDashboardSummary(): Promise<VerificationDashboardSummary> {
   const snap = await adminDb

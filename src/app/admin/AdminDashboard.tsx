@@ -5,8 +5,8 @@
  */
 
 import Link from 'next/link'
-import { getVerificationDashboardSummary, type DashboardSignup } from '@/lib/data/verificationAdmin'
-import { RegisterRow } from '@/components/ui/RegisterRow'
+import { getVerificationDashboardSummary } from '@/lib/data/verificationAdmin'
+import { RecentSignupsList } from './RecentSignupsList'
 
 const quickLinks = [
   { href: '/admin/verification', label: 'Verification queue' },
@@ -17,15 +17,6 @@ const quickLinks = [
   { href: '/admin/welfare', label: 'Welfare cases' },
   { href: '/admin/documents', label: 'Guidelines & documents' },
 ]
-
-function formatDate(iso: DashboardSignup['submittedAt']): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-NG', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'Africa/Lagos',
-  })
-}
 
 export async function AdminDashboard() {
   const { pendingCount, recent } = await getVerificationDashboardSummary()
@@ -59,19 +50,7 @@ export async function AdminDashboard() {
               No signups yet.
             </p>
           ) : (
-            recent.map((request, i) => (
-              <RegisterRow
-                key={request.id}
-                index={formatDate(request.submittedAt)}
-                primary={request.displayName || 'Unnamed'}
-                secondary={
-                  request.decision
-                    ? request.decision === 'approve' ? 'Approved' : 'Rejected'
-                    : 'Pending'
-                }
-                last={i === recent.length - 1}
-              />
-            ))
+            <RecentSignupsList recent={recent} />
           )}
         </div>
       </div>
