@@ -9,6 +9,7 @@ import { getOwnRegistration, registerForEvent } from '@/lib/data/registrations'
 import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
+import { useCardDownload } from './card/useCardDownload'
 import { env } from '@/lib/firebase/env'
 
 type Stage = 'loading' | 'ready' | 'offline' | 'no-profile' | 'error'
@@ -84,6 +85,7 @@ export function PortalDashboard() {
   const [nextEvent, setNextEvent] = useState<UpcomingEvent | null | undefined>(undefined)
   const [registered, setRegistered] = useState<boolean | undefined>(undefined)
   const [registering, setRegistering] = useState(false)
+  const { downloadState, downloadCard } = useCardDownload()
 
   useEffect(() => {
     if (guardState !== 'ready' || !uid) return
@@ -170,6 +172,7 @@ export function PortalDashboard() {
   }
 
   const status: FolioCardStatus = 'dues-not-recorded'
+  const missingProfile = !profile.grade || !profile.facility
 
   return (
     <div className="mx-auto px-md py-2xl" style={shellStyle}>
@@ -183,9 +186,63 @@ export function PortalDashboard() {
           name={profile.displayName}
           grade={titleLine(profile)}
           folioNumber={profile.folioNumber}
+          verificationToken={profile.verificationToken}
           status={status}
         />
       </div>
+
+      <div className="mt-lg flex flex-col items-center">
+        <button
+          type="button"
+          onClick={() => downloadCard(profile.displayName)}
+          disabled={downloadState === 'working'}
+          className="type-body font-semibold px-lg py-sm"
+          style={{
+            backgroundColor: 'var(--color-green)',
+            color: 'var(--color-surface)',
+            borderRadius: 'var(--radius)',
+            border: 'none',
+            cursor: downloadState === 'working' ? 'default' : 'pointer',
+            opacity: downloadState === 'working' ? 0.6 : 1,
+          }}
+        >
+          {downloadState === 'working' ? 'Preparing your card…' : 'Download card'}
+        </button>
+
+        {downloadState === 'error' && (
+          <p className="type-small mt-sm" style={{ color: 'var(--color-ink-3)', textAlign: 'center' }}>
+            {typeof navigator !== 'undefined' && !navigator.onLine
+              ? 'Connect to the internet to download your card.'
+              : 'Couldn’t prepare your card. Try again.'}
+          </p>
+        )}
+      </div>
+
+      {missingProfile && (
+        <div
+          className="mt-lg"
+          style={{
+            padding: 'var(--spacing-md)',
+            backgroundColor: 'var(--color-harmattan-wash)',
+            borderRadius: 'var(--radius)',
+          }}
+        >
+          <p className="type-body font-semibold" style={{ color: 'var(--color-ink)' }}>
+            Your profile isn&rsquo;t complete
+          </p>
+          <p className="type-small mt-xs" style={{ color: 'var(--color-ink-2)' }}>
+            Add your grade and facility so your folio card and directory listing show your
+            full title.
+          </p>
+          <Link
+            href="/portal/profile"
+            className="type-small font-semibold mt-sm inline-block"
+            style={{ color: 'var(--color-green)', textDecoration: 'underline' }}
+          >
+            Complete your profile →
+          </Link>
+        </div>
+      )}
 
       {profile.mdcnRenewalMonth && (
         <div

@@ -7,10 +7,9 @@ import { subscribeToOwnMemberProfile } from '@/lib/data/members'
 import { classifyDisconnection } from '@/lib/data/classifyDisconnection'
 import { gradeLabels, type MemberProfile } from '@/lib/data/schemas'
 import { FolioCard, type FolioCardStatus } from '@/components/ui/FolioCard'
-import { auth } from '@/lib/firebase/client'
+import { useCardDownload } from './useCardDownload'
 
 type Stage = 'loading' | 'ready' | 'offline' | 'no-profile' | 'error'
-type DownloadState = 'idle' | 'working' | 'error'
 
 function titleLine(profile: MemberProfile): string {
   const grade = profile.grade ? gradeLabels[profile.grade] : ''
@@ -21,37 +20,7 @@ export function CardView() {
   const { state: guardState, uid } = useVerifiedMemberGuard()
   const [stage, setStage] = useState<Stage>('loading')
   const [profile, setProfile] = useState<MemberProfile | null>(null)
-  const [downloadState, setDownloadState] = useState<DownloadState>('idle')
-
-  async function downloadCard(displayName: string) {
-    if (!navigator.onLine) {
-      setDownloadState('error')
-      return
-    }
-    setDownloadState('working')
-    try {
-      const user = auth.currentUser
-      if (!user) throw new Error('signed-out')
-      const idToken = await user.getIdToken()
-      const res = await fetch('/portal/card/download', {
-        headers: { Authorization: `Bearer ${idToken}` },
-      })
-      if (!res.ok) throw new Error('download-failed')
-
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `NMA-Gombe-${displayName.replace(/^dr\.?\s+/i, '').trim().replace(/[^a-zA-Z0-9]+/g, '-')}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      setDownloadState('idle')
-    } catch {
-      setDownloadState('error')
-    }
-  }
+  const { downloadState, downloadCard } = useCardDownload()
 
   useEffect(() => {
     if (guardState !== 'ready' || !uid) return
