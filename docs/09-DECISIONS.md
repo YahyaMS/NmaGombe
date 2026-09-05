@@ -1219,6 +1219,35 @@ deliberately not the exact string `Implemented`, so `check-threat-model.mjs` (AD
 it to a bar it honestly doesn't clear. It beats the nothing that existed before, for the routes it
 does cover, and no more than that.
 
+**Correction, found the day after this shipped.** The full smoke suite broke — 7 of 29 tests, all
+with `429` console errors — the first time it ran against this change after it landed. Root cause,
+found by direct repro against a real running server rather than guessed from reading the code: on
+the Node runtime, when nothing upstream sets `x-forwarded-for`, Next fills it in from the raw
+socket address rather than leaving it absent — `::1` locally, and the same loopback value in CI,
+since Playwright's browser also connects over loopback. Every request in local dev and CI therefore
+shared one bucket regardless of which of dozens of concurrent, unrelated requests sent it — a
+legitimate parallel-test-worker request volume, not an abuse pattern, tripped the same limit meant
+for a scripted attacker.
+
+The first attempted fix exempted the literal string `'unknown'` (the case where the header is
+genuinely absent) — shipped, then re-tested with the same direct-repro method (curl in a loop
+against a real server, not just trusting the diff), and it didn't hold: `clientIp()` never actually
+returns `'unknown'` in this runtime, because the header is never actually absent. Diagnosed properly
+by logging the resolved value server-side rather than guessing again — confirmed `::1` — before
+writing the real fix: exempt loopback addresses (`::1`, `127.0.0.1`) specifically, alongside the
+already-correct `'unknown'` case. Re-ran the exact same repro (0/100 requests rate-limited, versus
+40/100 before) and the full smoke suite (29/29) before trusting it this time. Costs nothing in
+production: Vercel's edge always sets this header to the real internet-facing client IP for a real
+external request, never a loopback address, so exempting loopback can never let a real attacker
+through.
+
+The lesson this cost a day to learn: `npm run test:smoke` was not re-run after this change shipped,
+only `typecheck`/`lint`/`build`/`check:budget`/unit tests — the exact gap the smoke suite exists to
+close (`tests/smoke/pages.spec.ts`'s own header: "invisible to tsc, eslint and unit tests"). A
+change to `proxy.ts`, which every single request in the app passes through, is precisely the
+highest-blast-radius class of edit this project has, and it shipped without the one check that
+would have caught it same-day instead of next-day.
+
 ---
 
 ## ADR-033 — Rules test suite gets `list`/query coverage for every `allow list` clause

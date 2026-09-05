@@ -122,4 +122,29 @@ describe('proxy — rate limiting on /verify, /doctors, /api', () => {
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('https://example.com/signin')
   })
+
+  // Regression test: this exact scenario broke the smoke suite twice. First
+  // attempt at a fix exempted the literal string 'unknown' (no
+  // x-forwarded-for header at all) — didn't hold, because a direct repro
+  // against a real running server showed Next fills the header in from the
+  // raw socket address on Node rather than leaving it absent: '::1' locally,
+  // real loopback in CI too. Every request in local dev/CI shares that one
+  // address regardless of which of many concurrent, unrelated requests sent
+  // it. Both cases are covered here since both are real: an environment
+  // where the header is truly absent, and this one, where Next supplies a
+  // loopback value instead.
+  test('requests with no x-forwarded-for header are never rate-limited', async () => {
+    for (let i = 0; i < 200; i++) {
+      const req = new NextRequest('https://example.com/doctors')
+      const res = await proxy(req)
+      expect(res.status).not.toBe(429)
+    }
+  })
+
+  test('requests from a loopback address (::1, 127.0.0.1 — what Next actually supplies locally and in CI) are never rate-limited', async () => {
+    for (let i = 0; i < 200; i++) {
+      const res = await proxy(requestFrom(i % 2 === 0 ? '::1' : '127.0.0.1', '/doctors'))
+      expect(res.status).not.toBe(429)
+    }
+  })
 })

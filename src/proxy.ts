@@ -47,7 +47,26 @@ function clientIp(request: NextRequest): string {
   return forwarded ? forwarded.split(',')[0].trim() : 'unknown'
 }
 
+// Confirmed by direct repro, not assumed: on Node (this runs on the Node
+// runtime, not Edge — see this file's own header comment), when nothing sets
+// x-forwarded-for upstream, Next fills it in from the raw socket's own
+// address rather than leaving it absent — '::1' or '127.0.0.1' locally, and
+// the same in CI, since Playwright's browser also connects over loopback.
+// Every request in local dev and CI therefore shares one bucket regardless of
+// which of many concurrent, unrelated test workers sent it — confirmed the
+// hard way, when this broke the smoke suite the first time this shipped, and
+// an initial fix that only special-cased the literal string 'unknown' didn't
+// touch it, because the header is never actually absent here. On Vercel in
+// production this never fires for a real external client — Vercel's edge
+// always sets the header to the real internet-facing IP, never a loopback
+// address — so exempting loopback here costs nothing real.
+function isLoopback(ip: string): boolean {
+  return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('127.')
+}
+
 function isRateLimited(ip: string): boolean {
+  if (ip === 'unknown' || isLoopback(ip)) return false
+
   const now = Date.now()
   const entry = requestCounts.get(ip)
   if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
