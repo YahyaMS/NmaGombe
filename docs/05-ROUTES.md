@@ -50,7 +50,13 @@ route — that's a judgement call for whoever writes the line.
 /events/[slug]           [Built] Detail: date, location, description. No register action here —
                          stays Firebase-SDK-free. Registration lives on /portal (the offline-tier
                          route), keyed to the same event by slug.
-/doctors                 [Built] Public find-a-doctor. Name, specialty, facility ONLY. No contacts.
+/doctors                 [Built] Public find-a-doctor. No contacts, ever. Photo/bio/achievements
+                         appear only when a member opted each one in twice — its own visibility
+                         flag AND publicListingConsent, see ADR-035.
+/doctors/[uid]           [Built] A public member's expanded profile, when they have one — 404 if
+                         nothing in publicDirectory for that uid. Same posture as /doctors: Admin
+                         SDK, zero client JS, no contacts. uid is a Firebase Auth id (long, random),
+                         not the enumerable-key problem ADR-027 fixed on /verify.
 /hospitals               [Built] Government and major private hospitals in Gombe State. Static
                          reference content, not Firestore-backed. Addresses cross-checked against
                          the state health-insurance agency's public provider directory
@@ -127,9 +133,22 @@ route — that's a judgement call for whoever writes the line.
                                  isn't in that rollout yet). Offline cache via Firestore's
                                  persistent local cache (lib/firebase/client.ts).
 /portal/directory/[uid]          [Built] Member detail, subject to that member's visibility flags.
-                                 Same directoryEntries doc, one field.
-/portal/profile                  [Built] Edit own details, set per-field visibility, set MDCN
-                                 renewal month.
+                                 Same directoryEntries doc, one field. Photo/bio/achievements/
+                                 languages/qualifiedYear render when present — see ADR-035.
+/portal/profile                  [Built] Edit own details, set per-field visibility (now including
+                                 photo, bio, achievements), set MDCN renewal month. Photo upload is
+                                 a separate action (client-resized to JPEG, lib/image.ts) from the
+                                 rest of the form's save — see lib/data/members.ts.
+GET /api/profile-photo/[uid]     [Built] Streams a member's profile photo — deliberately not a
+                                 Storage getDownloadURL(), see ADR-035. __session cookie auth
+                                 (verifySession), not Bearer — loaded by a plain <img src>
+                                 everywhere a photo appears, which can't attach a custom header.
+                                 Three audiences: the member's own uploaded photo (always,
+                                 regardless of visibility.photo — previewing your own upload isn't
+                                 "someone else seeing it"), a verified member if visibility.photo,
+                                 or unauthenticated when the target has publicListingConsent AND
+                                 visibility.photo both — re-checked live on every request, so
+                                 revoking any of these takes effect on the next load.
 /portal/cpd                      [Built] CPD log: add self-reported entries, attach a certificate
                                  after the fact (offline-friendly — entry creation doesn't wait on
                                  an upload), export a print-optimised summary carrying its own

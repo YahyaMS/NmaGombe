@@ -77,7 +77,9 @@ delete:
 8. The Firebase Auth user itself (`getAuth().deleteUser(uid)`) — done last, since several of the
    steps above (rules-based reads during cleanup, confirming ownership) assume the account still
    resolves.
-9. **Backups (ADR-030):** none of the above reaches the daily managed backup already taken. The
+9. **Storage: `profile-photos/{uid}/photo.jpg`** (ADR-035) — not a Firestore document, so nothing
+   above touches it; delete the object directly if `members/{uid}.hasPhoto` was ever true.
+10. **Backups (ADR-030):** none of the above reaches the daily managed backup already taken. The
    member's data persists in that snapshot for up to 7 days after this checklist is completed,
    which is disclosed as a genuine (if bounded) extension of the deletion timeline — not
    something engineering can shorten without giving up the backup itself.
@@ -112,3 +114,8 @@ purpose, its lawful basis, its retention period, and who can read it. No row, no
 | `events.lastEditedBy` / `lastEditedAt`, `news.lastEditedBy` / `lastEditedAt` | records which exec corrected an already-published event or communiqué, and when — an accountability trail on a write that can change what members were told or how much CPD credit an event carries, not a record about a member | legitimate interest (accountability for a correction to public/member-facing content) | while the item exists | admin only |
 | `jobs.contactVia` | lets a member reach the poster of a locum/job listing by WhatsApp or call | consent (member posts it themselves, member-initiated) | until the listing is deleted — expired listings are swept by a scheduled Function 30 days after `expiresAt` (60-day compulsory-expiry cap means at most ~90 days total from posting) | verified members (the listing is member-visible, not public) |
 | `jobs.postedBy` | identifies who posted a listing, for the owner-only edit/delete/mark-filled path and exec moderation | contract (membership administration) | same as `jobs.contactVia` | self, admin/exec (for moderation) |
+| `hasPhoto` (Storage: `profile-photos/{uid}/photo.jpg`) | lets a colleague recognise the member in the directory; a real photograph is personal data in its own right, not just a flag | consent (opt-in — `visibility.photo`) | while a member; deleted from Storage as part of the manual erasure checklist above, since it isn't a Firestore document | self, admin; verified members if `visibility.photo`; public if that **and** `publicListingConsent` (ADR-035) |
+| `bio` | free-text professional background, so a colleague deciding whether to refer a patient has more than a name and a specialty to go on | consent (opt-in — `visibility.bio`) | while a member | self, admin; verified members if `visibility.bio`; public if that **and** `publicListingConsent` |
+| `achievements` (structured list, ≤10 entries) | credentials/fellowships/notable work the member chooses to list | consent (opt-in — `visibility.achievements`) | while a member | self, admin; verified members if `visibility.achievements`; public if that **and** `publicListingConsent` |
+| `qualifiedYear` | coarse seniority signal ("practising since 2014") for a referral decision | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` — same always-shown tier as `grade`/`facility`, no separate visibility flag |
+| `languages` | which languages the member speaks, practically useful for patient care in a multilingual state | contract (membership administration) | while a member | self, admin; verified members if directory-listed; public if `publicListingConsent` — same tier as `qualifiedYear` |

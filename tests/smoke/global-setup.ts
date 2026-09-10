@@ -29,6 +29,7 @@ import { adminAuth, adminDb } from '../../src/lib/firebase/admin'
 // just their not-found branches.
 export const SMOKE_EVENT_SLUG = 'smoke-test-event'
 export const SMOKE_NEWS_SLUG = 'smoke-test-news'
+export const SMOKE_PUBLIC_DOCTOR_UID = 'smoke-test-public-doctor'
 
 const AUTH_EMULATOR_HOST = 'localhost:9099'
 
@@ -129,5 +130,23 @@ export default async function globalSetup(): Promise<void> {
     category: 'communique',
     status: 'published',
     publishedAt: new Date(),
+  })
+
+  // Seeded directly, bypassing the real opt-in flow — this is publicDirectory
+  // as onMemberWrite would have produced it for a member with photo/bio/
+  // achievements visibility AND publicListingConsent all on, so
+  // /doctors/[uid] has something real to render, not just its not-found
+  // branch. See ADR-035.
+  await adminDb.doc(`publicDirectory/${SMOKE_PUBLIC_DOCTOR_UID}`).set({
+    displayName: 'Dr. Smoke Test Public',
+    department: 'General Practice',
+    grade: 'consultant',
+    facility: 'Test Fixture Hospital',
+    folioNumber: 'NMA/GM/SMOKE-003',
+    qualifiedYear: 2015,
+    languages: 'English',
+    bio: 'Seeded by tests/smoke/global-setup.ts — not a real bio.',
+    achievements: ['Seeded achievement'],
+    searchTokens: ['dr', 'smoke', 'test', 'public', 'general', 'practice'],
   })
 }

@@ -68,7 +68,23 @@ facility                // optional at signup, editable in /portal/profile. Also
 grade ("consultant"|"resident"|"medical_officer"|"house_officer"|"retired")  // set in
                         // /portal/profile — not collected at signup (ADR-014)
 subspecialty, town, phone, whatsapp   // set later, in /portal/profile
-visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool }
+bio                     // free text, <=500 chars (client Zod + rules-level cap — the first
+                        // profile field with a rules-level length guard; see ADR-035).
+achievements: string[]  // structured list, <=10 entries, each <=200 chars. Member adds/removes
+                        // lines in /portal/profile — not a paragraph, a list of credentials.
+qualifiedYear           // number, optional. Always projected when present (like grade/facility) —
+                        // a seniority signal, not treated as sensitive contact detail.
+languages               // free text, optional. Same always-projected tier as qualifiedYear.
+hasPhoto                // bool. The photo's actual bytes live in Storage at the deterministic
+                        // path profile-photos/{uid}/photo.jpg (client-resized to JPEG before
+                        // upload, lib/image.ts) — never a URL or path string in this document,
+                        // so there is nothing here for a rule to have to police. Served only via
+                        // GET /api/profile-photo/[uid] (Admin SDK), never a Storage download URL
+                        // — see ADR-022 and ADR-035 on why that distinction matters for revocation.
+visibility: { phone: bool, whatsapp: bool, email: bool, facility: bool, photo: bool, bio: bool, achievements: bool }
+                        // photo/bio/achievements gate the member directory AND, combined with
+                        // publicListingConsent below, the public /doctors page — one decision
+                        // per field, not two. See ADR-035.
 publicListingConsent: { granted: bool, at: string, noticeVersion: string }  // default absent
                         // (= not granted). A ConsentRecord, not a bare boolean — NDPA requires
                         // being able to show when and under what notice text someone consented,
@@ -99,8 +115,9 @@ approval, so a profile edit after verification stays in sync instead of going st
 Upserted while `status === "verified"`; deleted otherwise (suspension/rejection removes the
 member from the directory).
 ```
-displayName, department, grade?, subspecialty?, facility?, town?
+displayName, department, grade?, subspecialty?, facility?, town?, qualifiedYear?, languages?
 phone?, whatsapp?      // present only if that visibility flag is true
+hasPhoto?, bio?, achievements?  // present only if the matching visibility flag is true
 verifiedAt
 searchTokens: string[] // lowercased name + department tokens for prefix search
 ```
@@ -113,7 +130,10 @@ access at all** — `allow read, write: if false`. Read only via the Admin SDK f
 Component; there is no Firestore query a browser can issue against this collection, which is the
 point: nothing to scrape, nothing to widen by accident.
 ```
-displayName, department, grade?, facility?, town?, folioNumber
+displayName, department, grade?, facility?, town?, folioNumber, qualifiedYear?, languages?
+hasPhoto?, bio?, achievements?  // present only when the member's own visibility flag for that
+                                 // field is true AND publicListingConsent.granted is true — the
+                                 // same flags that gate directoryEntries, doubled up. See ADR-035.
 searchTokens: string[] // same shape as directoryEntries
 ```
 Never phone, whatsapp, or email — no code path writes them here. Upserted by the same

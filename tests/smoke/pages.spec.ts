@@ -10,13 +10,14 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { signInAs } from "./auth";
-import { SMOKE_EVENT_SLUG, SMOKE_NEWS_SLUG } from "./global-setup";
+import { SMOKE_EVENT_SLUG, SMOKE_NEWS_SLUG, SMOKE_PUBLIC_DOCTOR_UID } from "./global-setup";
 
 const publicRoutes = [
   "/",
   "/about",
   "/executives",
   "/hospitals",
+  "/doctors",
   "/news",
   "/membership",
   "/contact",
@@ -62,6 +63,25 @@ for (const route of publicRoutes) {
     await expect(page.getByRole("banner")).toBeVisible();
   });
 }
+
+test("/doctors/[uid] renders a real public profile, not just its not-found branch", async ({ page }) => {
+  const res = await page.goto(`/doctors/${SMOKE_PUBLIC_DOCTOR_UID}`);
+  expect(res?.status()).toBeLessThan(400);
+  await expect(page.getByRole("heading", { name: "Dr. Smoke Test Public" })).toBeVisible();
+  await expect(page.getByText("Seeded by tests/smoke/global-setup.ts — not a real bio.")).toBeVisible();
+});
+
+test("/doctors/[uid] 404s for a uid with no public profile", async ({ page }) => {
+  const res = await page.goto("/doctors/no-such-public-doctor");
+  expect(res?.status()).toBe(404);
+  // A genuine 404 navigation logs its own "Failed to load resource: 404"
+  // console error in Chromium — that's the browser reporting the top-level
+  // document's own status, not a regression. Every other test in this file
+  // expects a real page to load with nothing logged, so this is the one
+  // deliberate exception: clear it before the shared afterEach's strict
+  // empty-array check runs.
+  consoleAndPageErrors.set(page, []);
+});
 
 test.describe("header reflects real auth state, not just self-consistency", () => {
   // The exact bug that shipped: header rendered signed-out on server-rendered

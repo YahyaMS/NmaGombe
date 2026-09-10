@@ -1386,3 +1386,117 @@ high/critical advisory, which CI now catches; erasure requests becoming routine 
 Accepting a gap without writing down what would make it stop being acceptable is how "rate-limited
 search" and "App Check enforced" ended up asserted as done for years — see ADR-031. This ADR is
 deliberately written to fail that test.
+
+---
+
+## ADR-035 — Profile photo, bio, structured achievements: one visibility flag decides both the member directory and the public page
+
+**Context.** Requested directly by the association congress: members wanted a way to be
+recognisable and assessable in the directory beyond a bare name/grade/specialty — the anchor
+persona (`docs/01-PRD.md`: "a verified colleague to refer a patient to, today") often needs more
+than that to actually make a referral decision. Photo, bio and achievements were the three asked
+for; `qualifiedYear` (seniority) and `languages` were added on top as the same kind of signal,
+deliberately not consultation-hours/availability (goes stale, implies a real-time guarantee this
+site doesn't make) or external profile links (low value for a same-state referral decision).
+
+**Decision, photo serving.** Not `getDownloadURL()`. This codebase already has a live example of
+why not (ADR-022, CPD certificates, F-09/ADR-034) — a download-URL token keeps working forever
+once issued, independent of `storage.rules`, which would directly break the opt-out this feature
+exists to provide: a member switching photo visibility off has to actually stop being visible on
+the next page load, not whenever their old URL happens to expire (never). So: client uploads
+directly to Storage (mirrors the CPD pattern, which is fine for a *write*), always to the
+deterministic path `profile-photos/{uid}/photo.jpg` — client-resized to JPEG first (`lib/image.ts`,
+native canvas, no dependency) so a phone-camera photo doesn't cost several megabytes of someone's
+paid data. `storage.rules` denies read entirely; every read goes through
+`GET /api/profile-photo/[uid]`, which re-reads `members/{uid}`'s current `visibility.photo` and
+`publicListingConsent` on *every* request before streaming the file via the Admin SDK. `hasPhoto`
+is the only Firestore-side signal — never a path or URL string, so there's nothing for a rule to
+have to police, and no injection surface (a member can't point their own `hasPhoto` at someone
+else's photo, because the route never reads a path from Firestore at all — it always looks at
+`profile-photos/{the-uid-in-the-URL}/photo.jpg`).
+
+**Decision, "let the member decide" about public visibility.** Reused the existing per-field
+`visibility` mechanism rather than inventing a second consent flag. `visibility.photo`,
+`visibility.bio`, `visibility.achievements` gate the member directory exactly like
+`visibility.phone`/`visibility.whatsapp` already did; the *same* flag, combined with the
+already-existing `publicListingConsent`, additionally gates the public `/doctors` page. One
+checkbox is the member's whole decision for a given field — reaching the public page needs that
+checkbox **and** the general public-listing switch, same two-gate shape every other public field
+already uses (ADR-013). `qualifiedYear`/`languages` were deliberately put in the *other* existing
+tier instead — always projected when present, like `grade`/`facility`, no extra checkbox — since
+they read as professional facts, not personal exposure, and the visibility section was already
+growing toward seven checkboxes without them.
+
+**Decision, achievements are a structured list, not a paragraph.** `achievements: string[]`,
+capped at 10 entries of 200 characters each (`schemas.ts`), with real add/remove UI in
+`/portal/profile` rather than a textarea a member free-writes into. Bounded twice: client Zod at
+submit time, and again inside `onMemberWrite`'s projection itself (`.slice(0, 10)`) — defence in
+depth, so a rules regression can't turn into an unbounded array reaching every directory reader.
+
+**Decision, public detail page.** `/doctors` had no per-member page at all before this — a flat
+list only. Granting public consent for a photo/bio/achievements with nowhere to actually show them
+would make the consent inert, so `/doctors/[uid]` was added, mirroring
+`/portal/directory/[uid]`'s structure but Admin-SDK/zero-client-JS like the rest of `/doctors`, and
+with the same no-contacts boundary (`publicDirectory` has never carried phone/whatsapp/email — ADR
+013 — so there's nothing to filter here either). `uid` in the URL is a Firebase Auth id — long and
+random, not the sequential-key enumeration problem ADR-027 fixed on `/verify`.
+
+**Rules.** No `firestore.rules` change was needed to let a member write `bio`/`achievements`/
+`qualifiedYear`/`languages`/`hasPhoto` at all — the `members/{uid}` update rule is a denylist of
+trust fields, not an allowlist, so any new non-trust field is already self-writable. Added a
+`profileEnrichmentValid()` length/shape guard anyway, specifically for `bio`/`achievements`/
+`languages`/`qualifiedYear`/`hasPhoto` — genuinely more rules-level rigour than `department`/
+`facility`/`subspecialty` get today, which have no rules-level cap at all, client Zod only. Adding
+it here rather than retrofitting the older fields, noted so the asymmetry is a visible choice, not
+an oversight. New `storage.rules` block for `profile-photos/{uid}/{file}`, mirroring `cpd/{uid}`'s
+write shape (self-write, size- and content-type-capped at 2MB/`image/*`) and `guidelines/{id}`'s
+read shape (`allow read: if false` — the whole point, see above).
+
+**Function.** No new Cloud Function — extends `onMemberWrite`'s existing projection
+(`functions/src/directory-projection.ts`), already the single source of truth with real test
+coverage (ADR-029), extended with new cases for the opt-in tier (photo/bio/achievements, each
+independently gated) and the always-on tier (`qualifiedYear`/`languages`).
+
+**Consequence.** Every write path this feature needed already existed in shape (self-writable
+non-trust field, Admin-SDK-only projection, Admin-SDK-only file serving) — nothing here is a new
+security pattern, just new fields flowing through patterns ADR-013/014/022/027 already established
+and proved out. The one genuinely new surface is `/api/profile-photo/[uid]`, and it exists
+specifically because the alternative (a Storage download URL) would have quietly broken the
+opt-out on day one.
+
+**Three real bugs, found only by an actual upload against a running server, not by reading the
+diff.** First version of this route required Bearer `<ID token>` auth, copied from
+`/portal/card/download`'s shape — wrong model to copy: that route is a deliberate `fetch()`
+triggered by a click, which can set a header; `MemberPhoto.tsx` is a plain `<img src>`, used
+everywhere a photo appears, and a browser will never attach a custom header to one. Every photo
+silently failed to load, everywhere, with no error surfaced anywhere in the UI — the upload
+"succeeded" (the button correctly flipped to "Change photo," since that only depends on the
+Firestore write), but the image itself was permanently a broken load. Fixed by switching to
+`verifySession`/`__session` (the same helper `/api/portal/own-card` already uses), which the
+browser attaches to a same-origin `<img>` request automatically.
+
+Second, found while fixing the first and re-testing: the route also required `visibility.photo`
+even for the photo's own owner, so a member couldn't preview what they'd just uploaded until they
+had *also* turned on directory visibility and saved the rest of the form — previewing your own
+upload isn't the same decision as letting a colleague see it, and the route conflated the two.
+Fixed by checking `session.uid === uid` first and allowing that case unconditionally, before the
+`visibility.photo`/`publicListingConsent` checks that gate everyone else.
+
+Third, and not specific to this route at all: with both of those fixed, the photo still 404'd. Not
+a permissions problem this time — server-side diagnostic logging (the same technique that found
+the `proxy.ts` loopback bug, ADR-032) showed `session`/`isSelf` were both correct, and the actual
+failure was inside the file download itself: `adminStorage.bucket()` throwing "Bucket name not
+specified or invalid." `lib/firebase/admin.ts`'s emulator branch sets the Firestore/Auth/Storage
+emulator hosts but never sets `storageBucket` on `initializeApp()` — the production branch gets it
+from `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, the emulator branch never did. This is not new to this
+feature: `lib/data/documentsAdmin.ts` calls `adminStorage.bucket()` the same bare way, for the
+guidelines-document upload/download path that has existed for months — meaning that path has
+likely never worked in local dev against the emulators either, undiscovered until this route's own
+testing happened to exercise the same code. Fixed once, at the source
+(`initializeApp({ projectId, storageBucket: ... })` in the emulator branch), rather than patched
+per call site — every current and future `adminStorage.bucket()` caller benefits, not just this one.
+
+All three were caught by the same method every other finding in this document that survived
+contact with a real server was caught by: uploading a real file through a real signed-in session
+and checking what actually happened — the `<img>` tag's `naturalWidth`, then server-side logs when
+that wasn't enough — not reading the code and reasoning that it should work.
