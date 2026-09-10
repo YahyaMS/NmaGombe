@@ -8,6 +8,7 @@ import { gradeLabels } from '@/lib/data/schemas'
 import { whatsAppLink, telLink } from '@/lib/whatsapp'
 import { RegisterRow } from '@/components/ui/RegisterRow'
 import { BottomSheet } from '@/components/ui/BottomSheet'
+import { MemberPhoto } from '@/components/ui/MemberPhoto'
 
 type Stage = 'loading' | 'ready' | 'error' | 'never-synced'
 
@@ -287,9 +288,11 @@ export function DirectoryView() {
                   primary={
                     <Link
                       href={`/portal/directory/${row.uid}`}
-                      style={{ color: 'inherit', textDecoration: 'none' }}
+                      className="flex items-center"
+                      style={{ gap: 'var(--spacing-sm)', color: 'inherit', textDecoration: 'none' }}
                     >
-                      {row.displayName}
+                      <MemberPhoto uid={row.uid} hasPhoto={row.hasPhoto} displayName={row.displayName} size={32} />
+                      <span>{row.displayName}</span>
                     </Link>
                   }
                   secondary={titleLine(row)}

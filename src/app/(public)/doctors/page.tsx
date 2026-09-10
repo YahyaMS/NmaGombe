@@ -1,13 +1,16 @@
 /**
- * /doctors — public find-a-doctor. Name, specialty, facility ONLY, never
- * contacts (docs/05-ROUTES.md) — the source collection (publicDirectory)
- * never contains phone/WhatsApp/email to begin with, so there's nothing to
- * filter out here. Zero client JS, same philosophy as /news: plain GET links
- * and a plain search form, no live-as-you-type. Specialty pills are derived
- * from whatever departments actually exist in the current roster, same idea
- * as /portal/directory's specialty filter (docs/05-ROUTES.md), computed here
- * server-side against the full (unfiltered) dataset so they don't disappear
- * once a search narrows the results.
+ * /doctors — public find-a-doctor. Never contacts (docs/05-ROUTES.md) — the
+ * source collection (publicDirectory) never contains phone/WhatsApp/email to
+ * begin with, so there's nothing to filter out here. Photo/bio/achievements
+ * appear only when a member opted each one in twice over — its own
+ * visibility flag AND publicListingConsent, see docs/09-DECISIONS.md — so
+ * most rows here are still name/grade/specialty/facility only. Zero client
+ * JS, same philosophy as /news: plain GET links and a plain search form, no
+ * live-as-you-type. Specialty pills are derived from whatever departments
+ * actually exist in the current roster, same idea as /portal/directory's
+ * specialty filter (docs/05-ROUTES.md), computed here server-side against
+ * the full (unfiltered) dataset so they don't disappear once a search
+ * narrows the results.
  */
 
 import type { Metadata } from 'next'
@@ -15,6 +18,7 @@ import Link from 'next/link'
 import { listPublicDirectory, type PublicDirectoryRow } from '@/lib/data/publicDirectory'
 import { gradeLabels } from '@/lib/data/schemas'
 import { RegisterRow } from '@/components/ui/RegisterRow'
+import { MemberPhoto } from '@/components/ui/MemberPhoto'
 
 export const metadata: Metadata = {
   title: 'Find a doctor — NMA Gombe',
@@ -56,8 +60,8 @@ export default async function DoctorsPage({
             Verified doctors in Gombe State
           </h1>
           <p className="type-body mt-md" style={{ color: 'rgba(255,255,255,0.75)', maxWidth: '48ch' }}>
-            Name, specialty and facility only. For contact details, a member must sign in to the
-            directory.
+            Never contact details — a member must sign in to the directory for those. Some doctors
+            have also chosen to share a photo, bio or achievements here.
           </p>
         </div>
       </header>
@@ -122,7 +126,13 @@ export default async function DoctorsPage({
             results.map((row, i) => (
               <RegisterRow
                 key={row.uid}
-                primary={row.displayName}
+                href={`/doctors/${row.uid}`}
+                primary={
+                  <span className="flex items-center" style={{ gap: 'var(--spacing-sm)' }}>
+                    <MemberPhoto uid={row.uid} hasPhoto={row.hasPhoto} displayName={row.displayName} size={32} />
+                    <span>{row.displayName}</span>
+                  </span>
+                }
                 secondary={secondaryLine(row)}
                 last={i === results.length - 1}
               />

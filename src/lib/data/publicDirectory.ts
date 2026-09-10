@@ -25,3 +25,12 @@ export async function listPublicDirectory(): Promise<PublicDirectoryRow[]> {
   }
   return rows
 }
+
+/** /doctors/[uid] — same collection, one document. uid is a Firebase Auth id
+ *  (long, random, not sequential) — not the enumeration shape ADR-027 fixed. */
+export async function getPublicDirectoryEntry(uid: string): Promise<PublicDirectoryRow | null> {
+  const snap = await adminDb.collection('publicDirectory').doc(uid).get()
+  if (!snap.exists) return null
+  const parsed = publicDirectoryEntrySchema.safeParse(snap.data())
+  return parsed.success ? { uid: snap.id, ...parsed.data } : null
+}

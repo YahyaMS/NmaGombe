@@ -1,13 +1,21 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
-import { getOwnMemberProfile, updateOwnProfile } from '@/lib/data/members'
-import { profileUpdateSchema, gradeLabels, type ProfileUpdateInput, type Grade } from '@/lib/data/schemas'
+import { getOwnMemberProfile, updateOwnProfile, uploadProfilePhoto, removeProfilePhoto } from '@/lib/data/members'
+import {
+  profileUpdateSchema,
+  gradeLabels,
+  BIO_MAX_LENGTH,
+  type ProfileUpdateInput,
+  type Grade,
+} from '@/lib/data/schemas'
 import { Field, inputStyle, labelStyle } from '@/components/ui/Field'
+import { MemberPhoto } from '@/components/ui/MemberPhoto'
 
 type Stage = 'loading' | 'ready' | 'saving' | 'saved' | 'error'
+type PhotoState = 'idle' | 'uploading' | 'removing' | 'error'
 
 const primaryButtonStyle = {
   backgroundColor: 'var(--color-green)',
@@ -25,9 +33,13 @@ const emptyForm: ProfileUpdateInput = {
   town: '',
   phone: '',
   whatsapp: '',
-  visibility: { phone: false, whatsapp: false, email: false, facility: false },
+  visibility: { phone: false, whatsapp: false, email: false, facility: false, photo: false, bio: false, achievements: false },
   publicListingConsent: false,
   mdcnRenewalMonth: undefined,
+  bio: '',
+  achievements: [],
+  qualifiedYear: undefined,
+  languages: '',
 }
 
 const monthLabels = [
@@ -63,11 +75,18 @@ export function ProfileForm() {
   const [form, setForm] = useState<ProfileUpdateInput>(emptyForm)
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({})
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState('')
+  const [hasPhoto, setHasPhoto] = useState(false)
+  const [photoState, setPhotoState] = useState<PhotoState>('idle')
+  const [achievementDraft, setAchievementDraft] = useState('')
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (guardState !== 'ready' || !uid) return
     void getOwnMemberProfile(uid).then((profile) => {
       if (profile) {
+        setDisplayName(profile.displayName)
+        setHasPhoto(profile.hasPhoto ?? false)
         setForm({
           department: profile.department ?? '',
           grade: (profile.grade as Grade) ?? 'consultant',
@@ -79,11 +98,50 @@ export function ProfileForm() {
           visibility: profile.visibility ?? emptyForm.visibility,
           publicListingConsent: profile.publicListingConsent?.granted ?? false,
           mdcnRenewalMonth: profile.mdcnRenewalMonth,
+          bio: profile.bio ?? '',
+          achievements: profile.achievements ?? [],
+          qualifiedYear: profile.qualifiedYear,
+          languages: profile.languages ?? '',
         })
       }
       setStage('ready')
     })
   }, [guardState, uid])
+
+  async function handlePhotoSelected(file: File) {
+    if (!uid) return
+    setPhotoState('uploading')
+    try {
+      await uploadProfilePhoto(uid, file)
+      setHasPhoto(true)
+      setPhotoState('idle')
+    } catch {
+      setPhotoState('error')
+    }
+  }
+
+  async function handleRemovePhoto() {
+    if (!uid) return
+    setPhotoState('removing')
+    try {
+      await removeProfilePhoto(uid)
+      setHasPhoto(false)
+      setPhotoState('idle')
+    } catch {
+      setPhotoState('error')
+    }
+  }
+
+  function addAchievement() {
+    const value = achievementDraft.trim()
+    if (!value) return
+    setForm((f) => ({ ...f, achievements: [...(f.achievements ?? []), value].slice(0, 10) }))
+    setAchievementDraft('')
+  }
+
+  function removeAchievement(index: number) {
+    setForm((f) => ({ ...f, achievements: (f.achievements ?? []).filter((_, i) => i !== index) }))
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -162,6 +220,54 @@ export function ProfileForm() {
         </p>
       )}
 
+      <div className="flex items-center mt-lg" style={{ gap: 'var(--spacing-md)' }}>
+        <MemberPhoto uid={uid ?? ''} hasPhoto={hasPhoto} displayName={displayName} size={96} />
+        <div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void handlePhotoSelected(file)
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoState === 'uploading' || photoState === 'removing'}
+            className="type-small font-semibold px-md py-xs"
+            style={{
+              backgroundColor: 'var(--color-green-wash)',
+              color: 'var(--color-green)',
+              borderRadius: 'var(--radius)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {photoState === 'uploading' ? 'Uploading…' : hasPhoto ? 'Change photo' : 'Add photo'}
+          </button>
+          {hasPhoto && (
+            <button
+              type="button"
+              onClick={handleRemovePhoto}
+              disabled={photoState === 'uploading' || photoState === 'removing'}
+              className="type-small mt-sm block"
+              style={{ color: 'var(--color-ink-3)', textDecoration: 'underline', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              {photoState === 'removing' ? 'Removing…' : 'Remove photo'}
+            </button>
+          )}
+          {photoState === 'error' && (
+            <p className="type-small mt-xs" style={{ color: 'var(--color-danger)' }}>
+              Couldn&rsquo;t save that photo. Try again.
+            </p>
+          )}
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-md mt-lg" noValidate>
         <Field
           label="Department (specialty)"
@@ -222,6 +328,102 @@ export function ProfileForm() {
           value={form.whatsapp ?? ''}
           onChange={(v) => setForm((f) => ({ ...f, whatsapp: v }))}
         />
+        <Field
+          label="Languages spoken (optional)"
+          name="languages"
+          value={form.languages ?? ''}
+          onChange={(v) => setForm((f) => ({ ...f, languages: v }))}
+        />
+        <Field
+          label="Practising since (year, optional)"
+          name="qualifiedYear"
+          type="number"
+          value={form.qualifiedYear ? String(form.qualifiedYear) : ''}
+          onChange={(v) => setForm((f) => ({ ...f, qualifiedYear: v ? Number(v) : undefined }))}
+          error={fieldErrors.qualifiedYear}
+        />
+
+        <div>
+          <label htmlFor="bio" className="type-small font-semibold" style={labelStyle}>
+            Bio (optional)
+          </label>
+          <textarea
+            id="bio"
+            value={form.bio ?? ''}
+            maxLength={BIO_MAX_LENGTH}
+            rows={4}
+            onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+          <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+            {(form.bio ?? '').length}/{BIO_MAX_LENGTH}
+          </p>
+        </div>
+
+        <div>
+          <p className="type-small font-semibold" style={labelStyle}>
+            Achievements (optional)
+          </p>
+          {(form.achievements ?? []).length > 0 && (
+            <ul className="list-none m-0 p-0 flex flex-col gap-xs mb-sm">
+              {(form.achievements ?? []).map((item, i) => (
+                <li
+                  key={`${item}-${i}`}
+                  className="flex items-center justify-between type-small"
+                  style={{
+                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                    backgroundColor: 'var(--color-green-wash)',
+                    borderRadius: 'var(--radius)',
+                    color: 'var(--color-ink)',
+                  }}
+                >
+                  <span>{item}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAchievement(i)}
+                    aria-label={`Remove ${item}`}
+                    style={{ color: 'var(--color-ink-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(form.achievements ?? []).length < 10 && (
+            <div className="flex gap-sm">
+              <input
+                type="text"
+                value={achievementDraft}
+                maxLength={200}
+                placeholder="e.g. Fellowship, West African College of Surgeons, 2019"
+                onChange={(e) => setAchievementDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addAchievement()
+                  }
+                }}
+                style={{ ...inputStyle, flex: 1 }}
+                aria-label="Add an achievement"
+              />
+              <button
+                type="button"
+                onClick={addAchievement}
+                className="type-small font-semibold px-md"
+                style={{
+                  backgroundColor: 'var(--color-green-wash)',
+                  color: 'var(--color-green)',
+                  borderRadius: 'var(--radius)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Add
+              </button>
+            </div>
+          )}
+        </div>
 
         <div>
           <label htmlFor="mdcnRenewalMonth" className="type-small font-semibold" style={labelStyle}>
@@ -276,7 +478,26 @@ export function ProfileForm() {
               checked={form.visibility.facility}
               onChange={(v) => setForm((f) => ({ ...f, visibility: { ...f.visibility, facility: v } }))}
             />
+            <Checkbox
+              label="Photo"
+              checked={form.visibility.photo}
+              onChange={(v) => setForm((f) => ({ ...f, visibility: { ...f.visibility, photo: v } }))}
+            />
+            <Checkbox
+              label="Bio"
+              checked={form.visibility.bio}
+              onChange={(v) => setForm((f) => ({ ...f, visibility: { ...f.visibility, bio: v } }))}
+            />
+            <Checkbox
+              label="Achievements"
+              checked={form.visibility.achievements}
+              onChange={(v) => setForm((f) => ({ ...f, visibility: { ...f.visibility, achievements: v } }))}
+            />
           </div>
+          <p className="type-small mt-sm" style={{ color: 'var(--color-ink-3)' }}>
+            Turning one of these on also decides whether it can appear on the public find-a-doctor
+            page below — each still needs that separate switch on too.
+          </p>
         </div>
 
         <div style={{ borderTop: '1px solid var(--color-rule)', paddingTop: 'var(--spacing-md)' }}>
@@ -286,8 +507,9 @@ export function ProfileForm() {
             onChange={(v) => setForm((f) => ({ ...f, publicListingConsent: v }))}
           />
           <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
-            Off by default. Shows only your name, grade, specialty and facility to the public —
-            never phone, WhatsApp or email.
+            Off by default. Shows your name, grade, specialty and facility — plus your photo, bio
+            and achievements if you also switched those on above — to the public. Never phone,
+            WhatsApp or email.
           </p>
         </div>
 

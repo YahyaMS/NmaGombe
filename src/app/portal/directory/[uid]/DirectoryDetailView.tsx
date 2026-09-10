@@ -6,6 +6,7 @@ import { useVerifiedMemberGuard } from '@/lib/auth/useVerifiedMemberGuard'
 import { getDirectoryEntry, type DirectoryRow } from '@/lib/data/directory'
 import { gradeLabels } from '@/lib/data/schemas'
 import { whatsAppLink, telLink } from '@/lib/whatsapp'
+import { MemberPhoto } from '@/components/ui/MemberPhoto'
 
 type Stage = 'loading' | 'ready' | 'not-found' | 'error'
 
@@ -84,18 +85,54 @@ export function DirectoryDetailView({ uid }: { uid: string }) {
         Directory
       </Link>
 
-      <h1 className="type-h2 mt-md" style={{ color: 'var(--color-ink)' }}>
-        {entry.displayName}
-      </h1>
-      {titleLine && (
-        <p className="type-body mt-xs" style={{ color: 'var(--color-ink-2)' }}>
-          {titleLine}
-        </p>
-      )}
+      <div className="flex items-center mt-md" style={{ gap: 'var(--spacing-md)' }}>
+        <MemberPhoto uid={entry.uid} hasPhoto={entry.hasPhoto} displayName={entry.displayName} size={72} />
+        <div>
+          <h1 className="type-h2" style={{ color: 'var(--color-ink)' }}>
+            {entry.displayName}
+          </h1>
+          {titleLine && (
+            <p className="type-body mt-xs" style={{ color: 'var(--color-ink-2)' }}>
+              {titleLine}
+            </p>
+          )}
+        </div>
+      </div>
       {locationLine && (
         <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
           {locationLine}
         </p>
+      )}
+      {entry.languages && (
+        <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+          Speaks {entry.languages}
+        </p>
+      )}
+      {entry.qualifiedYear && (
+        <p className="type-small mt-xs" style={{ color: 'var(--color-ink-3)' }}>
+          Practising since {entry.qualifiedYear}
+        </p>
+      )}
+
+      {entry.bio && (
+        <p className="type-body mt-lg" style={{ color: 'var(--color-ink-2)' }}>
+          {entry.bio}
+        </p>
+      )}
+
+      {entry.achievements && entry.achievements.length > 0 && (
+        <div className="mt-lg">
+          <p className="type-eyebrow" style={{ color: 'var(--color-ink-3)' }}>
+            Achievements
+          </p>
+          <ul className="mt-sm" style={{ paddingLeft: '1.2em' }}>
+            {entry.achievements.map((item, i) => (
+              <li key={`${item}-${i}`} className="type-small mt-xs" style={{ color: 'var(--color-ink-2)' }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {(wa || call) && (
