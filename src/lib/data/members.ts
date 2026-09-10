@@ -14,7 +14,8 @@ import {
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { db, getStorageClient } from '@/lib/firebase/client'
+import { resizeImageToJpeg } from '@/lib/image'
 import {
   memberSignupSchema,
   memberProfileSchema,
@@ -96,8 +97,41 @@ export async function updateOwnProfile(uid: string, input: ProfileUpdateInput): 
       noticeVersion: PUBLIC_LISTING_CONSENT_NOTICE_VERSION,
     },
     mdcnRenewalMonth: parsed.mdcnRenewalMonth ?? deleteField(),
+    bio: parsed.bio || deleteField(),
+    achievements: parsed.achievements && parsed.achievements.length > 0 ? parsed.achievements : deleteField(),
+    qualifiedYear: parsed.qualifiedYear ?? deleteField(),
+    languages: parsed.languages || deleteField(),
     updatedAt: serverTimestamp(),
   })
+}
+
+/**
+ * Resized client-side to a JPEG before upload (lib/image.ts) — always written
+ * to the same deterministic path, profile-photos/{uid}/photo.jpg, never a
+ * free-form path string in Firestore. hasPhoto is the only Firestore-side
+ * signal; the actual bytes are only ever read back through
+ * /api/profile-photo/[uid], never a Storage download URL — see storage.rules'
+ * comment on this path for why that matters for revocation.
+ */
+export async function uploadProfilePhoto(uid: string, file: File): Promise<void> {
+  const resized = await resizeImageToJpeg(file, 512)
+  const [{ ref, uploadBytes }, storage] = await Promise.all([
+    import('firebase/storage'),
+    getStorageClient(),
+  ])
+  await uploadBytes(ref(storage, `profile-photos/${uid}/photo.jpg`), resized, { contentType: 'image/jpeg' })
+  await updateDoc(doc(db, 'members', uid), { hasPhoto: true, updatedAt: serverTimestamp() })
+}
+
+export async function removeProfilePhoto(uid: string): Promise<void> {
+  const [{ ref, deleteObject }, storage] = await Promise.all([
+    import('firebase/storage'),
+    getStorageClient(),
+  ])
+  // Already-gone is not an error here — the Firestore flag is the source of
+  // truth for whether a photo "exists" from the app's point of view.
+  await deleteObject(ref(storage, `profile-photos/${uid}/photo.jpg`)).catch(() => {})
+  await updateDoc(doc(db, 'members', uid), { hasPhoto: false, updatedAt: serverTimestamp() })
 }
 
 /** One-time read of the signed-in member's own profile, to prefill /portal/profile. */

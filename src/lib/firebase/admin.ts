@@ -25,7 +25,16 @@ function getAdminApp(): App {
     process.env.FIRESTORE_EMULATOR_HOST ??= 'localhost:8080'
     process.env.FIREBASE_AUTH_EMULATOR_HOST ??= 'localhost:9099'
     process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= 'localhost:9199'
-    return initializeApp({ projectId })
+    // Without this, adminStorage.bucket() (called with no argument — every
+    // call site does this, see lib/data/documentsAdmin.ts and
+    // api/profile-photo/[uid]/route.ts) throws "Bucket name not specified or
+    // invalid" against the emulator, because there's nothing here for it to
+    // default to the way the production branch below gets it from
+    // `storageBucket`. Found by direct repro (a real upload against a real
+    // running server, not by reading the code): every existing Admin-SDK
+    // Storage read/write in this codebase was silently broken in local dev,
+    // not just the one this was found while building. See ADR-035.
+    return initializeApp({ projectId, storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET })
   }
 
   const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64
