@@ -520,7 +520,7 @@ describe('members/{uid} — profile self-update', () => {
         town: 'Gombe',
         phone: '+2348001234567',
         whatsapp: '+2348001234567',
-        visibility: { phone: true, whatsapp: false, email: false, facility: true },
+        visibility: { phone: true, whatsapp: false, email: false, facility: true, photo: false, bio: false, achievements: false },
         // A ConsentRecord, not a bare boolean (schemas.ts) — matches what
         // updateOwnProfile actually sends, not just what rules would allow.
         publicListingConsent: { granted: true, at: new Date().toISOString(), noticeVersion: '2026-08-25' },
@@ -542,6 +542,42 @@ describe('members/{uid} — profile self-update', () => {
         facility: 'Federal Teaching Hospital Gombe',
         role: 'admin',
       })
+    )
+  })
+
+  test('verified member can set bio, achievements, qualifiedYear, languages and hasPhoto', async () => {
+    const db = verified(uid).firestore()
+    await assertSucceeds(
+      updateDoc(doc(db, `members/${uid}`), {
+        bio: 'Consultant paediatrician with an interest in neonatal care.',
+        achievements: ['Fellowship, West African College of Physicians, 2019'],
+        qualifiedYear: 2010,
+        languages: 'English, Hausa',
+        hasPhoto: true,
+      })
+    )
+  })
+
+  test('bio over 500 characters is rejected', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { bio: 'x'.repeat(501) })
+    )
+  })
+
+  test('more than 10 achievements is rejected', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), {
+        achievements: Array.from({ length: 11 }, (_, i) => `Achievement ${i}`),
+      })
+    )
+  })
+
+  test('hasPhoto must be a boolean, not e.g. a string', async () => {
+    const db = verified(uid).firestore()
+    await assertFails(
+      updateDoc(doc(db, `members/${uid}`), { hasPhoto: 'true' })
     )
   })
 })

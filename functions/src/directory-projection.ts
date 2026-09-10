@@ -66,6 +66,23 @@ export async function projectMember(
   const visibility = (after.visibility ?? {}) as Record<string, boolean>
   const tokens = searchTokens(displayName, department, subspecialty ?? '', facility ?? '')
 
+  // Seniority/language signal, not personal contact detail — projected
+  // unconditionally when present, the same tier as grade/facility, not
+  // behind a visibility flag.
+  const qualifiedYear = typeof after.qualifiedYear === 'number' ? after.qualifiedYear : undefined
+  const languages = str(after.languages)
+
+  // Opt-in tier: each gated by its own visibility flag. bio/achievements are
+  // also capped again here (defence in depth — firestore.rules already caps
+  // them at write time) so a regression in the rules can't turn into an
+  // unbounded document via this trigger.
+  const bio = visibility.bio ? str(after.bio)?.slice(0, 500) : undefined
+  const achievementsRaw = visibility.achievements && Array.isArray(after.achievements)
+    ? (after.achievements as unknown[]).filter((a): a is string => typeof a === 'string').slice(0, 10)
+    : undefined
+  const achievements = achievementsRaw && achievementsRaw.length > 0 ? achievementsRaw : undefined
+  const hasPhoto = visibility.photo && after.hasPhoto === true ? true : undefined
+
   await directoryRef.set({
     displayName,
     department,
@@ -73,15 +90,24 @@ export async function projectMember(
     ...(subspecialty ? { subspecialty } : {}),
     ...(facility ? { facility } : {}),
     ...(town ? { town } : {}),
+    ...(qualifiedYear ? { qualifiedYear } : {}),
+    ...(languages ? { languages } : {}),
     ...(visibility.phone && after.phone ? { phone: after.phone } : {}),
     ...(visibility.whatsapp && after.whatsapp ? { whatsapp: after.whatsapp } : {}),
+    ...(hasPhoto ? { hasPhoto } : {}),
+    ...(bio ? { bio } : {}),
+    ...(achievements ? { achievements } : {}),
     verifiedAt: after.verifiedAt ?? FieldValue.serverTimestamp(),
     searchTokens: tokens,
   })
 
   // Public listing needs explicit consent — see ADR-013/014. Never phone,
   // whatsapp, or email: this object literal is the only place that could
-  // ever leak them here, and it doesn't reference either field.
+  // ever leak them here, and it doesn't reference either field. photo/bio/
+  // achievements reuse the SAME visibility flag that gates the member
+  // directory above — "let the member decide" is one checkbox, not two;
+  // reaching the public page additionally requires publicListingConsent,
+  // same as every other public field.
   if (consentGranted(after.publicListingConsent)) {
     await publicRef.set({
       displayName,
@@ -89,6 +115,11 @@ export async function projectMember(
       ...(grade ? { grade } : {}),
       ...(facility ? { facility } : {}),
       ...(town ? { town } : {}),
+      ...(qualifiedYear ? { qualifiedYear } : {}),
+      ...(languages ? { languages } : {}),
+      ...(hasPhoto ? { hasPhoto } : {}),
+      ...(bio ? { bio } : {}),
+      ...(achievements ? { achievements } : {}),
       folioNumber: str(after.folioNumber) ?? '',
       searchTokens: tokens,
     })

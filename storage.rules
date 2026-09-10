@@ -22,6 +22,23 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Profile photos — member-uploaded, client-resized to JPEG before upload
+    // (lib/data/members.ts), always at profile-photos/{uid}/photo.jpg, so
+    // there is no free-form path string anywhere for a member to write or a
+    // rule to have to police. read: if false, same reasoning as guidelines
+    // below — a profile photo can be made visible to colleagues, or to the
+    // public, or to neither, and that decision has to be able to change; a
+    // Storage download URL would keep the old answer working forever. All
+    // reads go through /api/profile-photo/[uid] (Admin SDK), which re-checks
+    // members/{uid}'s current visibility.photo and publicListingConsent on
+    // every request.
+    match /profile-photos/{uid}/{file} {
+      allow read: if false;
+      allow write: if isSelf(uid)
+                   && request.resource.size < 2 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // Public site imagery.
     match /public/{file} {
       allow read: if true;

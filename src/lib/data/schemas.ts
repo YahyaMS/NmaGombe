@@ -69,8 +69,22 @@ export const visibilitySchema = z.object({
   whatsapp: z.boolean(),
   email: z.boolean(),
   facility: z.boolean(),
+  // Each gates the field for the member directory; combined with
+  // publicListingConsent it also gates the same field on the public /doctors
+  // page — one decision per field, not two. See docs/09-DECISIONS.md.
+  photo: z.boolean(),
+  bio: z.boolean(),
+  achievements: z.boolean(),
 })
 export type Visibility = z.infer<typeof visibilitySchema>
+
+/** A single achievement line — "Fellowship, West African College of Surgeons, 2019". */
+export const achievementSchema = z.string().trim().min(1).max(200)
+export const achievementsSchema = z.array(achievementSchema).max(10)
+export const BIO_MAX_LENGTH = 500
+export const bioSchema = z.string().trim().max(BIO_MAX_LENGTH)
+export const qualifiedYearSchema = z.number().int().min(1950).max(new Date().getFullYear())
+export const languagesSchema = z.string().trim().max(160)
 
 /**
  * Bump whenever the consent language shown next to the public-listing
@@ -115,6 +129,15 @@ export const memberProfileSchema = z.object({
   duesPaidThrough: z.number().optional(),
   /** 1-12. Member-entered, for a reminder only — never fees, never payment. See ADR/CLAUDE.md. */
   mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
+  bio: bioSchema.optional(),
+  achievements: achievementsSchema.optional(),
+  qualifiedYear: qualifiedYearSchema.optional(),
+  languages: languagesSchema.optional(),
+  /** Set by uploadProfilePhoto/removeProfilePhoto (lib/data/members.ts), not the
+   *  main profile form submit — a photo is its own upload step. Storage path is
+   *  always the deterministic profile-photos/{uid}/photo.jpg, never stored here,
+   *  so there is no client-writable path string for a rule to have to police. */
+  hasPhoto: z.boolean().optional(),
 })
 export type MemberProfile = z.infer<typeof memberProfileSchema>
 
@@ -133,6 +156,10 @@ export const profileUpdateSchema = z.object({
   // time. The form only ever needs to say yes/no, not stamp itself.
   publicListingConsent: z.boolean(),
   mdcnRenewalMonth: z.number().int().min(1).max(12).optional(),
+  bio: bioSchema.optional(),
+  achievements: achievementsSchema.optional(),
+  qualifiedYear: qualifiedYearSchema.optional(),
+  languages: languagesSchema.optional(),
 })
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>
 
@@ -150,6 +177,14 @@ export const directoryEntrySchema = z.object({
   town: z.string().optional(),
   phone: z.string().optional(),
   whatsapp: z.string().optional(),
+  // Always projected when present, like grade/facility — a seniority/language
+  // signal, not something a member is likely to want to hide from colleagues.
+  qualifiedYear: z.number().optional(),
+  languages: z.string().optional(),
+  // Opt-in tier — present only when visibility.{photo,bio,achievements} is true.
+  hasPhoto: z.boolean().optional(),
+  bio: z.string().optional(),
+  achievements: z.array(z.string()).optional(),
   searchTokens: z.array(z.string()),
 })
 export type DirectoryEntry = z.infer<typeof directoryEntrySchema>
@@ -167,6 +202,15 @@ export const publicDirectoryEntrySchema = z.object({
   facility: z.string().optional(),
   town: z.string().optional(),
   folioNumber: z.string(),
+  qualifiedYear: z.number().optional(),
+  languages: z.string().optional(),
+  // Present only when the member enabled both the field's own visibility
+  // flag AND publicListingConsent — the same per-field decision that gates
+  // the member directory, extended to the public page. Never phone,
+  // whatsapp, or email — unchanged from before this feature.
+  hasPhoto: z.boolean().optional(),
+  bio: z.string().optional(),
+  achievements: z.array(z.string()).optional(),
   searchTokens: z.array(z.string()),
 })
 export type PublicDirectoryEntry = z.infer<typeof publicDirectoryEntrySchema>

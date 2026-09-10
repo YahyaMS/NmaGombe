@@ -24,6 +24,22 @@ service cloud.firestore {
         || request.resource.data.folioNumber == resource.data.folioNumber;
     }
 
+    // Self-writable, not trust fields — but bounded, unlike department/facility/
+    // subspecialty, which have no rules-level cap at all (client Zod only).
+    // Added here rather than retrofitted onto the older fields.
+    function profileEnrichmentValid() {
+      return (!('bio' in request.resource.data)
+              || (request.resource.data.bio is string && request.resource.data.bio.size() <= 500))
+        && (!('achievements' in request.resource.data)
+            || (request.resource.data.achievements is list && request.resource.data.achievements.size() <= 10))
+        && (!('languages' in request.resource.data)
+            || (request.resource.data.languages is string && request.resource.data.languages.size() <= 160))
+        && (!('qualifiedYear' in request.resource.data)
+            || request.resource.data.qualifiedYear is number)
+        && (!('hasPhoto' in request.resource.data)
+            || request.resource.data.hasPhoto is bool);
+    }
+
     // Full member profile: self or admin only. Never readable by another member.
     match /members/{uid} {
       allow get, list: if isSelf(uid) || isAdmin();
@@ -33,7 +49,7 @@ service cloud.firestore {
                     && request.resource.data.email == request.auth.token.email
                     && !('duesPaidThrough' in request.resource.data)
                     && !('verifiedAt' in request.resource.data);
-      allow update: if (isSelf(uid) && noTrustFieldChanges() && folioUnchangedIfVerified())
+      allow update: if (isSelf(uid) && noTrustFieldChanges() && folioUnchangedIfVerified() && profileEnrichmentValid())
                     || (isAdmin() && noTrustFieldChanges());
       allow delete: if false; // deletion is a Function, so payment records stay consistent
     }
