@@ -80,8 +80,7 @@ export function SiteFooter() {
           className="type-small mt-md"
           style={{ color: 'rgba(255,255,255,0.45)' }}
         >
-          Designed and built for the chapter by Dr Yahya MS — Obstetrics &amp; Gynaecology,
-          Federal Teaching Hospital Gombe.
+          Designed by Dr Yahya MS O&amp;G Department FTH Gombe.
         </p>
       </div>
     </footer>
